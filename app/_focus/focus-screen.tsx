@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { chime, unlockAudio } from "@/lib/feedback";
+import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
+import { useSessions } from "@/lib/sessions-data";
 import {
   FOCUS_MODE_LABEL,
   LEAVE_GRACE_MS,
@@ -17,6 +19,9 @@ import {
   type Status,
 } from "@/lib/timer";
 import { useWakeLock } from "@/lib/use-wake-lock";
+import { LiveFish } from "../_tank/live-fish";
+import { ResultFish } from "../_tank/result-fish";
+import { Tank } from "../_tank/tank";
 import { SetupForm } from "./setup-form";
 
 // Every way a session ends goes through here. Order matters: the row is queued
@@ -38,6 +43,10 @@ export function FocusScreen() {
   // Upload any sessions that couldn't be saved earlier, and keep retrying.
   useEffect(() => startSync(), []);
 
+  // Fish are derived from the sessions, never stored separately.
+  const { rows, error } = useSessions();
+  const aquarium = useMemo(() => (rows ? deriveAquarium(rows) : null), [rows]);
+
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
   // Wake lock only for Deep Focus: Open Focus users are using the device anyway.
   useWakeLock(
@@ -49,16 +58,21 @@ export function FocusScreen() {
   );
 
   if (saved === null) return <p className="text-center text-zinc-500">Loading…</p>;
-  if (session && status) return <RunningView session={session} status={status} />;
-  if (saved.result) return <ResultView result={saved.result} />;
+  if (session && status) {
+    return <RunningView session={session} status={status} now={now ?? session.startedAt} />;
+  }
+  if (saved.result) return <ResultView result={saved.result} aquarium={aquarium} />;
   return (
-    <SetupForm
-      onStart={(s) => {
-        unlockAudio(); // this runs inside the Start tap, which phones require for sound
-        // The id is generated here, once, and becomes the database row's id.
-        save({ session: { ...s, id: crypto.randomUUID() }, result: null });
-      }}
-    />
+    <>
+      <Tank aquarium={aquarium} error={error} />
+      <SetupForm
+        onStart={(s) => {
+          unlockAudio(); // this runs inside the Start tap, which phones require for sound
+          // The id is generated here, once, and becomes the database row's id.
+          save({ session: { ...s, id: crypto.randomUUID() }, result: null });
+        }}
+      />
+    </>
   );
 }
 
@@ -136,7 +150,15 @@ function useSessionClock(active: boolean): number | null {
   return now;
 }
 
-function RunningView({ session, status }: { session: Session; status: Status }) {
+function RunningView({
+  session,
+  status,
+  now,
+}: {
+  session: Session;
+  status: Status;
+  now: number;
+}) {
   const [confirming, setConfirming] = useState(false);
 
   // A second tap is needed to give up; the first one expires after 3 s.
@@ -199,8 +221,8 @@ function RunningView({ session, status }: { session: Session; status: Status }) 
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-8">
-      <div className="flex flex-col items-center gap-2 pt-4">
+    <div className="flex flex-1 flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-1">
         <p className="text-sm text-zinc-500">{FOCUS_MODE_LABEL[open ? "open" : "deep"]}</p>
         <p
           className={`text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
@@ -209,6 +231,8 @@ function RunningView({ session, status }: { session: Session; status: Status }) 
         </p>
         <p className="text-7xl font-semibold tabular-nums sm:text-8xl">{time}</p>
       </div>
+
+      <LiveFish session={session} now={now} />
 
       <p className="max-w-xs text-center text-zinc-500">{hint}</p>
 
@@ -229,7 +253,7 @@ function RunningView({ session, status }: { session: Session; status: Status }) 
   );
 }
 
-function ResultView({ result }: { result: Result }) {
+function ResultView({ result, aquarium }: { result: Result; aquarium: Aquarium | null }) {
   const { title, detail } = describe(result);
   const failed = result.outcome === "failed";
 
@@ -242,6 +266,8 @@ function ResultView({ result }: { result: Result }) {
         {title}
       </h2>
       <p className="text-zinc-500">{detail}</p>
+
+      <ResultFish result={result} aquarium={aquarium} />
 
       <dl className="grid w-full grid-cols-2 gap-3 text-left">
         <Stat label="Focus minutes" value={String(Math.floor(result.focusMs / 60_000))} />

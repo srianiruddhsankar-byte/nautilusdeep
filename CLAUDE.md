@@ -22,6 +22,11 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/focus-storage.ts` — running session in localStorage (built on `lib/local-store.ts`); `lib/feedback.ts` — chime/vibrate; `lib/use-wake-lock.ts`
 - `lib/session-record.ts` — pure `Result` → `sessions` row mapping (tested). `lib/save-queue.ts` — localStorage outbox that uploads finished sessions and retries
 - `app/_focus/` — focus screen UI (private folder, not a route); `recent-sessions.tsx` is the Phase 3 "is saving working?" list
+- `lib/fish.ts` — pure fish derivation: sessions → tanks, fish sizes, bones (tested in `lib/fish.test.ts`).
+  `lib/fish-look.ts` — a fish's colours/pattern/swim seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
+  all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
+- `app/_tank/` — tank UI: `tank.tsx`, `fish-sprite.tsx` (SVG fish/egg/bone), `live-fish.tsx`, `result-fish.tsx`,
+  `skins.tsx` (the tank's look; `SHALLOWS` is the default), `tank.css` (all animation + reduced-motion rules)
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
 
@@ -52,10 +57,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
     Only leaving is ignored: Give up still fails a timer, same as Deep Focus.
 
 ### Fish
-- One session = one fish. It grows live on screen during the session.
-- Final size by session length: small < 25 min, medium 25–49, large 50–89, rare 90+.
-- Leaving the app during focus kills the fish: no coins, +1 "bone" (bones = count of fish lost).
+- Fish are DERIVED from `sessions` (never stored): one source of truth, so rule changes apply to past fish too.
+- One completed or partial session with at least 5 focus minutes = one fish; under 5 min = no fish (anti-farming).
+  Deep and Open Focus earn fish the same way. It grows live on screen during the session.
+- Size by focus minutes (partial cycles: banked minutes): small < 25, medium 25–49, large 50–89, rare 90+.
+- Every failed session = +1 "bone" (bones = count of fish lost). No coins for failed sessions.
 - Leaving during breaks is safe.
+- A fish's look is seeded from its session id (same session → same fish everywhere). Don't change the
+  order of random draws in `fishLook()`, or every existing fish changes.
 
 ### Cycle mode
 - One fish for the whole cycle set, with checkpoints.
@@ -71,7 +80,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - The study streak is tracked separately from plants.
 
 ### Tanks
-- Fixed size (e.g. 10 fish). When full, a new tank starts.
+- 10 fish per tank, filled oldest first. The 11th fish starts Tank 2, and so on. Opens on the newest tank.
 - The default tank is "Shallows". Total study hours unlock deeper-water skins (list and thresholds TBD).
 
 ### Stats and data
@@ -93,8 +102,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 ## Roadmap
 - Phase 1 (done): project setup + Google login, protected home page saying "Hi, [name]", sign-out, public `/privacy`.
 - Phase 2 (done): timer, stopwatch and cycle modes with leave detection and localStorage restore; Deep/Open Focus.
-- Phase 3: save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list. No fish, coins or stats screen.
-- Phase 4 (rules decided, not implemented yet):
-  - Sessions under 5 focus minutes earn no fish or coins (prevents stopwatch farming).
-  - Deep Focus earns full coins. Open Focus earns fish normally but only half coins, rounded down.
+- Phase 3 (done): save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list. No fish, coins or stats screen.
+- Phase 4: the tank. Fish/bones derived from sessions, Shallows skin, swimming fish with detail cards,
+  live-growing fish while running, dying fish on failure. No coins, plants, skins or stats screen.
+- Coins phase (rules decided, not implemented yet):
+  - Sessions under 5 focus minutes earn no coins.
+  - Deep Focus earns full coins. Open Focus earns only half coins, rounded down.
 - Other phases: not yet planned.

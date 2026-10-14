@@ -1,0 +1,212 @@
+/* Tank and fish motion. Each fish sets its own CSS variables (from its seeded
+   look): --fish-w, --swim, --bob, --phase, --lane. */
+
+/* A full-width strip minus the fish; sliding it 0 → 100% moves the fish edge to edge. */
+.tank-swim {
+  position: absolute;
+  left: 0;
+  top: var(--lane);
+  width: calc(100% - var(--fish-w));
+  pointer-events: none; /* the strip spans the tank: only the fish itself is tappable */
+  animation: tank-swim var(--swim) ease-in-out infinite;
+  animation-delay: calc(-1 * var(--phase) * var(--swim));
+}
+@keyframes tank-swim {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+}
+
+/* Face right on the way out, flip to face left on the way back. */
+.tank-face {
+  width: var(--fish-w);
+  animation: tank-face var(--swim) step-end infinite;
+  animation-delay: calc(-1 * var(--phase) * var(--swim));
+}
+@keyframes tank-face {
+  0% {
+    transform: scaleX(1);
+  }
+  50%,
+  100% {
+    transform: scaleX(-1);
+  }
+}
+
+.tank-bob {
+  animation: tank-bob var(--bob, 3s) ease-in-out infinite alternate;
+}
+@keyframes tank-bob {
+  from {
+    transform: translateY(-3px);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}
+
+/* A tapped fish holds still so its card stays next to it. */
+.tank-paused,
+.tank-paused * {
+  animation-play-state: paused !important;
+}
+
+.fish-tail {
+  transform-box: fill-box;
+  transform-origin: 100% 50%; /* hinge where the tail meets the body */
+  animation: fish-tail 0.6s ease-in-out infinite alternate;
+}
+@keyframes fish-tail {
+  from {
+    transform: rotate(-12deg);
+  }
+  to {
+    transform: rotate(12deg);
+  }
+}
+
+/* Rare fish: golden glow + twinkling sparkles. */
+.fish-rare {
+  filter: drop-shadow(0 0 4px rgb(251 191 36 / 0.9));
+}
+.fish-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fish-twinkle 1.6s ease-in-out infinite;
+}
+@keyframes fish-twinkle {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Live fish: a little "pop" each time it reaches a new size. */
+.fish-grow {
+  animation: fish-grow 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes fish-grow {
+  from {
+    transform: scale(0.6);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.egg-wobble {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: egg-wobble 2.4s ease-in-out infinite;
+}
+@keyframes egg-wobble {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+/* A failed session: the fish greys out, turns belly-up, floats away; a bone appears. */
+.fish-dying {
+  animation: fish-dying 2.4s ease-in forwards;
+}
+@keyframes fish-dying {
+  0% {
+    transform: none;
+    filter: none;
+    opacity: 1;
+  }
+  30% {
+    transform: rotate(180deg);
+    filter: grayscale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(180deg) translateY(36px); /* rotated, so this moves it up */
+    filter: grayscale(1);
+    opacity: 0;
+  }
+}
+.bone-appear {
+  animation: bone-appear 0.6s 2s ease-out both;
+}
+@keyframes bone-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Scenery */
+.tank-bubble {
+  animation: tank-bubble var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+@keyframes tank-bubble {
+  from {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(-300px);
+    opacity: 0;
+  }
+}
+.tank-rays {
+  animation: tank-rays 9s ease-in-out infinite alternate;
+}
+@keyframes tank-rays {
+  from {
+    opacity: 0.6;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tank-swim,
+  .tank-face,
+  .tank-bob,
+  .fish-tail,
+  .fish-sparkle,
+  .fish-grow,
+  .egg-wobble,
+  .tank-bubble,
+  .tank-rays,
+  .bone-appear {
+    animation: none !important;
+  }
+  /* Rest each fish at its own spot instead of stacking them on the left. */
+  .tank-swim {
+    transform: translateX(calc(var(--phase) * 100%));
+  }
+  .tank-bubble {
+    opacity: 0;
+  }
+  /* Show the end state of the failure without movement. */
+  .fish-dying {
+    animation: none;
+    transform: rotate(180deg);
+    filter: grayscale(1);
+    opacity: 0.5;
+  }
+}
