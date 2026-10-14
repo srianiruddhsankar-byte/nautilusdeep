@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { FocusScreen } from "./_focus/focus-screen";
 
 async function signOut() {
   "use server";
@@ -11,11 +12,13 @@ async function signOut() {
 
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4 pb-8">
       {/* Reads the login cookie, so it streams in per request. */}
-      <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<p className="h-10 text-zinc-500">Loading…</p>}>
         <Greeting />
       </Suspense>
+      {/* Client-only state (localStorage + clock), so it doesn't need the cookie. */}
+      <FocusScreen />
     </main>
   );
 }
@@ -33,16 +36,16 @@ async function Greeting() {
     user.user_metadata.full_name ?? user.user_metadata.name ?? user.email;
 
   return (
-    <>
-      <h1 className="text-3xl font-semibold">Hi, {name}</h1>
+    <header className="flex h-10 items-center justify-between gap-4">
+      <h1 className="truncate text-xl font-semibold">Hi, {name}</h1>
       <form action={signOut}>
         <button
           type="submit"
-          className="rounded-lg border border-zinc-300 px-5 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
         >
           Sign out
         </button>
       </form>
-    </>
+    </header>
   );
 }
