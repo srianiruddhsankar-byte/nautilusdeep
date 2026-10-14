@@ -36,6 +36,10 @@ export const DEFAULT_CYCLE: CycleSettings = {
 
 // Everything needed to rebuild the timer after a refresh. Plain JSON on purpose.
 export type Session = {
+  // Assigned by the UI at Start (crypto.randomUUID) and reused as the database
+  // id, so saving the same session twice can't duplicate it. Optional because
+  // sessions started before Phase 3 don't have one.
+  id?: string;
   mode: Mode;
   focusMode: FocusMode;
   startedAt: number;
@@ -46,11 +50,14 @@ export type Session = {
 export type EndReason = "finished" | "stopped" | "left";
 
 export type Result = {
+  id?: string; // copied from the session
   mode: Mode;
   focusMode: FocusMode;
   outcome: "completed" | "failed";
   endedBy: EndReason;
+  startedAt: number;
   endedAt: number;
+  plannedMs: number | null; // total planned focus time; null for the stopwatch
   focusMs: number; // focus time that counts
   lostMs: number; // focus time spent in an unfinished block that doesn't count
   blocksCompleted: number;
@@ -114,6 +121,17 @@ export function sessionEnd(session: Session): number {
 
 export function countFocusBlocks(session: Session): number {
   return session.phases.filter((p) => p.kind === "focus").length;
+}
+
+// Total focus time the session was planned for; null if open-ended (stopwatch).
+export function plannedFocusMs(session: Session): number | null {
+  let total = 0;
+  for (const p of session.phases) {
+    if (p.kind !== "focus") continue;
+    if (p.ms === null) return null;
+    total += p.ms;
+  }
+  return total;
 }
 
 export type Status = {
@@ -226,11 +244,14 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   }
 
   return {
+    id: session.id,
     mode: session.mode,
     focusMode: isOpenFocus(session) ? "open" : "deep",
     outcome: failed ? "failed" : "completed",
     endedBy: reason,
+    startedAt: session.startedAt,
     endedAt: at,
+    plannedMs: plannedFocusMs(session),
     focusMs,
     lostMs: focusSoFar - focusMs,
     blocksCompleted,

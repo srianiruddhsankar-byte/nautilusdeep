@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FocusScreen } from "./_focus/focus-screen";
+import { RecentSessions } from "./_focus/recent-sessions";
 
 async function signOut() {
   "use server";
@@ -19,6 +20,7 @@ export default function Home() {
       </Suspense>
       {/* Client-only state (localStorage + clock), so it doesn't need the cookie. */}
       <FocusScreen />
+      <RecentSessions />
     </main>
   );
 }

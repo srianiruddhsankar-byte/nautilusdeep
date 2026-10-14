@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { chime, unlockAudio } from "@/lib/feedback";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
+import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import {
   FOCUS_MODE_LABEL,
   LEAVE_GRACE_MS,
@@ -18,11 +19,24 @@ import {
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { SetupForm } from "./setup-form";
 
+// Every way a session ends goes through here. Order matters: the row is queued
+// for saving before the result is shown, so nothing can end without being saved,
+// and the result screen itself never saves (a refresh there can't save twice).
+function endWith(result: Result, withChime = false) {
+  queueResult(result);
+  save({ session: null, result });
+  void flushPending();
+  if (withChime) chime();
+}
+
 export function FocusScreen() {
   // null until we've read localStorage in the browser (the server has none).
   const saved = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const session = saved?.session ?? null;
   const now = useSessionClock(session !== null);
+
+  // Upload any sessions that couldn't be saved earlier, and keep retrying.
+  useEffect(() => startSync(), []);
 
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
   // Wake lock only for Deep Focus: Open Focus users are using the device anyway.
@@ -41,7 +55,8 @@ export function FocusScreen() {
     <SetupForm
       onStart={(s) => {
         unlockAudio(); // this runs inside the Start tap, which phones require for sound
-        save({ session: s, result: null });
+        // The id is generated here, once, and becomes the database row's id.
+        save({ session: { ...s, id: crypto.randomUUID() }, result: null });
       }}
     />
   );
@@ -58,11 +73,6 @@ function useSessionClock(active: boolean): number | null {
     let lastPhase: number | null = null;
     const isVisible = () => document.visibilityState === "visible";
 
-    function finish(result: Result, withChime: boolean) {
-      save({ session: null, result });
-      if (withChime) chime();
-    }
-
     function tick() {
       const session = getSnapshot().session;
       if (!session) return;
@@ -70,7 +80,7 @@ function useSessionClock(active: boolean): number | null {
       setNow(t);
 
       const result = checkSession(session, t);
-      if (result) return finish(result, isVisible() && result.endedBy === "finished");
+      if (result) return endWith(result, isVisible() && result.endedBy === "finished");
 
       // Chime when a focus block or break ends, but only if the app is on screen.
       const { phaseIndex } = getStatus(session, t);
@@ -98,7 +108,7 @@ function useSessionClock(active: boolean): number | null {
       // Back on screen: did they stay away more than 15 s of focus time?
       if (session.awaySince !== null) {
         const result = checkSession(session, t);
-        if (result) return finish(result, false);
+        if (result) return endWith(result);
         save({ session: { ...session, awaySince: null }, result: null });
       }
       // Don't chime for phases that ended while away.
@@ -147,7 +157,7 @@ function RunningView({ session, status }: { session: Session; status: Status }) 
     if (needsConfirm && !confirming) return setConfirming(true);
     const current = getSnapshot().session;
     // endSession treats a stop during the long break as a full finish.
-    if (current) save({ session: null, result: endSession(current, "stopped", Date.now()) });
+    if (current) endWith(endSession(current, "stopped", Date.now()));
   }
 
   let label = "Focus";

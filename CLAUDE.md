@@ -19,8 +19,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `app/auth/callback/route.ts` — exchanges the OAuth `code` for a session
 - `app/login` — "Sign in with Google" (Google OAuth only)
 - `lib/timer.ts` — pure timer logic (no React/browser/clock; takes `now` as an argument). Tests: `lib/timer.test.ts`, run with `npm test`
-- `lib/focus-storage.ts` — running session in localStorage; `lib/feedback.ts` — chime/vibrate; `lib/use-wake-lock.ts`
-- `app/_focus/` — focus screen UI (private folder, not a route)
+- `lib/focus-storage.ts` — running session in localStorage (built on `lib/local-store.ts`); `lib/feedback.ts` — chime/vibrate; `lib/use-wake-lock.ts`
+- `lib/session-record.ts` — pure `Result` → `sessions` row mapping (tested). `lib/save-queue.ts` — localStorage outbox that uploads finished sessions and retries
+- `app/_focus/` — focus screen UI (private folder, not a route); `recent-sessions.tsx` is the Phase 3 "is saving working?" list
+- `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
 
 ## Next.js 16 / Supabase gotchas
@@ -29,6 +31,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Server-side auth checks: use `supabase.auth.getUser()` / `getClaims()`, never trust `getSession()`.
 - Cache Components is on: anything reading cookies/searchParams/the clock must sit inside `<Suspense>`.
   The server `createClient()` calls `await connection()` because Supabase reads `Date.now()`.
+- New Supabase tables are NOT exposed to the Data API automatically: each migration needs an explicit
+  `grant ... to authenticated` (only the operations used), on top of RLS policies.
+- Upserts use `ignoreDuplicates: true` (`ON CONFLICT DO NOTHING`), which needs only an INSERT policy.
+  A plain upsert (`DO UPDATE`) would also need an UPDATE policy.
 
 ## Working preferences
 - Create a module's dependencies before the files that import it.
@@ -71,6 +77,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 ### Stats and data
 - Stats: today, this week, streak, longest session, total hours, bones.
 - Store every session as a raw record (start, end, mode, focus mode, completed/died) so new stats can be computed later. Derive stats; don't only store aggregates.
+- `public.sessions` table: one row per finished session. `id` is generated on the client at Start
+  (retries can't duplicate). Focus time is stored as `focus_seconds` (derive minutes). `outcome` is
+  completed / failed / partial (partial = a cycle that ended early with some blocks banked).
+  RLS: users can select and insert only their own rows; no update/delete.
 
 ### Technical rules
 - Timing is timestamp-based: store the start time and compute elapsed time. Never count ticks
@@ -82,8 +92,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
 
 ## Roadmap
 - Phase 1 (done): project setup + Google login, protected home page saying "Hi, [name]", sign-out, public `/privacy`.
-- Phase 2: timer, stopwatch and cycle modes with leave detection and localStorage restore; Deep/Open Focus. No fish, coins, database or stats.
+- Phase 2 (done): timer, stopwatch and cycle modes with leave detection and localStorage restore; Deep/Open Focus.
+- Phase 3: save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list. No fish, coins or stats screen.
 - Phase 4 (rules decided, not implemented yet):
   - Sessions under 5 focus minutes earn no fish or coins (prevents stopwatch farming).
   - Deep Focus earns full coins. Open Focus earns fish normally but only half coins, rounded down.
-- Other phases: not yet planned. No database tables exist yet.
+- Other phases: not yet planned.
