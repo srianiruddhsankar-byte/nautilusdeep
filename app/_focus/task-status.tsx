@@ -28,7 +28,7 @@ export function MarkDone({ taskName, onDone }: { taskName: string; onDone: () =>
   const [doneName, setDoneName] = useState<string | null>(null);
   const task = findTaskByName(tasks ?? [], taskName);
 
-  if (doneName) return <p className="font-medium text-emerald-600">✓ “{doneName}” is done</p>;
+  if (doneName) return <p className="py-2.5 font-medium text-emerald-600">✓ “{doneName}” is done</p>;
   if (!task) return null;
 
   async function markDone() {
@@ -48,7 +48,7 @@ export function MarkDone({ taskName, onDone }: { taskName: string; onDone: () =>
         type="button"
         onClick={markDone}
         disabled={busy}
-        className="w-full truncate rounded-2xl border-2 border-emerald-600 px-4 py-4 text-lg font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 dark:text-emerald-400 dark:hover:bg-emerald-950"
+        className="max-w-full truncate rounded-xl border border-zinc-300 px-4 py-2.5 font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
       >
         ✓ Mark “{task.name}” done
       </button>

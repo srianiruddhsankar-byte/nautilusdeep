@@ -11,25 +11,9 @@ import {
 } from "@/lib/cycle-blocks";
 import { deleteCycle, saveCycle, useCycles } from "@/lib/cycles";
 import { formatDuration } from "@/lib/stats";
+import { CUSTOM, DEFAULT_CHOICE, type CustomFields } from "@/lib/setup-prefs";
 import { CYCLE_NAME_MAX } from "@/lib/task-name";
-import { DEFAULT_CYCLE, isValidMinutes } from "@/lib/timer";
-
-export const CUSTOM = "custom";
-export const DEFAULT_CHOICE = "pomodoro";
-
-export type CustomFields = {
-  focusMin: string;
-  shortBreakMin: string;
-  longBreakMin: string;
-  blocksPerSet: string;
-};
-
-export const DEFAULT_CUSTOM: CustomFields = {
-  focusMin: String(DEFAULT_CYCLE.focusMin),
-  shortBreakMin: String(DEFAULT_CYCLE.shortBreakMin),
-  longBreakMin: String(DEFAULT_CYCLE.longBreakMin),
-  blocksPerSet: String(DEFAULT_CYCLE.blocksPerSet),
-};
+import { isValidMinutes } from "@/lib/timer";
 
 // The four Custom fields as blocks, or null while any field is invalid.
 function customBlocks(f: CustomFields): CycleBlock[] | null {
@@ -49,13 +33,21 @@ function customBlocks(f: CustomFields): CycleBlock[] | null {
   return valid ? blocksFromSettings(n) : null;
 }
 
-// What Start will run: the chosen cycle's blocks and name (null name = Custom),
-// or null blocks while Custom has an invalid field.
+// The choice to show and use. A remembered saved cycle may not have loaded yet
+// (wait for it), or may have been deleted since (fall back to Pomodoro).
+export function effectiveChoice(choice: string, cycles: CycleTemplate[], loaded: boolean): string | null {
+  if (choice === CUSTOM || cycles.some((c) => c.id === choice)) return choice;
+  return loaded ? DEFAULT_CHOICE : null;
+}
+
+// What Start will run: the chosen cycle's blocks and name (null name = Custom).
+// Null blocks while Custom has an invalid field or the choice is still loading.
 export function resolveCycle(
-  choice: string,
+  choice: string | null,
   cycles: CycleTemplate[],
   custom: CustomFields,
 ): { blocks: CycleBlock[] | null; name: string | null } {
+  if (choice === null) return { blocks: null, name: null };
   if (choice === CUSTOM) return { blocks: customBlocks(custom), name: null };
   const chosen = cycles.find((c) => c.id === choice) ?? cycles[0];
   return { blocks: chosen.blocks, name: chosen.name };
@@ -72,9 +64,10 @@ export function CyclePicker({
   custom: CustomFields;
   onCustom: (fields: CustomFields) => void;
 }) {
-  const { cycles, error } = useCycles();
-  const { blocks } = resolveCycle(choice, cycles, custom);
-  const chosen = cycles.find((c) => c.id === choice);
+  const { cycles, loaded, error } = useCycles();
+  const current = effectiveChoice(choice, cycles, loaded);
+  const { blocks } = resolveCycle(current, cycles, custom);
+  const chosen = cycles.find((c) => c.id === current);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -94,9 +87,9 @@ export function CyclePicker({
             key={c.id}
             type="button"
             onClick={() => onChoice(c.id)}
-            aria-pressed={choice === c.id}
+            aria-pressed={current === c.id}
             className={`max-w-full truncate rounded-full border px-4 py-2 text-sm font-medium ${
-              choice === c.id ? "border-sky-700 bg-sky-700 text-white" : "border-zinc-300 dark:border-zinc-700"
+              current === c.id ? "border-sky-700 bg-sky-700 text-white" : "border-zinc-300 dark:border-zinc-700"
             }`}
           >
             {c.name}
@@ -107,10 +100,12 @@ export function CyclePicker({
       <p className="text-sm text-zinc-500" aria-live="polite">
         {blocks
           ? `${describeBlocks(blocks)} · ${formatDuration(totalMinutes(blocks) * 60)} total`
-          : "Check the numbers: minutes from 1 to 600, up to 12 blocks."}
+          : current === null
+            ? "Loading your cycles…"
+            : "Check the numbers: minutes from 1 to 600, up to 12 blocks."}
       </p>
 
-      {choice === CUSTOM && (
+      {current === CUSTOM && (
         <>
           <div className="grid grid-cols-2 gap-3">
             <NumberField

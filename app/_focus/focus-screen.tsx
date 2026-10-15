@@ -81,14 +81,9 @@ export function FocusScreen() {
   const aquarium = useMemo(() => (rows ? deriveAquarium(rows) : null), [rows]);
 
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
-  // Wake lock only for Deep Focus: Open Focus users are using the device anyway.
-  useWakeLock(
-    session !== null &&
-      !isOpenFocus(session) &&
-      status !== null &&
-      status.kind === "focus" &&
-      !status.finished,
-  );
+  // Wake lock only for Deep Focus (Open Focus users are using the device anyway).
+  // On for breaks too: a locked phone can't ring the "Break's over" alarm.
+  useWakeLock(session !== null && !isOpenFocus(session) && status !== null && !status.finished);
 
   if (saved === null) return <p className="text-center text-zinc-500">Loading…</p>;
   // Running: just the timer. No navigation, nothing else to tap.
@@ -378,29 +373,33 @@ function ResultView({
       </h2>
       <p className="text-zinc-500">{detail}</p>
 
+      {/* The number that matters most, big. */}
+      <p className="flex flex-col items-center">
+        <span className="text-6xl font-semibold tabular-nums">{Math.floor(result.focusMs / 60_000)}</span>
+        <span className="text-zinc-500">focus minutes</span>
+      </p>
+
       {notes ? <NotesResult result={result} /> : <ResultFish result={result} aquarium={aquarium} />}
 
-      <dl className="grid w-full grid-cols-2 gap-3 text-left">
-        <Stat label="Focus minutes" value={String(Math.floor(result.focusMs / 60_000))} />
-        {result.mode === "cycle" && (
-          <Stat
-            label="Blocks completed"
-            value={`${result.blocksCompleted} of ${result.totalBlocks}`}
-          />
-        )}
-        {result.lostMs >= 1000 && (
-          <Stat label="Unfinished, not counted" value={formatClock(result.lostMs)} />
-        )}
-      </dl>
+      {(result.mode === "cycle" || result.lostMs >= 1000) && (
+        <dl className="grid w-full grid-cols-2 gap-3 text-left">
+          {result.mode === "cycle" && (
+            <Stat label="Blocks completed" value={`${result.blocksCompleted} of ${result.totalBlocks}`} />
+          )}
+          {result.lostMs >= 1000 && <Stat label="Unfinished, not counted" value={formatClock(result.lostMs)} />}
+        </dl>
+      )}
 
-      {result.task && <MarkDone taskName={result.task} onDone={onTaskDone} />}
-
-      <button
-        onClick={() => save({ session: null, result: null })}
-        className="mt-auto w-full rounded-2xl bg-sky-700 py-5 text-xl font-semibold text-white hover:bg-sky-800"
-      >
-        New session
-      </button>
+      {/* One main action. Mark done is there, but quieter. */}
+      <div className="mt-auto flex w-full flex-col items-center gap-3">
+        {result.task && <MarkDone taskName={result.task} onDone={onTaskDone} />}
+        <button
+          onClick={() => save({ session: null, result: null })}
+          className="w-full rounded-2xl bg-sky-700 py-5 text-xl font-semibold text-white hover:bg-sky-800"
+        >
+          New session
+        </button>
+      </div>
     </div>
   );
 }

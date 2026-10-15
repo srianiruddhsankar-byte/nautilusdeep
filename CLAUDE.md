@@ -91,7 +91,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 ### Modes
 - Focus timer (countdown), stopwatch, and cycle (pomodoro) mode.
 - Each session also has a focus mode, chosen on the setup screen and stored on the session:
-  - **Deep Focus** (default): leaving for more than 15 s during focus fails the session/block; wake lock on during focus.
+  - **Deep Focus** (default): leaving for more than 15 s during focus fails the session/block; wake lock on for
+    the whole session, breaks included (so the end-of-break alarm can ring).
   - **Open Focus**: for studying on the same device. No leave detection, no wake lock; leaving never fails it.
     Only leaving is ignored: Give up still fails a timer, same as Deep Focus.
 - **10-second cancel window** (every mode, Deep and Open Focus), timed from the session's start timestamp:
@@ -104,8 +105,12 @@ The owner is a student learning to code: explain what you do and why, briefly.
 
 ### App structure (Phase 6)
 - Bottom nav: Home · Tasks · Stats · Help, on every signed-in page, hidden while a session is running.
-- Home, top to bottom: stats line, "Today" card (due today + overdue; tap one to pick it for the next session),
-  tank, setup form.
+- Home, top to bottom: greeting, stats line, "Today" card (due today + overdue; tap one to pick it for the next
+  session), tank, setup summary card ("Change" opens every option) and Start. The setup is remembered in this
+  browser (`lib/setup-prefs.ts`, saved on Start; the task isn't remembered).
+- Result screen: big focus minutes, fish / notes result, then one main button (New session); Mark done is quieter.
+- Stats: Streak, Tasks done, then per type: time, last 7 days, target (notes), time per task; the rest under
+  "More stats". Sign out is on the Help page (Account section with your email), not on Home.
 
 ### Tasks and session types (Phase 6)
 - Tasks: name, optional due date (a plain calendar date), done. Names are unique among NOT-done tasks only
@@ -183,7 +188,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 ### Technical rules
 - Timing is timestamp-based: store the start time and compute elapsed time. Never count ticks
   (timers get throttled in background tabs).
-- Use the Screen Wake Lock API during focus (Deep Focus only).
+- Use the Screen Wake Lock API for the whole running session, breaks included (Deep Focus only).
 - Leaving (Deep Focus only) = Page Visibility "hidden" for more than 15 s of focus time. The web can't tell a phone
   lock from an app switch, so locking during focus counts as leaving (revisit the grace period after real use).
 - Installable PWA + push reminders come in Phase 10. Friends and Google Calendar features are not planned yet.

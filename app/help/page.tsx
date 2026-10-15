@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
 import { CANCEL_WINDOW_MS, LEAVE_GRACE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
+import { Account } from "./account";
 
 export const metadata: Metadata = {
   title: "How it works – Deep Nautilus",
@@ -129,6 +130,11 @@ export default function HelpPage() {
           <li>Today isn&apos;t over until midnight, so an empty today never breaks it.</li>
         </Points>
       </Card>
+
+      {/* Reads the login cookie, so it streams in per request. */}
+      <Suspense fallback={<div className="h-36 rounded-2xl border border-zinc-200 dark:border-zinc-800" />}>
+        <Account />
+      </Suspense>
 
       <BottomNav active="help" />
     </main>

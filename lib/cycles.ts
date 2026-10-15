@@ -51,7 +51,8 @@ export function useCycles() {
   }, []);
 
   const cycles = useMemo(() => [...PREMADE_CYCLES, ...(saved ?? [])], [saved]);
-  return { cycles, error };
+  // loaded = saved cycles have arrived (or failed); until then a saved id can't be found yet.
+  return { cycles, loaded: saved !== null || error !== null, error };
 }
 
 // Returns the new cycle's id, or an error message.
