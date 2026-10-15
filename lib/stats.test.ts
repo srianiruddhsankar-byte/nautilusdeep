@@ -40,6 +40,7 @@ function session(
     session_type: "study",
     task_name: null,
     target_minutes: null,
+    cycle_name: null,
     ...overrides,
   };
 }
@@ -395,6 +396,34 @@ describe("study and notes", () => {
 
   test("no targets yet → null", () => {
     assert.equal(computeStats([notes("2026-10-14 09:00", 30)], NOW, IST).target, null);
+  });
+});
+
+describe("most-used cycle", () => {
+  test("counts cycle sessions by name (any outcome); unsaved ones are Custom", () => {
+    const cycle = (name: string | null, overrides: Partial<SessionFacts> = {}) =>
+      session("2026-10-13 09:00", 50, { mode: "cycle", cycle_name: name, ...overrides });
+    const stats = computeStats(
+      [
+        cycle("Pomodoro"),
+        cycle("Pomodoro", { outcome: "failed", focus_seconds: 0 }),
+        cycle("Exam prep"),
+        cycle(null),
+        session("2026-10-13 15:00", 25), // a timer: not a cycle
+      ],
+      NOW,
+      IST,
+    );
+    assert.deepEqual(stats.mostUsedCycle, { name: "Pomodoro", sessions: 2 });
+  });
+
+  test("no cycles yet → null", () => {
+    assert.equal(computeStats([session("2026-10-13 09:00", 25)], NOW, IST).mostUsedCycle, null);
+  });
+
+  test("old cycle sessions without a name count as Custom", () => {
+    const stats = computeStats([session("2026-10-13 09:00", 50, { mode: "cycle" })], NOW, IST);
+    assert.deepEqual(stats.mostUsedCycle, { name: "Custom", sessions: 1 });
   });
 });
 

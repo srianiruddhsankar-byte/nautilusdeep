@@ -19,6 +19,7 @@ import type { SessionType } from "./timer.ts";
 //   heatmap and the home "Today" line use both together.
 
 export const STUDY_DAY_MIN_SECONDS = 5 * 60;
+export const CUSTOM_CYCLE = "Custom";
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
@@ -193,6 +194,8 @@ export type Stats = {
   hours: number[]; // 24 buckets of focus seconds, by local hour of day
   last7: DayTotal[]; // oldest → today
   tasks: TaskTotal[]; // most time first
+  // The cycle started most often (any outcome); unsaved cycles count as "Custom".
+  mostUsedCycle: { name: string; sessions: number } | null;
   // Sessions that had a target (notes), completed or partial. null = none yet.
   target: {
     sessions: number;
@@ -221,6 +224,7 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
   // Keyed case-insensitively; shows the spelling of the most recent session.
   const tasks = new Map<string, TaskTotal & { lastStart: number }>();
   const target = { sessions: 0, actual: 0, target: 0, onOrUnder: 0 };
+  const cycles = new Map<string, number>();
   let allTime = 0;
   let countedSessions = 0;
   let longestSeconds = 0;
@@ -228,6 +232,10 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
   for (const row of rows) {
     outcomes[row.outcome]++;
     modes[row.mode].sessions++;
+    if (row.mode === "cycle") {
+      const name = row.cycle_name ?? CUSTOM_CYCLE;
+      cycles.set(name, (cycles.get(name) ?? 0) + 1);
+    }
     if (earnsFish(row)) fish[fishSizeFor(focusMinutes(row))]++;
     if (!counts(row)) continue;
 
@@ -297,6 +305,10 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     tasks: [...tasks.values()]
       .map(({ name, seconds, sessions }) => ({ name, seconds, sessions }))
       .sort((a, b) => b.seconds - a.seconds || a.name.localeCompare(b.name)),
+    mostUsedCycle:
+      [...cycles]
+        .map(([name, sessions]) => ({ name, sessions }))
+        .sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name))[0] ?? null,
     target: target.sessions
       ? {
           sessions: target.sessions,

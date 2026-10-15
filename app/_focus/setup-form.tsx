@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useCycles } from "@/lib/cycles";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
+import { groupTasks, openTasksInOrder } from "@/lib/task-views";
 import { useTasks } from "@/lib/tasks";
 import {
-  DEFAULT_CYCLE,
   FOCUS_MODE_LABEL,
   SESSION_TYPE_LABEL,
   isValidMinutes,
-  startCycle,
+  startCycleBlocks,
   startStopwatch,
   startTimer,
   withDetails,
@@ -18,6 +19,8 @@ import {
   type Session,
   type SessionType,
 } from "@/lib/timer";
+import { useClock } from "@/lib/use-clock";
+import { CyclePicker, DEFAULT_CHOICE, DEFAULT_CUSTOM, NumberField, resolveCycle } from "./cycle-picker";
 
 const PRESETS = [15, 25, 45, 60];
 const MODES: { id: Mode; label: string }[] = [
@@ -30,41 +33,36 @@ const FOCUS_MODES: { id: FocusMode; explanation: string }[] = [
   { id: "open", explanation: "Use this device to study. No leave rule." },
 ];
 const SESSION_TYPES: SessionType[] = ["study", "notes"];
+const CHIPS = 8;
 
-export function SetupForm({ onStart }: { onStart: (session: Session) => void }) {
+// The task is owned by the Home screen, so the Today card can fill it in.
+export function SetupForm({
+  task,
+  onTaskChange,
+  onStart,
+}: {
+  task: string;
+  onTaskChange: (task: string) => void;
+  onStart: (session: Session) => void;
+}) {
   const [sessionType, setSessionType] = useState<SessionType>("study");
-  const [task, setTask] = useState("");
   const [target, setTarget] = useState(""); // blank = no target
   const [mode, setMode] = useState<Mode>("timer");
   const [focusMode, setFocusMode] = useState<FocusMode>("deep");
   const [minutes, setMinutes] = useState("25");
-  const [cycle, setCycle] = useState({
-    focusMin: String(DEFAULT_CYCLE.focusMin),
-    shortBreakMin: String(DEFAULT_CYCLE.shortBreakMin),
-    longBreakMin: String(DEFAULT_CYCLE.longBreakMin),
-    blocksPerSet: String(DEFAULT_CYCLE.blocksPerSet),
-  });
+  const [cycleChoice, setCycleChoice] = useState(DEFAULT_CHOICE);
+  const [custom, setCustom] = useState(DEFAULT_CUSTOM);
+  const { cycles } = useCycles();
+  const cycle = resolveCycle(cycleChoice, cycles, custom);
 
   // A target only makes sense when you stop the clock yourself.
   const hasTarget = sessionType === "notes" && mode === "stopwatch";
-  const cycleNums = {
-    focusMin: Number(cycle.focusMin),
-    shortBreakMin: Number(cycle.shortBreakMin),
-    longBreakMin: Number(cycle.longBreakMin),
-    blocksPerSet: Number(cycle.blocksPerSet),
-  };
   const validTarget = !hasTarget || target.trim() === "" || isValidMinutes(Number(target));
   const valid =
     validTarget &&
     (mode === "stopwatch" ||
       (mode === "timer" && isValidMinutes(Number(minutes))) ||
-      (mode === "cycle" &&
-        isValidMinutes(cycleNums.focusMin) &&
-        isValidMinutes(cycleNums.shortBreakMin) &&
-        isValidMinutes(cycleNums.longBreakMin) &&
-        Number.isInteger(cycleNums.blocksPerSet) &&
-        cycleNums.blocksPerSet >= 1 &&
-        cycleNums.blocksPerSet <= 12));
+      (mode === "cycle" && cycle.blocks !== null));
 
   function start() {
     const now = Date.now();
@@ -73,7 +71,7 @@ export function SetupForm({ onStart }: { onStart: (session: Session) => void }) 
         ? startTimer(Number(minutes), now, focusMode)
         : mode === "stopwatch"
           ? startStopwatch(now, focusMode)
-          : startCycle(cycleNums, now, focusMode);
+          : startCycleBlocks(cycle.blocks!, now, focusMode, cycle.name);
     onStart(
       withDetails(session, {
         sessionType,
@@ -101,7 +99,7 @@ export function SetupForm({ onStart }: { onStart: (session: Session) => void }) 
         ))}
       </div>
 
-      <TaskPicker value={task} onChange={setTask} />
+      <TaskPicker value={task} onChange={onTaskChange} />
 
       {/* Mode switcher */}
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
@@ -109,6 +107,7 @@ export function SetupForm({ onStart }: { onStart: (session: Session) => void }) 
           <button
             key={m.id}
             onClick={() => setMode(m.id)}
+            aria-pressed={mode === m.id}
             className={`rounded-lg py-3 font-medium ${
               mode === m.id ? "bg-white shadow dark:bg-zinc-700" : "text-zinc-500"
             }`}
@@ -144,28 +143,7 @@ export function SetupForm({ onStart }: { onStart: (session: Session) => void }) 
       )}
 
       {mode === "cycle" && (
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField
-            label="Focus (min)"
-            value={cycle.focusMin}
-            onChange={(v) => setCycle({ ...cycle, focusMin: v })}
-          />
-          <NumberField
-            label="Short break (min)"
-            value={cycle.shortBreakMin}
-            onChange={(v) => setCycle({ ...cycle, shortBreakMin: v })}
-          />
-          <NumberField
-            label="Long break (min)"
-            value={cycle.longBreakMin}
-            onChange={(v) => setCycle({ ...cycle, longBreakMin: v })}
-          />
-          <NumberField
-            label="Blocks per set"
-            value={cycle.blocksPerSet}
-            onChange={(v) => setCycle({ ...cycle, blocksPerSet: v })}
-          />
-        </div>
+        <CyclePicker choice={cycleChoice} onChoice={setCycleChoice} custom={custom} onCustom={setCustom} />
       )}
 
       {hasTarget && (
@@ -202,11 +180,12 @@ export function SetupForm({ onStart }: { onStart: (session: Session) => void }) 
       </div>
 
       <button
+        id="start-session"
         onClick={start}
         disabled={!valid}
-        className="rounded-2xl bg-sky-700 py-5 text-xl font-semibold text-white hover:bg-sky-800 disabled:opacity-40"
+        className="truncate rounded-2xl bg-sky-700 px-4 py-5 text-xl font-semibold text-white hover:bg-sky-800 disabled:opacity-40"
       >
-        Start
+        {cleanTaskName(task) ? `Start · ${cleanTaskName(task)}` : "Start"}
       </button>
     </div>
   );
@@ -215,7 +194,11 @@ export function SetupForm({ onStart }: { onStart: (session: Session) => void }) 
 // Optional: type a task, or tap one of your open tasks. Blank = no task.
 function TaskPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const { tasks } = useTasks();
-  const open = (tasks ?? []).filter((t) => t.done_at === null).reverse(); // newest first
+  const clock = useClock();
+  const open = useMemo(
+    () => (tasks && clock ? openTasksInOrder(groupTasks(tasks, clock.now, clock.timeZone)) : []),
+    [tasks, clock],
+  );
   const picked = cleanTaskName(value);
 
   return (
@@ -251,7 +234,7 @@ function TaskPicker({ value, onChange }: { value: string; onChange: (value: stri
       </div>
       {open.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {open.map((t) => {
+          {open.slice(0, CHIPS).map((t) => {
             const selected = picked !== null && taskKey(picked) === taskKey(t.name);
             return (
               <button
@@ -272,32 +255,5 @@ function TaskPicker({ value, onChange }: { value: string; onChange: (value: stri
         </div>
       )}
     </div>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm text-zinc-500">
-      {label}
-      <input
-        type="number"
-        inputMode="numeric"
-        min={1}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-zinc-300 bg-transparent px-3 py-3 text-lg text-foreground dark:border-zinc-700"
-      />
-    </label>
   );
 }

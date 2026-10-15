@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { RecentSessions } from "../_focus/recent-sessions";
+import { BottomNav, PageHeader } from "../_nav/bottom-nav";
 import { StatsView } from "../_stats/stats-view";
 
 export const metadata: Metadata = {
@@ -11,17 +12,11 @@ export const metadata: Metadata = {
 // which RLS limits to your own rows.
 export default function StatsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4 pb-10">
-      <header className="flex h-10 items-center gap-3">
-        <Link
-          href="/"
-          className="rounded-lg px-2 py-1 text-sky-700 hover:bg-zinc-100 dark:text-sky-400 dark:hover:bg-zinc-900"
-        >
-          ← Home
-        </Link>
-        <h1 className="text-xl font-semibold">Stats</h1>
-      </header>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
+      <PageHeader title="Stats" />
       <StatsView />
+      <RecentSessions />
+      <BottomNav active="stats" />
     </main>
   );
 }

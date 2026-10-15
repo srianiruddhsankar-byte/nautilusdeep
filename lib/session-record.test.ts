@@ -1,10 +1,12 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { PREMADE_CYCLES } from "./cycle-blocks.ts";
 import { toRow, withRowDefaults, type SessionRow } from "./session-record.ts";
 import {
   DEFAULT_CYCLE,
   endSession,
   startCycle,
+  startCycleBlocks,
   startStopwatch,
   startTimer,
   withDetails,
@@ -34,6 +36,7 @@ describe("toRow", () => {
       session_type: "study",
       task_name: null,
       target_minutes: null,
+      cycle_name: null,
     });
   });
 
@@ -111,6 +114,16 @@ describe("session type, task and target", () => {
       session_type: "study",
       task_name: null,
       target_minutes: null,
+      cycle_name: null,
     });
+  });
+
+  test("a cycle keeps its name on the row; other modes never have one", () => {
+    const pomodoro = { ...startCycleBlocks(PREMADE_CYCLES[0].blocks, T0, "deep", "Pomodoro"), id: ID };
+    assert.equal(toRow(endSession(pomodoro, "finished", T0 + 130 * MIN), ID, null).cycle_name, "Pomodoro");
+    const custom = startCycle(DEFAULT_CYCLE, T0);
+    assert.equal(toRow(endSession(custom, "finished", T0 + 130 * MIN), ID, null).cycle_name, null);
+    const timer = { ...startTimer(25, T0), cycleName: "Pomodoro" };
+    assert.equal(toRow(endSession(timer, "finished", T0 + 25 * MIN), ID, null).cycle_name, null);
   });
 });

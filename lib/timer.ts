@@ -2,6 +2,7 @@
 // Every function takes the current time as an argument, so tests can fake time
 // and the answer is always computed from timestamps (never from counting ticks).
 
+import { blocksFromSettings, expandBlocks, type CycleBlock } from "./cycle-blocks.ts";
 import { cleanTaskName } from "./task-name.ts";
 
 export const LEAVE_GRACE_MS = 15_000;
@@ -61,6 +62,7 @@ export type Session = {
   sessionType?: SessionType;
   task?: string | null;
   targetMinutes?: number | null; // notes only: "finish in N minutes"
+  cycleName?: string | null; // a saved or premade cycle's name; null = Custom
 };
 
 export type EndReason = "finished" | "stopped" | "left";
@@ -81,6 +83,7 @@ export type Result = {
   sessionType: SessionType;
   task: string | null;
   targetMinutes: number | null;
+  cycleName: string | null;
 };
 
 // What happened to a session. Only "ended" produces a Result (which gets saved);
@@ -107,21 +110,23 @@ export function startStopwatch(now: number, focusMode: FocusMode = "deep"): Sess
   return newSession("stopwatch", focusMode, [{ kind: "focus", ms: null }], now);
 }
 
+// The four Custom fields (focus, short break, long break, blocks per set).
 export function startCycle(
   settings: CycleSettings,
   now: number,
   focusMode: FocusMode = "deep",
 ): Session {
-  const phases: Phase[] = [];
-  for (let block = 1; block <= settings.blocksPerSet; block++) {
-    phases.push({ kind: "focus", ms: settings.focusMin * MINUTE });
-    phases.push(
-      block < settings.blocksPerSet
-        ? { kind: "shortBreak", ms: settings.shortBreakMin * MINUTE }
-        : { kind: "longBreak", ms: settings.longBreakMin * MINUTE },
-    );
-  }
-  return newSession("cycle", focusMode, phases, now);
+  return startCycleBlocks(blocksFromSettings(settings), now, focusMode);
+}
+
+// Any cycle, from its blocks (see lib/cycle-blocks.ts). The name is kept for stats.
+export function startCycleBlocks(
+  blocks: CycleBlock[],
+  now: number,
+  focusMode: FocusMode = "deep",
+  cycleName: string | null = null,
+): Session {
+  return { ...newSession("cycle", focusMode, expandBlocks(blocks), now), cycleName };
 }
 
 function newSession(mode: Mode, focusMode: FocusMode, phases: Phase[], now: number): Session {
@@ -214,10 +219,16 @@ export function getStatus(session: Session, now: number): Status {
   };
 }
 
-// The long break is a cycle's last phase: every focus block is already banked.
+// A long break that is the cycle's last phase: every focus block is already banked.
+// (Built cycles could have a long break in the middle; that one isn't final.)
 export function isFinalBreak(session: Session, now: number): boolean {
   const status = getStatus(session, now);
-  return session.mode === "cycle" && status.kind === "longBreak" && !status.finished;
+  return (
+    session.mode === "cycle" &&
+    status.kind === "longBreak" &&
+    status.phaseIndex === session.phases.length - 1 &&
+    !status.finished
+  );
 }
 
 // How much focus time falls inside [from, to).
@@ -324,6 +335,7 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
     sessionType: isNotes(session) ? "notes" : "study",
     task: session.task ?? null,
     targetMinutes: session.targetMinutes ?? null,
+    cycleName: session.mode === "cycle" ? (session.cycleName ?? null) : null,
   };
 }
 

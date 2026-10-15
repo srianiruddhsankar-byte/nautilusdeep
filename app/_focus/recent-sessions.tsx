@@ -47,7 +47,7 @@ export function RecentSessions() {
               <span className="flex-1 truncate">
                 {r.task_name ? `${r.task_name} · ` : ""}
                 {r.session_type === "notes" ? "Notes · " : ""}
-                {MODE_LABEL[r.mode]} · {FOCUS_MODE_LABEL[r.focus_mode]}
+                {r.cycle_name ?? MODE_LABEL[r.mode]} · {FOCUS_MODE_LABEL[r.focus_mode]}
                 {pendingIds.has(r.id) && <span className="text-amber-600"> · saving…</span>}
               </span>
               <span className={OUTCOME_STYLE[r.outcome]}>{r.outcome}</span>

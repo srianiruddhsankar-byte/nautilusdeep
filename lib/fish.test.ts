@@ -30,6 +30,7 @@ function row(overrides: Partial<SessionFacts> & { minutes?: number; endsAt?: num
     session_type: "study",
     task_name: null,
     target_minutes: null,
+    cycle_name: null,
     ...rest,
   } satisfies SessionFacts;
 }

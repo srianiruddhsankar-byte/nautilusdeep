@@ -20,6 +20,7 @@ export type SessionRow = {
   session_type: SessionType;
   task_name: string | null;
   target_minutes: number | null; // notes only
+  cycle_name: string | null; // cycles only; null = Custom
 };
 
 // Pure: no ids or clock reads here, the caller passes them in.
@@ -41,19 +42,21 @@ export function toRow(result: Result, id: string, userId: string | null): Sessio
     session_type: result.sessionType,
     task_name: result.task,
     target_minutes: result.targetMinutes,
+    cycle_name: isCycle ? (result.cycleName ?? null) : null,
   };
 }
 
 // Rows queued in this browser before Phase 6 don't have the new columns.
-// Fill them in the same way the database does (Study, no task, no target).
-export function withRowDefaults<T extends Partial<Pick<SessionRow, "session_type" | "task_name" | "target_minutes">>>(
-  row: T,
-) {
+// Fill them in the same way the database does (Study, no task, target or cycle name).
+export function withRowDefaults<
+  T extends Partial<Pick<SessionRow, "session_type" | "task_name" | "target_minutes" | "cycle_name">>,
+>(row: T) {
   return {
     ...row,
     session_type: row.session_type ?? "study",
     task_name: row.task_name ?? null,
     target_minutes: row.target_minutes ?? null,
+    cycle_name: row.cycle_name ?? null,
   };
 }
 

@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FocusScreen } from "./_focus/focus-screen";
-import { RecentSessions } from "./_focus/recent-sessions";
 
 async function signOut() {
   "use server";
@@ -13,14 +12,14 @@ async function signOut() {
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4 pb-8">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
       {/* Reads the login cookie, so it streams in per request. */}
       <Suspense fallback={<p className="h-10 text-zinc-500">Loading…</p>}>
         <Greeting />
       </Suspense>
-      {/* Client-only state (localStorage + clock), so it doesn't need the cookie. */}
+      {/* Client-only state (localStorage + clock), so it doesn't need the cookie.
+          It also draws the bottom navigation, except while a session is running. */}
       <FocusScreen />
-      <RecentSessions />
     </main>
   );
 }

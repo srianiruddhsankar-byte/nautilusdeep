@@ -49,6 +49,7 @@ export type SessionFacts = Pick<
   | "session_type"
   | "task_name"
   | "target_minutes"
+  | "cycle_name"
 >;
 
 export type Fish = {

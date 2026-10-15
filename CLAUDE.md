@@ -39,7 +39,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/timer.ts` — pure timer logic (no React/browser/clock; takes `now` as an argument). Tests: `lib/timer.test.ts`, run with `npm test`
 - `lib/focus-storage.ts` — running session in localStorage (built on `lib/local-store.ts`); `lib/feedback.ts` — chime/vibrate; `lib/use-wake-lock.ts`
 - `lib/session-record.ts` — pure `Result` → `sessions` row mapping (tested). `lib/save-queue.ts` — localStorage outbox that uploads finished sessions and retries
-- `app/_focus/` — focus screen UI (private folder, not a route); `recent-sessions.tsx` is the Phase 3 "is saving working?" list
+- `app/_focus/` — focus screen UI (private folder, not a route); `recent-sessions.tsx` is the Phase 3 "is saving
+  working?" list, shown at the bottom of `/stats`
 - `lib/fish.ts` — pure fish derivation: sessions → tanks, fish sizes, bones (tested in `lib/fish.test.ts`).
   `lib/fish-look.ts` — a fish's colours/pattern/swim seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
   all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
@@ -50,8 +51,16 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
   column chart, heatmap, bar list), `viz.css` (chart colours, validated with the dataviz palette checker).
   `app/stats/page.tsx` is the protected `/stats` route
-- `lib/task-name.ts` — pure `cleanTaskName` / `taskKey`. `lib/tasks.ts` — `useTasks()` + add / done / delete
-  (`public.tasks`, online only). `app/_tasks/task-list.tsx` + `app/tasks/page.tsx` — the `/tasks` route
+- `lib/task-name.ts` — pure `cleanName` / `cleanTaskName` / `taskKey`. `lib/task-views.ts` — pure task logic
+  (`Task` type, due-date groups, in progress, Mark done matching, done history, completions), tested.
+  `lib/tasks.ts` — `useTasks()` + add / done / due date / delete (`public.tasks`, online only).
+  `app/_tasks/task-list.tsx` + `app/tasks/page.tsx` — the `/tasks` route
+- `lib/cycle-blocks.ts` — pure cycle blocks: premade cycles, `expandBlocks` (blocks → phases), `parseBlocks`, tested.
+  `lib/cycles.ts` — `useCycles()` (premade + saved) + save / delete (`public.cycles`).
+  `app/_focus/cycle-picker.tsx` — cycle chips, Custom fields, "Save as…"
+- `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Stats · Help; each page renders it, Home hides it while
+  a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
+- `app/_focus/today-tasks.tsx` — Home's "Today" card. `app/_focus/task-status.tsx` — "In progress" badge, "Mark done"
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
@@ -89,9 +98,22 @@ The owner is a student learning to code: explain what you do and why, briefly.
     (A quick leave or refresh in the window just keeps running.)
   - No confirmation popup before starting.
 
+### App structure (Phase 6)
+- Bottom nav: Home · Tasks · Stats · Help, on every signed-in page, hidden while a session is running.
+- Home, top to bottom: stats line, "Today" card (due today + overdue; tap one to pick it for the next session),
+  tank, setup form.
+
 ### Tasks and session types (Phase 6)
+- Tasks: name, optional due date (a plain calendar date), done. Names are unique among NOT-done tasks only
+  (partial unique index, ignoring case): re-adding a done name ("Read 20 pages") makes a new task, and every
+  completion stays in history. "Mark done" / "In progress" match the not-done task with that name.
+  Grouped Today / Overdue / Upcoming / No date by the user's local today; Done is a separate view (history with
+  done date + focus time). Each session with the task's name counts toward ONE completion: the first one done at
+  or after the session started.
+- "In progress" is never stored: only while the running session's task matches the task by name.
 - Optional task per session: type one or tap an open task on the setup screen; blank = no task (starts as before).
   The running screen shows the task name instead of "Focus"/"Stopwatch" (a cycle keeps its block line under it).
+  The result screen offers "Mark done" if the task is on the list (matched by name).
 - Sessions store the task's NAME (`task_name`), not a link to `tasks`: queued sessions can't break when a task is
   deleted, and deleted tasks keep their stats. Time per task groups names case-insensitively.
 - Study / Notes toggle (Study default). Notes sessions make no fish, and a failed notes session leaves no bone.
@@ -114,6 +136,11 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Leaving during the first block kills the fish.
 - During the final long break, "Finish" ends the set as completed with no penalty (every block is banked).
 - **Rule across the app: you only ever lose minutes you haven't finished.**
+- Cycles are stored as an ordered list of blocks (`lib/cycle-blocks.ts`): steps (focus / break / longBreak, minutes)
+  and `repeat × N` holding steps (no nested repeats). Expanding: no leading break; neighbouring breaks collapse to
+  the last; a trailing short break is dropped. Premade: Pomodoro (25/5 × 4 + 15), 50/10 (× 2), Deep work (90).
+  Users save Custom settings under a name (unique per user) and can delete them; no editing.
+  `cycle_name` is stored on cycle sessions (null = Custom). "Finish" only applies to a long break that is the last phase.
 
 ### Economy and growth (Phase 7, not built yet)
 - Study sessions grow FISH (as now). Notes sessions (Phase 6) grow PLANTS, not fish.
@@ -163,9 +190,12 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Phase 3 (done): save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list.
 - Phase 4 (done): the tank. Fish/bones derived from sessions, Shallows skin, swimming fish with detail cards,
   live-growing fish while running, dying fish on failure.
-- Phase 5 (in progress): stats. Home stats line (today + streak) and `/stats` page with tiles, 7-day columns,
+- Phase 5 (done): stats. Home stats line (today + streak) and `/stats` page with tiles, 7-day columns,
   12-week heatmap, splits, records and time of day. All derived from sessions.
 - Phase 6: app structure + tasks + session types
+  - Part 1 (done): task list, task on sessions, Study / Notes + target time, stats split by type and time per
+    task, streak freeze.
+  - Part 2 (in progress): everything below that part 1 didn't cover.
   - Navigation between Home, Tasks, Stats and Help, organised and consistent.
   - Help / "How it works" page: modes, Deep vs Open Focus, cycles, the 10-second cancel, fish, bones, plants, streaks.
   - Tasks: title + optional due date; grouped Today / Overdue / Upcoming / Done. States: To do, In progress

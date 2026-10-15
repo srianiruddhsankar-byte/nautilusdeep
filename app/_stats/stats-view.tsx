@@ -11,6 +11,8 @@ import {
   weekdayIndex,
   type Stats,
 } from "@/lib/stats";
+import { taskCompletions } from "@/lib/task-views";
+import { useTasks } from "@/lib/tasks";
 import { SESSION_TYPE_LABEL, type SessionType } from "@/lib/timer";
 import { useClock } from "@/lib/use-clock";
 import { BarList, ColumnChart, Heatmap } from "./charts";
@@ -25,11 +27,16 @@ const percent = (part: number, whole: number) =>
 
 export function StatsView() {
   const { rows, error } = useSessions();
+  const { tasks } = useTasks();
   const clock = useClock();
   const [type, setType] = useState<SessionType>("study");
   const all = useMemo(
     () => (rows && clock ? computeAllStats(rows, clock.now, clock.timeZone) : null),
     [rows, clock],
+  );
+  const completed = useMemo(
+    () => (tasks && clock ? taskCompletions(tasks, clock.now, clock.timeZone) : null),
+    [tasks, clock],
   );
 
   if (!all) {
@@ -65,6 +72,14 @@ export function StatsView() {
             })),
           )}
         />
+      </Section>
+
+      <Section title="Tasks done">
+        <dl className="grid grid-cols-3 gap-2">
+          <Tile label="Today" value={completed ? String(completed.today) : "–"} />
+          <Tile label="This week" value={completed ? String(completed.week) : "–"} />
+          <Tile label="This month" value={completed ? String(completed.month) : "–"} />
+        </dl>
       </Section>
 
       <div role="tablist" aria-label="Session type" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
@@ -226,6 +241,16 @@ function TypeStats({ type, stats }: { type: SessionType; stats: Stats }) {
             }`,
           }))}
         />
+        {stats.mostUsedCycle && (
+          <p className="text-sm">
+            <span className="text-zinc-500">Most-used cycle: </span>
+            <span className="font-semibold">{stats.mostUsedCycle.name}</span>
+            <span className="text-zinc-500">
+              {" "}
+              · {stats.mostUsedCycle.sessions} {stats.mostUsedCycle.sessions === 1 ? "session" : "sessions"}
+            </span>
+          </p>
+        )}
       </Section>
 
       {study && (

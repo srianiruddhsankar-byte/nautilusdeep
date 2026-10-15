@@ -16,6 +16,7 @@ import {
   checkSession,
   formatClock,
   getStatus,
+  isFinalBreak,
   isNotes,
   isOpenFocus,
   pressStop,
@@ -25,11 +26,14 @@ import {
   type Status,
 } from "@/lib/timer";
 import { useWakeLock } from "@/lib/use-wake-lock";
+import { BottomNav } from "../_nav/bottom-nav";
 import { StatsLine } from "../_stats/stats-line";
 import { LiveFish } from "../_tank/live-fish";
 import { ResultFish } from "../_tank/result-fish";
 import { Tank } from "../_tank/tank";
 import { SetupForm } from "./setup-form";
+import { InProgressBadge, MarkDone } from "./task-status";
+import { TodayTasks } from "./today-tasks";
 
 // Every way a session ends goes through here.
 // - Cancelled (first 10 s): the session just disappears. Nothing is queued or
@@ -57,6 +61,8 @@ export function FocusScreen() {
   const saved = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const session = saved?.session ?? null;
   const now = useSessionClock(session !== null);
+  // The next session's task. Lives here so the Today card can fill it in.
+  const [task, setTask] = useState("");
 
   // Upload any sessions that couldn't be saved earlier, and keep retrying.
   useEffect(() => startSync(), []);
@@ -76,23 +82,46 @@ export function FocusScreen() {
   );
 
   if (saved === null) return <p className="text-center text-zinc-500">Loading…</p>;
+  // Running: just the timer. No navigation, nothing else to tap.
   if (session && status) {
     return <RunningView session={session} status={status} now={now ?? session.startedAt} />;
   }
-  if (saved.result) return <ResultView result={saved.result} aquarium={aquarium} />;
+  if (saved.result) {
+    return (
+      <>
+        <ResultView result={saved.result} aquarium={aquarium} onTaskDone={() => setTask("")} />
+        <BottomNav active="home" />
+      </>
+    );
+  }
   return (
     <>
       <StatsLine />
+      <TodayTasks
+        onPick={(name) => {
+          setTask(name);
+          scrollToStart();
+        }}
+      />
       <Tank aquarium={aquarium} error={error} />
       <SetupForm
+        task={task}
+        onTaskChange={setTask}
         onStart={(s) => {
           unlockAudio(); // this runs inside the Start tap, which phones require for sound
           // The id is generated here, once, and becomes the database row's id.
           save({ session: { ...s, id: crypto.randomUUID() }, result: null });
         }}
       />
+      <BottomNav active="home" />
     </>
   );
+}
+
+// After picking a task from the Today card, bring the Start button into view.
+function scrollToStart() {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById("start-session")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
 }
 
 // Re-reads the clock while a session runs, and handles leaving/returning.
@@ -194,12 +223,12 @@ function RunningView({
   const isFocus = status.kind === "focus";
   const isCycle = session.mode === "cycle";
   const open = isOpenFocus(session);
-  // The long break is the last phase: every block is banked, so "Finish" is safe.
-  const isFinalBreak = status.kind === "longBreak";
+  // The cycle's last phase is a long break: every block is banked, so "Finish" is safe.
+  const finalBreak = isFinalBreak(session, now);
   // First 10 s: the button is "Cancel" (computed from the start time, so it's right after a refresh).
   const cancelSeconds = Math.ceil(cancelWindowRemainingMs(session, now) / 1000);
   const cancellable = cancelSeconds > 0;
-  const needsConfirm = !cancellable && session.mode !== "stopwatch" && !isFinalBreak;
+  const needsConfirm = !cancellable && session.mode !== "stopwatch" && !finalBreak;
 
   function stop() {
     if (needsConfirm && !confirming) return setConfirming(true);
@@ -239,7 +268,7 @@ function RunningView({
       : formatClock(Math.ceil(status.remainingMs / 1000) * 1000);
 
   const losesWholeSession = !isCycle || status.focusBlock === 1;
-  const hint = isFinalBreak
+  const hint = finalBreak
     ? "Last break. Every block is banked. Tap Finish whenever you're ready."
     : !isFocus
       ? `Break. It's safe to leave the app. Next: Focus ${status.focusBlock + 1} of ${status.totalBlocks}.`
@@ -250,7 +279,7 @@ function RunningView({
           }.`;
 
   let stopLabel = session.mode === "stopwatch" ? "Stop" : isCycle ? "End session" : "Give up";
-  if (isFinalBreak) stopLabel = "Finish";
+  if (finalBreak) stopLabel = "Finish";
   if (cancellable) stopLabel = `Cancel · ${cancelSeconds}`;
   if (confirming) {
     stopLabel = !isFocus
@@ -273,6 +302,7 @@ function RunningView({
           {heading}
         </p>
         {subheading && <p className="text-sm text-zinc-500">{subheading}</p>}
+        {task && <InProgressBadge taskName={task} />}
         <p className="text-7xl font-semibold tabular-nums sm:text-8xl">{time}</p>
       </div>
 
@@ -293,7 +323,7 @@ function RunningView({
               ? "bg-red-600 text-white"
               : cancellable
                 ? "bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-                : isFinalBreak
+                : finalBreak
                   ? "bg-sky-700 text-white hover:bg-sky-800"
                   : "border-2 border-zinc-300 dark:border-zinc-700"
           }`}
@@ -305,7 +335,15 @@ function RunningView({
   );
 }
 
-function ResultView({ result, aquarium }: { result: Result; aquarium: Aquarium | null }) {
+function ResultView({
+  result,
+  aquarium,
+  onTaskDone,
+}: {
+  result: Result;
+  aquarium: Aquarium | null;
+  onTaskDone: () => void;
+}) {
   const { title, detail } = describe(result);
   const failed = result.outcome === "failed";
   const notes = isNotes(result);
@@ -336,6 +374,8 @@ function ResultView({ result, aquarium }: { result: Result; aquarium: Aquarium |
           <Stat label="Unfinished, not counted" value={formatClock(result.lostMs)} />
         )}
       </dl>
+
+      {result.task && <MarkDone taskName={result.task} onDone={onTaskDone} />}
 
       <button
         onClick={() => save({ session: null, result: null })}
