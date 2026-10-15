@@ -1,6 +1,15 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_VOLUME, DUCK_LEVEL, ambienceTarget, cleanVolume } from "./ambience-logic.ts";
+import {
+  AMBIENCE_CHOICES,
+  AMBIENCE_DESCRIPTION,
+  AMBIENCE_LABEL,
+  DEFAULT_VOLUME,
+  DUCK_LEVEL,
+  ambienceTarget,
+  cleanVolume,
+  previewTap,
+} from "./ambience-logic.ts";
 import { sanitizePrefs } from "./setup-prefs.ts";
 
 const playing = { sound: "waves" as const, running: true, paused: false, volume: 0.6, alerting: false };
@@ -53,5 +62,32 @@ describe("volume and preferences", () => {
       sound: "off",
       volume: 1,
     });
+  });
+});
+
+describe("previews in Session settings", () => {
+  test("tapping a sound chooses it and previews it", () => {
+    assert.deepEqual(previewTap(null, "rain"), { choose: "rain", preview: "rain" });
+  });
+
+  test("tapping a different sound switches the preview (only one plays)", () => {
+    assert.deepEqual(previewTap("rain", "harbour"), { choose: "harbour", preview: "harbour" });
+  });
+
+  test("tapping the one that's playing stops it, and it stays chosen", () => {
+    assert.deepEqual(previewTap("rain", "rain"), { choose: "rain", preview: null });
+  });
+
+  test("Off chooses off and stops any preview", () => {
+    assert.deepEqual(previewTap("deep", "off"), { choose: "off", preview: null });
+  });
+
+  test("every sound has a name and a one-line description, and old choices still load", () => {
+    for (const c of AMBIENCE_CHOICES) {
+      assert.ok(AMBIENCE_LABEL[c]);
+      assert.ok(AMBIENCE_DESCRIPTION[c].length < 60, c);
+    }
+    assert.equal(sanitizePrefs({ ambience: { sound: "calm", volume: 0.5 } }).ambience.sound, "calm");
+    assert.equal(sanitizePrefs({ ambience: { sound: "rockpool", volume: 0.5 } }).ambience.sound, "rockpool");
   });
 });

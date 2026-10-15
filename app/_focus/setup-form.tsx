@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { totalMinutes } from "@/lib/cycle-blocks";
 import { useCycles } from "@/lib/cycles";
-import { AMBIENCE_LABEL, type AmbienceChoice } from "@/lib/ambience-logic";
+import { setPreviewVolume, startPreview, stopPreview, usePreview } from "@/lib/ambience";
+import {
+  AMBIENCE_CHOICES,
+  AMBIENCE_DESCRIPTION,
+  AMBIENCE_LABEL,
+  PREVIEW_SECONDS,
+  previewTap,
+  type AmbienceChoice,
+} from "@/lib/ambience-logic";
 import { loadPrefs, savePrefs } from "@/lib/prefs-store";
 import { NIGHT_INTERVALS, NIGHT_TEST_INTERVAL, type NightPrefs, type SetupPrefs } from "@/lib/setup-prefs";
 import { formatDuration } from "@/lib/stats";
@@ -49,7 +57,6 @@ const NIGHT_CHOICES =
   process.env.NODE_ENV === "development" ? [NIGHT_TEST_INTERVAL, ...NIGHT_INTERVALS] : [...NIGHT_INTERVALS];
 const CHIPS = 8;
 
-const AMBIENCES: AmbienceChoice[] = ["off", "waves", "underwater", "calm"];
 
 // The task is owned by the Home screen, so the Today card can fill it in.
 export function SetupForm({
@@ -91,6 +98,7 @@ export function SetupForm({
         : prefs.mode === "stopwatch"
           ? startStopwatch(now, prefs.focusMode)
           : startCycleBlocks(cycle.blocks!, now, prefs.focusMode, cycle.name);
+    stopPreview(); // a preview never carries on into a session
     savePrefs({ ...prefs, cycleChoice: choice ?? prefs.cycleChoice }); // next time starts like this
     setOpen(false);
     onStart(
@@ -249,7 +257,9 @@ export function SetupForm({
   );
 }
 
-// Ocean sounds while you focus. Volume can also be changed during the session.
+// Ocean sounds while you focus. One line until opened, so settings stay tidy.
+// Tapping a sound chooses it AND plays a short preview; tap it again to stop.
+// Previews never start a session, and stop when the list or settings close.
 function Ambience({
   value,
   onChange,
@@ -257,25 +267,84 @@ function Ambience({
   value: SetupPrefs["ambience"];
   onChange: (value: SetupPrefs["ambience"]) => void;
 }) {
+  const previewing = usePreview();
+  const [listOpen, setListOpen] = useState(false);
+  useEffect(() => () => stopPreview(), []); // settings closed
+
+  function tap(choice: AmbienceChoice) {
+    const result = previewTap(previewing, choice);
+    onChange({ ...value, sound: result.choose });
+    if (result.preview) startPreview(result.preview, value.volume);
+    else stopPreview();
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-semibold">Ambience</span>
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 sm:grid-cols-4 dark:bg-zinc-900">
-        {AMBIENCES.map((sound) => (
-          <button
-            key={sound}
-            type="button"
-            aria-pressed={value.sound === sound}
-            onClick={() => onChange({ ...value, sound })}
-            className={`rounded-lg py-2.5 text-sm font-medium ${
-              value.sound === sound ? "bg-white shadow dark:bg-zinc-700" : "text-zinc-500"
-            }`}
-          >
-            {AMBIENCE_LABEL[sound]}
-          </button>
-        ))}
-      </div>
-      {value.sound !== "off" && <VolumeSlider value={value.volume} onChange={(volume) => onChange({ ...value, volume })} />}
+      <button
+        type="button"
+        onClick={() => {
+          if (listOpen) stopPreview();
+          setListOpen(!listOpen);
+        }}
+        aria-expanded={listOpen}
+        className="flex items-center justify-between gap-3 text-left"
+      >
+        <span className="font-semibold">Ambience</span>
+        <span className="text-sm text-sky-700 dark:text-sky-400">
+          {AMBIENCE_LABEL[value.sound]} {listOpen ? "▾" : "›"}
+        </span>
+      </button>
+
+      {listOpen && (
+        <>
+          <p className="text-xs text-zinc-500">
+            Tap a sound to choose it and hear {PREVIEW_SECONDS} seconds. Tap again to stop.
+          </p>
+          <ul role="radiogroup" aria-label="Ambience" className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+            {AMBIENCE_CHOICES.map((choice) => {
+              const chosen = value.sound === choice;
+              const playing = previewing === choice;
+              return (
+                <li key={choice}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={chosen}
+                    onClick={() => tap(choice)}
+                    className="flex w-full items-center gap-3 py-2.5 text-left"
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-4 w-4 shrink-0 rounded-full border-2 ${
+                        chosen ? "border-sky-700 bg-sky-700 shadow-[inset_0_0_0_2px_white] dark:shadow-[inset_0_0_0_2px_#0a0a0a]" : "border-zinc-400"
+                      }`}
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="font-medium">{AMBIENCE_LABEL[choice]}</span>
+                      <span className="truncate text-sm text-zinc-500">{AMBIENCE_DESCRIPTION[choice]}</span>
+                    </span>
+                    {playing && (
+                      <span className="shrink-0 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                        ■ Stop
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+
+      {value.sound !== "off" && (
+        <VolumeSlider
+          value={value.volume}
+          onChange={(volume) => {
+            onChange({ ...value, volume });
+            setPreviewVolume(volume); // hear the change on the preview too
+          }}
+        />
+      )}
     </div>
   );
 }

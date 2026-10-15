@@ -1,4 +1,4 @@
-import { DEFAULT_VOLUME, cleanVolume, type AmbienceChoice } from "./ambience-logic.ts";
+import { AMBIENCE_CHOICES, DEFAULT_VOLUME, cleanVolume, type AmbienceChoice } from "./ambience-logic.ts";
 import { MAX_REPEAT } from "./cycle-blocks.ts";
 import {
   DEFAULT_CYCLE,
@@ -103,7 +103,7 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
       style: oneOf(n.style, ["chime", "vibrate", "pulse"], DEFAULT_PREFS.night.style),
     },
     ambience: {
-      sound: oneOf(a.sound, ["off", "waves", "underwater", "calm"], DEFAULT_PREFS.ambience.sound),
+      sound: oneOf(a.sound, AMBIENCE_CHOICES, DEFAULT_PREFS.ambience.sound),
       volume: cleanVolume(a.volume),
     },
   };

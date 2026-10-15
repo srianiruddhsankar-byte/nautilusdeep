@@ -99,8 +99,8 @@ export default function HelpPage() {
       <Card title="Ambience">
         <Points>
           <li>
-            Ocean sounds while you focus: <b>Waves</b> (surf with slow swells), <b>Underwater</b> (deep and muffled,
-            with gentle bubbles) or <b>Calm sea</b> (a soft, steady wash). Pick one in Session settings.
+            Ocean and water sounds while you focus, from Waves and Rain on the sea to Harbour and Deep ocean. Pick one
+            under Ambience in Session settings: tapping a sound plays a short preview.
           </li>
           <li>It fades in when you start, keeps going through breaks, and fades out when the session ends.</li>
           <li>Tap the small speaker on the timer screen to pause it or change the volume.</li>

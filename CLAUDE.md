@@ -125,10 +125,16 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Bottom nav: Home · Tasks · Shop · Stats · Help, on every signed-in page, hidden while a session is running.
 
 ### Ambience (Phase 8)
-- Ocean sounds generated with the Web Audio API (no audio files): Waves (brown noise, lowpass, two out-of-step
-  swell LFOs + a foam hiss layer), Underwater (heavily lowpassed brown noise + random rising sine "bubbles"),
-  Calm sea (soft pink + brown wash, barely moving). Noise loops are crossfaded at the seam so they never click.
-- Session settings: Off / Waves / Underwater / Calm sea + volume, remembered with the setup prefs. Stored on the
+- 9 water sounds generated with the Web Audio API (no audio files), listed in `AMBIENCE_SOUNDS` with a one-line
+  description each (ids are stored: never rename, only add): Waves, Calm sea, Night shore (+ crickets), Rain on
+  the sea (+ noise-burst drops), Rock pool (shifting ripples + echoing drips), Gentle stream (three jittering
+  noise bands = babble), Harbour (lapping + wooden creak + far bell), Underwater (+ bubbles), Deep ocean (+ whale-
+  like calls through a long echo). Built from looped brown/pink noise, filters, slow LFOs, random events
+  (`randomly`, `blip`) and `echo`. Noise loops are crossfaded at the seam so they never click.
+- Session settings: an Ambience line that opens the list (Off + 9) + volume, remembered with the setup prefs.
+  Tapping a sound chooses it AND plays a ~10 s preview (`startPreview`, a separate slot from the session's sound,
+  one at a time); tapping it again stops it (`previewTap`, tested). Previews stop on closing the list or
+  settings and on Start; they never start a session. Stored on the
   running session (`ambience: { sound, volume, paused }`), so a refresh keeps it. The running screen has a small
   speaker by the focus mode: Pause / Play + volume (a volume change is remembered too).
 - Starts with the session (the Start tap unlocks audio; after a refresh the first tap does), fades in/out, keeps

@@ -65,6 +65,10 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 
 ## Sounds
 
+- **Real music tracks** (lo-fi, piano) as a library alongside the generated ambience.
+  - Why parked: needs licensed or CC0 tracks (and hosting them). For now you can play your own music app in
+    the background.
+  - Revisit: after Phase 11 testing, if testers ask for music.
 - **More ambient sounds** beyond the ocean (stream, rain, underwater), matched to the water type.
   - Why parked: Phase 8 builds ocean sounds only.
   - Revisit: after Phase 8, together with water types.
