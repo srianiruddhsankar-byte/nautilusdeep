@@ -52,6 +52,10 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
   - Each water type has its own species pool.
   - Why parked: depends on real species and plants (Phase 7).
   - Revisit: after Phase 11, with real species.
+- **Real underwater flowering behaviour** for plants, once plants become real species: seagrass and hornwort
+  flower and pollinate fully underwater (small, inconspicuous flowers); water lilies flower at the surface.
+  - Why parked: today's plants are simple shapes that show maturity through size and colour, not flowers.
+  - Revisit: with the species redesign (real species, after Phase 11).
 - **Extra creatures** (snails, shrimp, frogs) **and extra plants** (lily pads, reeds, flowers).
   - Why parked: the tank must stay simple, not become a game.
   - Revisit: with real species / water types.

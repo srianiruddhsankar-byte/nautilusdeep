@@ -6,6 +6,7 @@ import { unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { compareToTarget } from "@/lib/notes";
+import { deriveGarden, type Garden } from "@/lib/plants";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import { useSessions } from "@/lib/sessions-data";
 import {
@@ -30,7 +31,9 @@ import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
 import { StatsLine } from "../_stats/stats-line";
 import { LiveFish } from "../_tank/live-fish";
+import { LivePlant, SeedlingCard } from "../_tank/live-plant";
 import { ResultFish } from "../_tank/result-fish";
+import { ResultPlant } from "../_tank/result-plant";
 import { Tank } from "../_tank/tank";
 import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
@@ -79,6 +82,8 @@ export function FocusScreen() {
   // Fish are derived from the sessions, never stored separately.
   const { rows, error } = useSessions();
   const aquarium = useMemo(() => (rows ? deriveAquarium(rows) : null), [rows]);
+  // Plants too: notes sessions grow them, derived the same way.
+  const garden = useMemo(() => (rows ? deriveGarden(rows) : null), [rows]);
 
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
   // Wake lock only for Deep Focus (Open Focus users are using the device anyway).
@@ -90,7 +95,7 @@ export function FocusScreen() {
   if (session && status) {
     return (
       <>
-        <RunningView session={session} status={status} now={now ?? session.startedAt} />
+        <RunningView session={session} status={status} now={now ?? session.startedAt} garden={garden} />
         <AlarmOverlay />
       </>
     );
@@ -98,7 +103,7 @@ export function FocusScreen() {
   if (saved.result) {
     return (
       <>
-        <ResultView result={saved.result} aquarium={aquarium} onTaskDone={() => setTask("")} />
+        <ResultView result={saved.result} aquarium={aquarium} garden={garden} onTaskDone={() => setTask("")} />
         <BottomNav active="home" />
         <AlarmOverlay />
       </>
@@ -114,7 +119,8 @@ export function FocusScreen() {
           scrollToStart();
         }}
       />
-      <Tank aquarium={aquarium} error={error} />
+      <Tank aquarium={aquarium} garden={garden} error={error} />
+      <SeedlingCard garden={garden} />
       <SetupForm
         task={task}
         onTaskChange={setTask}
@@ -219,10 +225,12 @@ function RunningView({
   session,
   status,
   now,
+  garden,
 }: {
   session: Session;
   status: Status;
   now: number;
+  garden: Garden | null;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -319,7 +327,11 @@ function RunningView({
         <p className="text-7xl font-semibold tabular-nums sm:text-8xl">{time}</p>
       </div>
 
-      {notes ? <NotesProgress session={session} status={status} /> : <LiveFish session={session} now={now} />}
+      {notes ? (
+        <LivePlant session={session} now={now} garden={garden} note={targetLine(session, status)} />
+      ) : (
+        <LiveFish session={session} now={now} />
+      )}
 
       <p className="max-w-xs text-center text-zinc-500">{hint}</p>
 
@@ -351,10 +363,12 @@ function RunningView({
 function ResultView({
   result,
   aquarium,
+  garden,
   onTaskDone,
 }: {
   result: Result;
   aquarium: Aquarium | null;
+  garden: Garden | null;
   onTaskDone: () => void;
 }) {
   const { title, detail } = describe(result);
@@ -379,7 +393,7 @@ function ResultView({
         <span className="text-zinc-500">focus minutes</span>
       </p>
 
-      {notes ? <NotesResult result={result} /> : <ResultFish result={result} aquarium={aquarium} />}
+      {notes ? <NotesResult result={result} garden={garden} /> : <ResultFish result={result} aquarium={aquarium} />}
 
       {(result.mode === "cycle" || result.lostMs >= 1000) && (
         <dl className="grid w-full grid-cols-2 gap-3 text-left">
@@ -405,38 +419,31 @@ function ResultView({
 }
 
 // Notes sessions grow no fish: show the target instead, while it runs…
-function NotesProgress({ session, status }: { session: Session; status: Status }) {
+// The target line under the growing plant (notes stopwatch with a target), or null.
+function targetLine(session: Session, status: Status): string | null {
   const target = session.targetMinutes ?? null;
+  if (target === null) return null;
   const minutes = Math.floor(status.elapsedMs / 60_000);
-  let line = "Notes session: no fish for this one. Plants come later.";
-  if (target !== null) {
-    line =
-      minutes < target
-        ? `Target ${target} min · ${target - minutes} min to go`
-        : minutes === target
-          ? `Target ${target} min · right on target`
-          : `Target ${target} min · ${minutes - target} min over`;
-  }
-  return (
-    <p className="w-full rounded-2xl bg-zinc-100 px-4 py-6 text-center font-medium dark:bg-zinc-900">
-      {line}
-    </p>
-  );
+  return minutes < target
+    ? `Target ${target} min · ${target - minutes} min to go`
+    : minutes === target
+      ? `Target ${target} min · right on target`
+      : `Target ${target} min · ${minutes - target} min over`;
 }
 
 // …and target vs actual at the end.
-function NotesResult({ result }: { result: Result }) {
+function NotesResult({ result, garden }: { result: Result; garden: Garden | null }) {
   const focusSeconds = Math.floor(result.focusMs / 1000);
   const showTarget = result.targetMinutes !== null && result.outcome !== "failed";
   return (
-    <div className="flex w-full flex-col gap-1 rounded-2xl bg-zinc-100 px-4 py-6 dark:bg-zinc-900">
-      <p className="text-xl font-semibold">
-        {showTarget
-          ? compareToTarget(focusSeconds, result.targetMinutes!).text
-          : `Took ${Math.floor(focusSeconds / 60)} min`}
-      </p>
-      {showTarget && <p className="text-sm text-zinc-500">Target: {result.targetMinutes} min</p>}
-      <p className="text-sm text-zinc-500">Notes sessions don&apos;t grow fish. Plants are coming later.</p>
+    <div className="flex w-full flex-col items-center gap-4">
+      {showTarget && (
+        <div className="flex w-full flex-col gap-1 rounded-2xl bg-zinc-100 px-4 py-4 dark:bg-zinc-900">
+          <p className="text-xl font-semibold">{compareToTarget(focusSeconds, result.targetMinutes!).text}</p>
+          <p className="text-sm text-zinc-500">Target: {result.targetMinutes} min</p>
+        </div>
+      )}
+      <ResultPlant result={result} garden={garden} />
     </div>
   );
 }

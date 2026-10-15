@@ -46,8 +46,13 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/fish.ts` — pure fish derivation: sessions → tanks, fish sizes, bones (tested in `lib/fish.test.ts`).
   `lib/fish-look.ts` — a fish's colours/pattern/swim seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
   all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
-- `app/_tank/` — tank UI: `tank.tsx`, `fish-sprite.tsx` (SVG fish/egg/bone), `live-fish.tsx`, `result-fish.tsx`,
-  `skins.tsx` (the tank's look; `SHALLOWS` is the default), `tank.css` (all animation + reduced-motion rules)
+- `lib/plants.ts` — pure plant derivation (`deriveGarden`): notes sessions → growing plant, mature plants with
+  tank + slot, per-session growth; stage thresholds in `PLANT_STAGES` (tested in `lib/plants.test.ts`).
+  `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
+- `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor), `fish-sprite.tsx` (SVG fish/egg/bone),
+  `plant-sprite.tsx` (SVG underwater plants: stem / fern / grass × 5 stages, no flowers), `live-fish.tsx`, `live-plant.tsx` (live plant +
+  Home `SeedlingCard`), `result-fish.tsx`, `result-plant.tsx`, `skins.tsx` (the tank's look; `SHALLOWS` is the
+  default), `tank.css` (all animation + reduced-motion rules)
 - `lib/stats.ts` — pure stats from sessions (`computeStats(rows, now, timeZone)`), tested in `lib/stats.test.ts`.
   `lib/use-clock.ts` — `useClock()`: now + browser time zone, read in an effect (never `Date.now()` in render)
 - `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
@@ -151,17 +156,26 @@ The owner is a student learning to code: explain what you do and why, briefly.
   Users save Custom settings under a name (unique per user) and can delete them; no editing.
   `cycle_name` is stored on cycle sessions (null = Custom). "Finish" only applies to a long break that is the last phase.
 
-### Economy and growth (Phase 7, not built yet)
-- Study sessions grow FISH (as now). Notes sessions (Phase 6) grow PLANTS, not fish.
-- Plants grow from cumulative notes minutes across sessions: seed → sprout → young → full → flowering
-  (~5 hours total, tune later). When it flowers it's placed in the tank and a new seed starts.
-- Same 5-minute minimum as fish. A failed Deep Focus notes session loses only that session's growth
-  (the plant wilts slightly, never dies). Plants never die from time passing — holidays are safe.
+### Plants (Phase 7 part 1) and economy (Phase 7, coins not built yet)
+- Study sessions grow FISH. Notes sessions grow PLANTS, never fish; study sessions never touch plants.
+- Plants are DERIVED from `sessions` like fish (no table). One plant grows at a time from notes focus minutes added
+  up across sessions (completed / partial, 5+ minutes each). Stages: seed 0 → sprout 30 → young 90 → full 180 →
+  mature 300 min (`PLANT_STAGES` in `lib/plants.ts`, the one place to tune).
+- Plants live underwater: NO land-style flowers or petals. Maturity shows through size, fullness and colour
+  (richer greens; the newest growth at the top takes on a warm tint, `tipHue`).
+- When it's mature it's planted in the tank that is newest at that moment (by fish count then), in the next free
+  floor slot (6 per tank; if full, the next tank, which can then exist with plants only). A new seed starts with
+  the leftover minutes of that session.
+- A failed notes session (Deep or Open) adds no growth and the growing plant looks a little wilted until the next
+  notes session that counts. No bones from notes. Plants never die; time passing does nothing (holidays are safe).
+- A plant's look is seeded from the session that started it (`plantLook`); a session that starts several plants
+  gives ids `<id>`, `<id>#2`… Don't change the order of random draws in `plantLook()`.
 - Coins: 1 focus minute = 1 coin; Open Focus earns half, rounded down; under 5 focus minutes earns none;
   failed sessions earn none. Spent on decorations.
 
 ### Tanks
 - 10 fish per tank, filled oldest first. The 11th fish starts Tank 2, and so on. Opens on the newest tank.
+- Up to 6 mature plants per tank, in fixed spots on the sand below the fish lanes. Tap one for its card.
 - The default tank is "Shallows". Skins are unlocked by total hours (Phase 7; list and thresholds TBD).
 
 ### Stats and data
@@ -218,7 +232,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - Stats: study and notes separately, time per task, tasks completed, most-used cycle.
   - Streak freeze: streak = any day with 5+ minutes of study or notes; one missed day per Monday–Sunday week
     is forgiven, and never two consecutive missed days.
-- Phase 7: plants, coins, decorations, skins (rules in "Economy and growth" above)
+- Phase 7: plants, coins, decorations, skins (rules in "Plants … and economy" above)
+  - Part 1 (in progress): plants only.
   - Plants: notes sessions grow plants from cumulative notes minutes; they never die from time passing; a failed
     Deep Focus notes session loses only that session's growth.
   - Coins: 1 focus minute = 1 coin; Open Focus = half.

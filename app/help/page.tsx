@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
+import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
+import { formatDuration } from "@/lib/stats";
 import { CANCEL_WINDOW_MS, LEAVE_GRACE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
 import { Account } from "./account";
@@ -104,10 +106,34 @@ export default function HelpPage() {
             <b>Study</b> sessions grow fish.
           </li>
           <li>
-            <b>Notes</b> sessions don&apos;t make fish. They&apos;ll grow plants in a future update.
+            <b>Notes</b> sessions grow plants instead of fish.
           </li>
           <li>Notes on the Stopwatch can have a target time; the result shows how you did against it.</li>
           <li>Stats show study and notes separately.</li>
+        </Points>
+      </Card>
+
+      <Card title="Plants">
+        <Points>
+          <li>Notes sessions grow one plant at a time. Their minutes add up across sessions.</li>
+          <li>Sessions under {FISH_MIN_MINUTES} minutes don&apos;t count, same as fish.</li>
+        </Points>
+        <dl className="grid grid-cols-2 gap-2 text-sm">
+          {PLANT_STAGES.slice(1).map((s) => (
+            <Size
+              key={s.stage}
+              label={s.stage[0].toUpperCase() + s.stage.slice(1)}
+              range={`at ${formatDuration(s.from * 60)}`}
+            />
+          ))}
+        </dl>
+        <Points>
+          <li>
+            When it matures, it&apos;s planted on the floor of your newest tank (up to {PLANTS_PER_TANK} per tank) and a new
+            seed starts. Extra minutes carry over.
+          </li>
+          <li>A failed notes session adds no growth, and the plant looks a little wilted until your next notes session.</li>
+          <li>Plants never die, and nothing happens while you&apos;re away.</li>
         </Points>
       </Card>
 

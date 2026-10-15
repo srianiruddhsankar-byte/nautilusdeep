@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { FISH_SIZE_LABEL, type FishSize } from "@/lib/fish";
+import { MATURE_MINUTES, PLANT_STAGE_LABEL, deriveGarden, type Garden } from "@/lib/plants";
 import { useSessions } from "@/lib/sessions-data";
 import {
   computeAllStats,
@@ -34,6 +35,7 @@ export function StatsView() {
     () => (rows && clock ? computeAllStats(rows, clock.now, clock.timeZone) : null),
     [rows, clock],
   );
+  const garden = useMemo(() => (rows ? deriveGarden(rows) : null), [rows]);
   const completed = useMemo(
     () => (tasks && clock ? taskCompletions(tasks, clock.now, clock.timeZone) : null),
     [tasks, clock],
@@ -97,12 +99,12 @@ export function StatsView() {
       </div>
 
       {/* key: switching tabs resets each chart's selected column. */}
-      <TypeStats key={type} type={type} stats={all[type]} />
+      <TypeStats key={type} type={type} stats={all[type]} garden={garden} />
     </div>
   );
 }
 
-function TypeStats({ type, stats }: { type: SessionType; stats: Stats }) {
+function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; garden: Garden | null }) {
   const study = type === "study";
   const peakHour = stats.hours.reduce((best, s, h) => (s > stats.hours[best] ? h : best), 0);
   const hasHours = stats.hours[peakHour] > 0;
@@ -140,6 +142,19 @@ function TypeStats({ type, stats }: { type: SessionType; stats: Stats }) {
           }))}
         />
       </Section>
+
+      {!study && garden && (
+        <Section title="Plants" note={`Notes minutes grow one plant at a time. It matures at ${formatDuration(MATURE_MINUTES * 60)}.`}>
+          <Tiles>
+            <Tile label="Matured" value={String(garden.matured.length)} sub="In your tanks" />
+            <Tile
+              label="Growing now"
+              value={PLANT_STAGE_LABEL[garden.growing.stage]}
+              sub={`${garden.growing.minutes} of ${MATURE_MINUTES} min${garden.growing.wilted ? " · a little wilted" : ""}`}
+            />
+          </Tiles>
+        </Section>
+      )}
 
       {!study && (
         <Section title="Target vs actual" note="Notes stopwatch sessions with a target, not failed.">
