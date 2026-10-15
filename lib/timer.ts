@@ -3,6 +3,8 @@
 // and the answer is always computed from timestamps (never from counting ticks).
 
 export const LEAVE_GRACE_MS = 15_000;
+// For the first 10 s a session can be cancelled: it vanishes with no record, no bone.
+export const CANCEL_WINDOW_MS = 10_000;
 const MINUTE = 60_000;
 
 export type Mode = "timer" | "stopwatch" | "cycle";
@@ -63,6 +65,11 @@ export type Result = {
   blocksCompleted: number;
   totalBlocks: number;
 };
+
+// What happened to a session. Only "ended" produces a Result (which gets saved);
+// "cancelled" means the session simply disappears.
+export type SessionEnd = { status: "cancelled" } | { status: "ended"; result: Result };
+export type Check = { status: "running" } | SessionEnd;
 
 // Sessions saved before focus modes existed have no focusMode: treat them as Deep.
 export function isOpenFocus(session: Session): boolean {
@@ -189,6 +196,21 @@ export function bankedFocus(session: Session, at: number) {
   };
 }
 
+// ---------- Cancel window ----------
+
+// Time left to cancel (0 once the first 10 s are over). Based on the start
+// timestamp, so it's right after a refresh too.
+export function cancelWindowRemainingMs(session: Session, now: number): number {
+  return Math.max(0, session.startedAt + CANCEL_WINDOW_MS - now);
+}
+
+// The end button: Cancel during the first 10 s, otherwise a normal stop
+// (Give up / Stop / End session / Finish).
+export function pressStop(session: Session, now: number): SessionEnd {
+  if (cancelWindowRemainingMs(session, now) > 0) return { status: "cancelled" };
+  return { status: "ended", result: endSession(session, "stopped", now) };
+}
+
 // ---------- Leaving the app ----------
 
 // If the user was away from `from` to `to`, returns the moment they ran out of
@@ -260,14 +282,20 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
 }
 
 // The one check the UI runs on every tick and when the user comes back.
-// Returns a Result if the session is over, otherwise null.
-export function checkSession(session: Session, now: number): Result | null {
+export function checkSession(session: Session, now: number): Check {
   if (session.awaySince !== null) {
     const failAt = leaveFailureTime(session, session.awaySince, now);
-    if (failAt !== null) return endSession(session, "left", failAt);
+    if (failAt !== null) {
+      // Left during the first 10 s and didn't come back in time: an accidental
+      // start, so it's a cancel (no record, no bone), not a failure.
+      if (session.awaySince < session.startedAt + CANCEL_WINDOW_MS) return { status: "cancelled" };
+      return { status: "ended", result: endSession(session, "left", failAt) };
+    }
   }
-  if (now >= sessionEnd(session)) return endSession(session, "finished", now);
-  return null;
+  if (now >= sessionEnd(session)) {
+    return { status: "ended", result: endSession(session, "finished", now) };
+  }
+  return { status: "running" };
 }
 
 // ---------- Display helpers ----------

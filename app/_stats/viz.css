@@ -1,0 +1,25 @@
+/* Chart colours, validated with the dataviz palette checker against this app's
+   surfaces (#ffffff light, #0a0a0a dark). One blue for every bar (one series =
+   one colour); a 4-step blue ramp for the heatmap (ordinal: lightest step still
+   clears 2:1 against the page), plus a neutral "no focus" cell. */
+.viz {
+  --viz-bar: #2a78d6;
+  --viz-grid: #e4e4e7;
+  --viz-empty: #f0efec;
+  --viz-heat-1: #86b6ef;
+  --viz-heat-2: #3987e5;
+  --viz-heat-3: #1c5cab;
+  --viz-heat-4: #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  .viz {
+    --viz-bar: #3987e5;
+    --viz-grid: #27272a;
+    --viz-empty: #1f1f1d;
+    /* On dark, more focus = lighter. */
+    --viz-heat-1: #184f95;
+    --viz-heat-2: #2a78d6;
+    --viz-heat-3: #6da7ec;
+    --viz-heat-4: #b7d3f6;
+  }
+}

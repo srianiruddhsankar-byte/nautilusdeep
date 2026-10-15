@@ -27,6 +27,11 @@ The owner is a student learning to code: explain what you do and why, briefly.
   all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
 - `app/_tank/` — tank UI: `tank.tsx`, `fish-sprite.tsx` (SVG fish/egg/bone), `live-fish.tsx`, `result-fish.tsx`,
   `skins.tsx` (the tank's look; `SHALLOWS` is the default), `tank.css` (all animation + reduced-motion rules)
+- `lib/stats.ts` — pure stats from sessions (`computeStats(rows, now, timeZone)`), tested in `lib/stats.test.ts`.
+  `lib/use-clock.ts` — `useClock()`: now + browser time zone, read in an effect (never `Date.now()` in render)
+- `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
+  column chart, heatmap, bar list), `viz.css` (chart colours, validated with the dataviz palette checker).
+  `app/stats/page.tsx` is the protected `/stats` route
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
 
@@ -55,6 +60,13 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - **Deep Focus** (default): leaving for more than 15 s during focus fails the session/block; wake lock on during focus.
   - **Open Focus**: for studying on the same device. No leave detection, no wake lock; leaving never fails it.
     Only leaving is ignored: Give up still fails a timer, same as Deep Focus.
+- **10-second cancel window** (every mode, Deep and Open Focus), timed from the session's start timestamp:
+  - For the first 10 s the end button reads "Cancel · N" (countdown, neutral style, no confirm tap).
+  - Cancelling discards the session completely: nothing saved or queued, no bone, no dying fish,
+    no result screen — straight back to setup. After 10 s: normal Give up / Stop / End session rules.
+  - Deep Focus: a leave that BEGINS in the first 10 s and lasts over 15 s is a cancel, not a failure.
+    (A quick leave or refresh in the window just keeps running.)
+  - No confirmation popup before starting.
 
 ### Fish
 - Fish are DERIVED from `sessions` (never stored): one source of truth, so rule changes apply to past fish too.
@@ -74,17 +86,31 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - During the final long break, "Finish" ends the set as completed with no penalty (every block is banked).
 - **Rule across the app: you only ever lose minutes you haven't finished.**
 
-### Economy and growth
-- Coins: 1 focus minute = 1 coin, spent on decorations.
-- Plants grow by studying. A plant survives one missed day and dies after two missed days in a row.
-- The study streak is tracked separately from plants.
+### Economy and growth (Phase 7, not built yet)
+- Study sessions grow FISH (as now). Notes sessions (Phase 6) grow PLANTS, not fish.
+- Plants grow from cumulative notes minutes across sessions: seed → sprout → young → full → flowering
+  (~5 hours total, tune later). When it flowers it's placed in the tank and a new seed starts.
+- Same 5-minute minimum as fish. A failed Deep Focus notes session loses only that session's growth
+  (the plant wilts slightly, never dies). Plants never die from time passing — holidays are safe.
+- Coins: 1 focus minute = 1 coin; Open Focus earns half, rounded down; under 5 focus minutes earns none;
+  failed sessions earn none. Spent on decorations.
 
 ### Tanks
 - 10 fish per tank, filled oldest first. The 11th fish starts Tank 2, and so on. Opens on the newest tank.
-- The default tank is "Shallows". Total study hours unlock deeper-water skins (list and thresholds TBD).
+- The default tank is "Shallows". Skins are unlocked by total hours (Phase 7; list and thresholds TBD).
 
 ### Stats and data
-- Stats: today, this week, streak, longest session, total hours, bones.
+- Stats are DERIVED from `sessions` in the browser (no table, no SQL). Definitions — use exactly these:
+  - Focus time counts completed and partial sessions only (failed sessions have 0 focus seconds anyway).
+  - Days are in the user's local time zone (computed in the browser). A session counts toward the day it STARTED on.
+  - A "study day" = at least 5 focus minutes that day (sessions in a day add up).
+  - Current streak = consecutive study days ending today, or yesterday if today has nothing yet (today isn't over).
+    Longest streak = best run ever.
+    (Phase 6 changes this: study or notes minutes count, and one free missed day per week doesn't break it.)
+  - Weeks start on Monday.
+  - Sessions total = all sessions (incl. failed). Longest / average session = focus time of completed + partial.
+  - Completion rate = (completed + partial) ÷ all sessions (sessions that kept their fish).
+  - Time of day: each session's focus time is spread evenly over the wall-clock hours it ran.
 - Store every session as a raw record (start, end, mode, focus mode, completed/died) so new stats can be computed later. Derive stats; don't only store aggregates.
 - `public.sessions` table: one row per finished session. `id` is generated on the client at Start
   (retries can't duplicate). Focus time is stored as `focus_seconds` (derive minutes). `outcome` is
@@ -97,15 +123,41 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Use the Screen Wake Lock API during focus (Deep Focus only).
 - Leaving (Deep Focus only) = Page Visibility "hidden" for more than 15 s of focus time. The web can't tell a phone
   lock from an app switch, so locking during focus counts as leaving (revisit the grace period after real use).
-- Installable as a PWA later. Friends and Google Calendar features come much later.
+- Installable PWA + push reminders come in Phase 10. Friends and Google Calendar features are not planned yet.
 
 ## Roadmap
 - Phase 1 (done): project setup + Google login, protected home page saying "Hi, [name]", sign-out, public `/privacy`.
 - Phase 2 (done): timer, stopwatch and cycle modes with leave detection and localStorage restore; Deep/Open Focus.
-- Phase 3 (done): save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list. No fish, coins or stats screen.
-- Phase 4: the tank. Fish/bones derived from sessions, Shallows skin, swimming fish with detail cards,
-  live-growing fish while running, dying fish on failure. No coins, plants, skins or stats screen.
-- Coins phase (rules decided, not implemented yet):
-  - Sessions under 5 focus minutes earn no coins.
-  - Deep Focus earns full coins. Open Focus earns only half coins, rounded down.
-- Other phases: not yet planned.
+- Phase 3 (done): save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list.
+- Phase 4 (done): the tank. Fish/bones derived from sessions, Shallows skin, swimming fish with detail cards,
+  live-growing fish while running, dying fish on failure.
+- Phase 5 (done): stats. Home stats line (today + streak) and `/stats` page with tiles, 7-day columns,
+  12-week heatmap, splits, records and time of day. All derived from sessions.
+- Phase 6: tasks + session types
+  - Optional task name chosen/typed before a session (blank = start as today); the running timer shows the
+    task name; time per task in stats.
+  - Simple built-in task list (add, complete, pick one to start a session).
+  - Study / Notes session type toggle on the setup screen. Notes stats shown separately from study stats.
+    Optional target time for notes sessions, with target vs actual on the result screen.
+  - Streak freeze: one free missed day per week doesn't break the streak
+    (streak = any day with 5+ minutes of study or notes).
+- Phase 7: plants + coins + decorations + skins (rules in "Economy and growth" above)
+  - Study sessions grow fish; notes sessions grow plants (seed → sprout → young → full → flowering).
+  - Coins: 1 focus minute = 1 coin (Open Focus = half, rounded down); spent on decorations.
+  - Skins unlocked by total hours.
+- Phase 8: ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files);
+  play/pause and volume on the focus screen.
+- Phase 9: UI polish pass across the whole app (general UI only, not the species redesign).
+- Phase 10: PWA (installable) + push notification reminders for tasks.
+- Phase 11: testing phase with friends — real use, feedback, bug fixes. Ask testers where they keep their
+  to-do lists (Notion, Google Tasks, Apple Reminders, paper...) before deciding on any integration.
+
+## Later (after Phase 11)
+- Real species (extinct or not), different body shapes, fish index with rarity tiers (common → legendary);
+  uncaught species shown as "???" silhouettes.
+- Freshwater vs saltwater tanks: each tank has a water type, chosen when a new tank starts. Freshwater skins
+  (Shallows, pond, river, lake) get freshwater fish and aquatic plants; saltwater skins (coral reef, deep sea)
+  get marine fish and corals instead of plants (index note: coral is an animal). Species pools per water type.
+- Realistic tank/visual redesign (style to be decided).
+- To-do integration (e.g. Notion) only if testers show most use one app.
+- Voice input only if the phone keyboard's built-in mic isn't enough.

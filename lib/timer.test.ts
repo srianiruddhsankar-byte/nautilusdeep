@@ -1,14 +1,19 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  CANCEL_WINDOW_MS,
   DEFAULT_CYCLE,
+  cancelWindowRemainingMs,
   checkSession,
   endSession,
   getStatus,
   leaveFailureTime,
+  pressStop,
   startCycle,
   startStopwatch,
   startTimer,
+  type Check,
+  type Result,
   type Session,
 } from "./timer.ts";
 
@@ -19,6 +24,12 @@ const T0 = 1_700_000_000_000; // an arbitrary fixed start time
 // Default cycle timeline: F1 0–25, break 25–30, F2 30–55, break 55–60,
 // F3 60–85, break 85–90, F4 90–115, long break 115–130.
 const cycle = () => startCycle(DEFAULT_CYCLE, T0);
+
+// The Result of a check that must have ended (fails the test otherwise).
+function ended(check: Check): Result {
+  assert.equal(check.status, "ended");
+  return (check as { status: "ended"; result: Result }).result;
+}
 
 describe("elapsed time across a simulated sleep", () => {
   test("timer: no ticks for 10 minutes, still shows 15:00 left", () => {
@@ -39,10 +50,10 @@ describe("elapsed time across a simulated sleep", () => {
   });
 
   test("timer that ran out while asleep finishes at its end time, not wake time", () => {
-    const r = checkSession(startTimer(25, T0), T0 + 40 * MIN);
-    assert.equal(r?.outcome, "completed");
-    assert.equal(r?.endedAt, T0 + 25 * MIN);
-    assert.equal(r?.focusMs, 25 * MIN);
+    const r = ended(checkSession(startTimer(25, T0), T0 + 40 * MIN));
+    assert.equal(r.outcome, "completed");
+    assert.equal(r.endedAt, T0 + 25 * MIN);
+    assert.equal(r.focusMs, 25 * MIN);
   });
 });
 
@@ -76,10 +87,10 @@ describe("15-second leave rule", () => {
 
   test("checkSession fails a stopwatch the user left", () => {
     const s = { ...startStopwatch(T0), awaySince: T0 + 10 * MIN };
-    const r = checkSession(s, T0 + 11 * MIN);
-    assert.equal(r?.outcome, "failed");
-    assert.equal(r?.endedBy, "left");
-    assert.equal(r?.focusMs, 0);
+    const r = ended(checkSession(s, T0 + 11 * MIN));
+    assert.equal(r.outcome, "failed");
+    assert.equal(r.endedBy, "left");
+    assert.equal(r.focusMs, 0);
   });
 });
 
@@ -118,16 +129,16 @@ describe("cycle checkpoints", () => {
   test("leaving mid-block, via checkSession, banks blocks done before the leave", () => {
     // Left 10 min into F3 and came back an hour later.
     const s = { ...cycle(), awaySince: T0 + 70 * MIN };
-    const r = checkSession(s, T0 + 130 * MIN - 1);
-    assert.equal(r?.endedAt, T0 + 70 * MIN + 15 * SEC);
-    assert.equal(r?.blocksCompleted, 2);
+    const r = ended(checkSession(s, T0 + 130 * MIN - 1));
+    assert.equal(r.endedAt, T0 + 70 * MIN + 15 * SEC);
+    assert.equal(r.blocksCompleted, 2);
   });
 
   test("finishing the whole set banks all 4 blocks", () => {
-    const r = checkSession(cycle(), T0 + 130 * MIN);
-    assert.equal(r?.outcome, "completed");
-    assert.equal(r?.blocksCompleted, 4);
-    assert.equal(r?.focusMs, 100 * MIN);
+    const r = ended(checkSession(cycle(), T0 + 130 * MIN));
+    assert.equal(r.outcome, "completed");
+    assert.equal(r.blocksCompleted, 4);
+    assert.equal(r.focusMs, 100 * MIN);
   });
 });
 
@@ -138,11 +149,11 @@ describe("focus modes", () => {
 
   test("Deep Focus still fails after 15 s away", () => {
     const s = { ...startTimer(25, T0, "deep"), awaySince: T0 + 5 * MIN };
-    assert.equal(checkSession(s, T0 + 5 * MIN + 15 * SEC), null);
-    const r = checkSession(s, T0 + 5 * MIN + 16 * SEC);
-    assert.equal(r?.outcome, "failed");
-    assert.equal(r?.endedBy, "left");
-    assert.equal(r?.focusMode, "deep");
+    assert.equal(checkSession(s, T0 + 5 * MIN + 15 * SEC).status, "running");
+    const r = ended(checkSession(s, T0 + 5 * MIN + 16 * SEC));
+    assert.equal(r.outcome, "failed");
+    assert.equal(r.endedBy, "left");
+    assert.equal(r.focusMode, "deep");
   });
 
   test("Open Focus never fails from leaving, in any mode", () => {
@@ -151,16 +162,16 @@ describe("focus modes", () => {
     const set = { ...startCycle(DEFAULT_CYCLE, T0, "open"), awaySince: T0 + MIN };
     for (const s of [timer, stopwatch, set]) {
       assert.equal(leaveFailureTime(s, T0 + MIN, T0 + 20 * MIN), null);
-      assert.equal(checkSession(s, T0 + 20 * MIN), null); // still running
+      assert.equal(checkSession(s, T0 + 20 * MIN).status, "running");
     }
   });
 
   test("Open Focus timer away the whole time still completes normally", () => {
     const s = { ...startTimer(25, T0, "open"), awaySince: T0 + MIN };
-    const r = checkSession(s, T0 + 40 * MIN);
-    assert.equal(r?.outcome, "completed");
-    assert.equal(r?.focusMs, 25 * MIN);
-    assert.equal(r?.focusMode, "open");
+    const r = ended(checkSession(s, T0 + 40 * MIN));
+    assert.equal(r.outcome, "completed");
+    assert.equal(r.focusMs, 25 * MIN);
+    assert.equal(r.focusMode, "open");
   });
 
   test("Open Focus: giving up a timer still fails it (only leaving is ignored)", () => {
@@ -171,8 +182,67 @@ describe("focus modes", () => {
 
   test("Open Focus cycle away through every block banks all of them", () => {
     const s = { ...startCycle(DEFAULT_CYCLE, T0, "open"), awaySince: T0 + MIN };
-    const r = checkSession(s, T0 + 130 * MIN);
-    assert.equal(r?.outcome, "completed");
-    assert.equal(r?.blocksCompleted, 4);
+    const r = ended(checkSession(s, T0 + 130 * MIN));
+    assert.equal(r.outcome, "completed");
+    assert.equal(r.blocksCompleted, 4);
+  });
+});
+
+describe("cancel window", () => {
+  const sessions: [string, Session][] = [
+    ["timer", startTimer(25, T0)],
+    ["stopwatch", startStopwatch(T0)],
+    ["cycle", cycle()],
+    ["open timer", startTimer(25, T0, "open")],
+  ];
+
+  test("the countdown comes from the start time (so a refresh shows the right number)", () => {
+    const s = startTimer(25, T0);
+    assert.equal(cancelWindowRemainingMs(s, T0), CANCEL_WINDOW_MS);
+    assert.equal(cancelWindowRemainingMs(s, T0 + 3.2 * SEC), 6.8 * SEC);
+    assert.equal(cancelWindowRemainingMs(s, T0 + 10 * SEC), 0);
+    assert.equal(cancelWindowRemainingMs(s, T0 + MIN), 0);
+  });
+
+  for (const [name, s] of sessions) {
+    test(`${name}: pressing the button within 10 s cancels and produces nothing to save`, () => {
+      const end = pressStop(s, T0 + 9.9 * SEC);
+      assert.deepEqual(end, { status: "cancelled" }); // no Result → nothing queued, no bone
+    });
+  }
+
+  test("at 11 s the normal give-up rule applies: a timer fails", () => {
+    const end = pressStop(startTimer(25, T0), T0 + 11 * SEC);
+    const r = ended(end);
+    assert.equal(r.outcome, "failed");
+    assert.equal(r.endedBy, "stopped");
+  });
+
+  test("at 11 s a stopwatch Stop completes normally", () => {
+    const r = ended(pressStop(startStopwatch(T0), T0 + 11 * SEC));
+    assert.equal(r.outcome, "completed");
+    assert.equal(r.focusMs, 11 * SEC);
+  });
+
+  test("at 11 s ending a cycle in block 1 fails it", () => {
+    assert.equal(ended(pressStop(cycle(), T0 + 11 * SEC)).outcome, "failed");
+  });
+
+  test("Deep Focus: leaving in the first 10 s and staying away is a cancel, not a bone", () => {
+    const s = { ...startTimer(25, T0), awaySince: T0 + 4 * SEC };
+    assert.deepEqual(checkSession(s, T0 + 30 * SEC), { status: "cancelled" });
+    assert.deepEqual(checkSession(s, T0 + 2 * 60 * MIN), { status: "cancelled" }); // even hours later
+  });
+
+  test("Deep Focus: leaving in the first 10 s but returning within 15 s keeps running", () => {
+    const s = { ...startTimer(25, T0), awaySince: T0 + 4 * SEC };
+    assert.equal(checkSession(s, T0 + 18 * SEC).status, "running"); // e.g. a refresh
+  });
+
+  test("Deep Focus: leaving at 11 s follows the normal 15-second rule and fails", () => {
+    const s = { ...startTimer(25, T0), awaySince: T0 + 11 * SEC };
+    const r = ended(checkSession(s, T0 + 30 * SEC));
+    assert.equal(r.outcome, "failed");
+    assert.equal(r.endedBy, "left");
   });
 });

@@ -7,27 +7,42 @@ import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-sto
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import { useSessions } from "@/lib/sessions-data";
 import {
+  CANCEL_WINDOW_MS,
   FOCUS_MODE_LABEL,
   LEAVE_GRACE_MS,
+  cancelWindowRemainingMs,
   checkSession,
-  endSession,
   formatClock,
   getStatus,
   isOpenFocus,
+  pressStop,
   type Result,
   type Session,
+  type SessionEnd,
   type Status,
 } from "@/lib/timer";
 import { useWakeLock } from "@/lib/use-wake-lock";
+import { StatsLine } from "../_stats/stats-line";
 import { LiveFish } from "../_tank/live-fish";
 import { ResultFish } from "../_tank/result-fish";
 import { Tank } from "../_tank/tank";
 import { SetupForm } from "./setup-form";
 
-// Every way a session ends goes through here. Order matters: the row is queued
-// for saving before the result is shown, so nothing can end without being saved,
-// and the result screen itself never saves (a refresh there can't save twice).
-function endWith(result: Result, withChime = false) {
+// Every way a session ends goes through here.
+// - Cancelled (first 10 s): the session just disappears. Nothing is queued or
+//   saved, no bone, no result screen: straight back to setup.
+// - Ended: the row is queued for saving BEFORE the result is shown, so nothing
+//   can end without being saved, and the result screen itself never saves (a
+//   refresh there can't save twice).
+function finish(end: SessionEnd, withChime = false) {
+  if (end.status === "cancelled") {
+    save({ session: null, result: null });
+    return;
+  }
+  endWith(end.result, withChime);
+}
+
+function endWith(result: Result, withChime: boolean) {
   queueResult(result);
   save({ session: null, result });
   void flushPending();
@@ -64,6 +79,7 @@ export function FocusScreen() {
   if (saved.result) return <ResultView result={saved.result} aquarium={aquarium} />;
   return (
     <>
+      <StatsLine />
       <Tank aquarium={aquarium} error={error} />
       <SetupForm
         onStart={(s) => {
@@ -93,8 +109,11 @@ function useSessionClock(active: boolean): number | null {
       const t = Date.now();
       setNow(t);
 
-      const result = checkSession(session, t);
-      if (result) return endWith(result, isVisible() && result.endedBy === "finished");
+      const check = checkSession(session, t);
+      if (check.status !== "running") {
+        const finished = check.status === "ended" && check.result.endedBy === "finished";
+        return finish(check, isVisible() && finished);
+      }
 
       // Chime when a focus block or break ends, but only if the app is on screen.
       const { phaseIndex } = getStatus(session, t);
@@ -119,10 +138,11 @@ function useSessionClock(active: boolean): number | null {
         return;
       }
 
-      // Back on screen: did they stay away more than 15 s of focus time?
+      // Back on screen: away more than 15 s of focus? (A leave that began in the
+      // first 10 s counts as a cancel, not a failure.)
       if (session.awaySince !== null) {
-        const result = checkSession(session, t);
-        if (result) return endWith(result);
+        const check = checkSession(session, t);
+        if (check.status !== "running") return finish(check);
         save({ session: { ...session, awaySince: null }, result: null });
       }
       // Don't chime for phases that ended while away.
@@ -173,13 +193,24 @@ function RunningView({
   const open = isOpenFocus(session);
   // The long break is the last phase: every block is banked, so "Finish" is safe.
   const isFinalBreak = status.kind === "longBreak";
-  const needsConfirm = session.mode !== "stopwatch" && !isFinalBreak;
+  // First 10 s: the button is "Cancel" (computed from the start time, so it's right after a refresh).
+  const cancelSeconds = Math.ceil(cancelWindowRemainingMs(session, now) / 1000);
+  const cancellable = cancelSeconds > 0;
+  const needsConfirm = !cancellable && session.mode !== "stopwatch" && !isFinalBreak;
 
   function stop() {
     if (needsConfirm && !confirming) return setConfirming(true);
     const current = getSnapshot().session;
-    // endSession treats a stop during the long break as a full finish.
-    if (current) endWith(endSession(current, "stopped", Date.now()));
+    if (!current) return;
+    // Honour what the button showed: a tap on "Cancel" cancels even if it lands a
+    // moment after the 10 s mark (up to 1 s late).
+    const t =
+      cancellable && Date.now() < current.startedAt + CANCEL_WINDOW_MS + 1000
+        ? current.startedAt
+        : Date.now();
+    // pressStop: cancel in the first 10 s, otherwise a normal stop (a stop during
+    // the long break counts as a full finish).
+    finish(pressStop(current, t));
   }
 
   let label = "Focus";
@@ -212,6 +243,7 @@ function RunningView({
 
   let stopLabel = session.mode === "stopwatch" ? "Stop" : isCycle ? "End session" : "Give up";
   if (isFinalBreak) stopLabel = "Finish";
+  if (cancellable) stopLabel = `Cancel · ${cancelSeconds}`;
   if (confirming) {
     stopLabel = !isFocus
       ? "Tap again to end"
@@ -237,18 +269,26 @@ function RunningView({
       <p className="max-w-xs text-center text-zinc-500">{hint}</p>
 
       {/* Bottom of the screen = easy to reach one-handed. */}
-      <button
-        onClick={stop}
-        className={`mt-auto w-full rounded-2xl py-5 text-xl font-semibold ${
-          confirming
-            ? "bg-red-600 text-white"
-            : isFinalBreak
-              ? "bg-sky-700 text-white hover:bg-sky-800"
-              : "border-2 border-zinc-300 dark:border-zinc-700"
-        }`}
-      >
-        {stopLabel}
-      </button>
+      <div className="mt-auto flex w-full flex-col items-center gap-2">
+        {cancellable && (
+          <p className="text-sm text-zinc-500">Started by accident? Cancel now and nothing is saved.</p>
+        )}
+        <button
+          onClick={stop}
+          aria-label={cancellable ? `Cancel session, ${cancelSeconds} seconds left` : undefined}
+          className={`w-full rounded-2xl py-5 text-xl font-semibold tabular-nums ${
+            confirming
+              ? "bg-red-600 text-white"
+              : cancellable
+                ? "bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                : isFinalBreak
+                  ? "bg-sky-700 text-white hover:bg-sky-800"
+                  : "border-2 border-zinc-300 dark:border-zinc-700"
+          }`}
+        >
+          {stopLabel}
+        </button>
+      </div>
     </div>
   );
 }
