@@ -67,6 +67,11 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 
 ## Tasks
 
+- **Reward for completed tasks**: a task completed WITH real focus time could earn a small tank item
+  (e.g. a shell or pearl). Ticking off a task with no focus time earns nothing.
+  - Why parked: rewards and tank items belong to Phase 7 (coins and decorations), and it must reward real
+    work, never app activity.
+  - Revisit: in Phase 7.
 - **Subtasks and priorities**.
   - Why parked: tasks stay simple (title, optional due date, done).
   - Revisit: only if testers ask.

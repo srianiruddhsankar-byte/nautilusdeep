@@ -6,6 +6,8 @@ A Forest-style focus/study app with an ocean theme, for the owner and a few frie
 The owner is a student learning to code: explain what you do and why, briefly.
 
 ## Principles
+- Deep Nautilus is a study app. Its purpose is to make me better at studying. Study and Notes sessions are both
+  studying.
 - Calm, simple, encouraging personality is the core of the app. Quiet interface, subtle animation, never guilt-driven.
 - The tank rewards real work, never app activity: no rewards for creating tasks, opening the app, or ticking off
   tasks with no focus time.
@@ -61,6 +63,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Stats · Help; each page renders it, Home hides it while
   a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
 - `app/_focus/today-tasks.tsx` — Home's "Today" card. `app/_focus/task-status.tsx` — "In progress" badge, "Mark done"
+- `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): 3 chimes + vibration every 4 s,
+  stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)

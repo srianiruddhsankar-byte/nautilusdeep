@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { chime, unlockAudio } from "@/lib/feedback";
+import { SESSION_DONE_ALARM, phaseAlarm, startAlarm } from "@/lib/alarm";
+import { unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { compareToTarget } from "@/lib/notes";
@@ -31,6 +32,7 @@ import { StatsLine } from "../_stats/stats-line";
 import { LiveFish } from "../_tank/live-fish";
 import { ResultFish } from "../_tank/result-fish";
 import { Tank } from "../_tank/tank";
+import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
 import { InProgressBadge, MarkDone } from "./task-status";
 import { TodayTasks } from "./today-tasks";
@@ -41,19 +43,19 @@ import { TodayTasks } from "./today-tasks";
 // - Ended: the row is queued for saving BEFORE the result is shown, so nothing
 //   can end without being saved, and the result screen itself never saves (a
 //   refresh there can't save twice).
-function finish(end: SessionEnd, withChime = false) {
+function finish(end: SessionEnd, withAlarm = false) {
   if (end.status === "cancelled") {
     save({ session: null, result: null });
     return;
   }
-  endWith(end.result, withChime);
+  endWith(end.result, withAlarm);
 }
 
-function endWith(result: Result, withChime: boolean) {
+function endWith(result: Result, withAlarm: boolean) {
   queueResult(result);
   save({ session: null, result });
   void flushPending();
-  if (withChime) chime();
+  if (withAlarm) startAlarm(SESSION_DONE_ALARM);
 }
 
 export function FocusScreen() {
@@ -66,6 +68,13 @@ export function FocusScreen() {
 
   // Upload any sessions that couldn't be saved earlier, and keep retrying.
   useEffect(() => startSync(), []);
+
+  // Phones only play sound after a tap. Start does this, but after a refresh
+  // mid-session there's been no tap yet: any tap on the page unlocks it again.
+  useEffect(() => {
+    document.addEventListener("pointerdown", unlockAudio);
+    return () => document.removeEventListener("pointerdown", unlockAudio);
+  }, []);
 
   // Fish are derived from the sessions, never stored separately.
   const { rows, error } = useSessions();
@@ -84,18 +93,25 @@ export function FocusScreen() {
   if (saved === null) return <p className="text-center text-zinc-500">Loading…</p>;
   // Running: just the timer. No navigation, nothing else to tap.
   if (session && status) {
-    return <RunningView session={session} status={status} now={now ?? session.startedAt} />;
+    return (
+      <>
+        <RunningView session={session} status={status} now={now ?? session.startedAt} />
+        <AlarmOverlay />
+      </>
+    );
   }
   if (saved.result) {
     return (
       <>
         <ResultView result={saved.result} aquarium={aquarium} onTaskDone={() => setTask("")} />
         <BottomNav active="home" />
+        <AlarmOverlay />
       </>
     );
   }
   return (
     <>
+      <AlarmOverlay />
       <StatsLine />
       <TodayTasks
         onPick={(name) => {
@@ -147,11 +163,13 @@ function useSessionClock(active: boolean): number | null {
         return finish(check, isVisible() && finished);
       }
 
-      // Chime when a focus block or break ends, but only if the app is on screen.
-      const { phaseIndex } = getStatus(session, t);
-      if (phaseIndex !== lastPhase) {
-        if (lastPhase !== null && isVisible()) chime();
-        lastPhase = phaseIndex;
+      // Ring when a focus block or break ends, but only if the app is on screen
+      // (a hidden page can't be trusted to play sound, and you'd come back to a
+      // screen that's already moved on).
+      const status = getStatus(session, t);
+      if (status.phaseIndex !== lastPhase) {
+        if (lastPhase !== null && isVisible()) startAlarm(phaseAlarm(status));
+        lastPhase = status.phaseIndex;
       }
     }
 
@@ -177,7 +195,7 @@ function useSessionClock(active: boolean): number | null {
         if (check.status !== "running") return finish(check);
         save({ session: { ...session, awaySince: null }, result: null });
       }
-      // Don't chime for phases that ended while away.
+      // Don't ring for phases that ended while away.
       lastPhase = getStatus(session, t).phaseIndex;
       setNow(t);
     }
