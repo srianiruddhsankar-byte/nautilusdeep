@@ -5,7 +5,7 @@ import type { FishSize } from "@/lib/fish";
 import type { FishLook } from "@/lib/fish-look";
 import "./tank.css";
 
-// Hand-drawn SVG fish, egg and bone. Fish face right; the tank flips them.
+// Hand-drawn SVG fish and bone. Fish face right; the tank flips them. (Eggs and fry: brood.tsx.)
 
 export const FISH_WIDTH: Record<FishSize, number> = {
   small: 30,
@@ -126,20 +126,6 @@ export function FishSprite({
             style={{ animationDelay: delay as string }}
           />
         ))}
-    </svg>
-  );
-}
-
-export function Egg({ width = 36 }: { width?: number }) {
-  return (
-    <svg width={width} height={(width * 38) / 30} viewBox="0 0 30 38" aria-hidden>
-      <g className="egg-wobble">
-        <ellipse cx={15} cy={20} rx={12} ry={16} fill="#fdf6e3" stroke="#e7d7ad" strokeWidth={1.2} />
-        <circle cx={10} cy={14} r={1.6} fill="#e9c46a" opacity={0.6} />
-        <circle cx={19} cy={22} r={2} fill="#e9c46a" opacity={0.6} />
-        <circle cx={13} cy={28} r={1.3} fill="#e9c46a" opacity={0.6} />
-        <ellipse cx={11} cy={11} rx={3} ry={4} fill="white" opacity={0.6} />
-      </g>
     </svg>
   );
 }

@@ -15,7 +15,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Decorating must never take more time than studying.
 - Punish quitting, never absence: fish die only when you quit Deep Focus; nothing dies from time passing,
   so holidays are safe.
-- The app should never make you feel trapped: Open Focus and the 10-second cancel are the escape hatches.
+- The app should never make you feel trapped: Open Focus, the 10-second cancel and one short pause in Deep Focus
+  are the escape hatches.
 - Falling asleep isn't quitting: Night mode ends a session at the last check-in you confirmed, with no bone and no
   dying fish, so the record stays honest without punishing you.
 - Keep tasks simple: title, optional due date, done.
@@ -51,11 +52,17 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/plants.ts` — pure plant derivation (`deriveGarden`): notes sessions → growing plant, mature plants with
   tank + slot, per-session growth; stage thresholds in `PLANT_STAGES` (tested in `lib/plants.test.ts`).
   `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
-- `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor), `fish-sprite.tsx` (SVG fish/egg/bone),
-  `plant-sprite.tsx` (SVG underwater plants: stem / fern / grass × 5 stages, no flowers), `live-fish.tsx`, `live-plant.tsx` (live plant +
-  Home `SeedlingCard`), `result-fish.tsx`, `result-plant.tsx`, `decoration-sprite.tsx` (SVG decorations),
-  `skins.tsx` (the 5 tank looks built on one `WaterScene`; `SHALLOWS` is the default), `tank.css` (all animation +
-  reduced-motion rules). `Tank` takes `skinOf`, `decorations`, `coins`, and `edit` (decorate mode)
+- `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor), `fish-sprite.tsx` (SVG fish/bone),
+  `brood.tsx` (eggs → eyed eggs → fry, and their gentle drift on failure), `plant-sprite.tsx` (SVG underwater
+  plants: stem / fern / grass × 5 stages, no flowers), `running-tank.tsx` (the running screen's real tank with
+  the session's eggs / fry / fish or growing plant), `ambience-scene.tsx` + `.css` (the tank scene for each
+  ambience: all scene effects live here), `live-plant.tsx` (Home `SeedlingCard`), `result-fish.tsx`,
+  `result-plant.tsx`, `decoration-sprite.tsx` (SVG decorations), `skins.tsx` (the 5 tank looks built on one
+  `WaterScene`; `SHALLOWS` is the default), `tank.css` (animation + reduced-motion rules). `Tank` takes `skinOf`,
+  `decorations`, `coins`, `edit` (decorate mode), and for the running screen `bare`, `fixedIndex`, `scene`,
+  `overlay`, `liveFish`
+- `lib/brood.ts` — pure egg stages (`broodStage`, `broodCaption`): eggs 0–2 min, eyed 2–5, fry 5–10, then fish
+  sizes; tested in `lib/brood.test.ts`
 - `lib/decorations.ts` — the shop catalogue: prices and milestone items (tune here). `lib/economy.ts` — pure coins
   (`coinsFor`, balance), milestones, `canGet`, placement helpers, skin unlock thresholds (`SKIN_UNLOCKS`), tested in
   `lib/economy.test.ts`. `lib/owned.ts` — `useOwned()`: your decorations + per-tank skins, buy / place / put away /
@@ -120,18 +127,31 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - Deep Focus: a leave that BEGINS in the first 10 s and lasts over 15 s is a cancel, not a failure.
     (A quick leave or refresh in the window just keeps running.)
   - No confirmation popup before starting.
+- **Pause** (Deep Focus only; Open Focus doesn't need it): once per session (once per cycle set), up to 5 min
+  (`MAX_PAUSE_MS`), offered after the cancel window. The session runs on SESSION TIME, a clock that stands still
+  while paused (`toSession` / `toReal` in `lib/timer.ts`): paused time earns no minutes, coins or growth; the
+  leave rule is off during it and back on after; Night mode check-ins can't come due or run out. It ends on
+  Resume or by itself after 5 min (a gentle "Pause over" alarm if on screen). Stored on the running session as
+  `pause: { startedAt, endedAt }`, so refreshes and hidden pages work. Ambience and the tank scene stop for it.
 
 ### App structure (Phase 6)
+- The running screen covers the whole window (`fixed`, no header or nav). Portrait: time, a compact tank (about a
+  third of the height), then hint + buttons. Landscape (laptops, phones sideways): the tank takes most of the
+  screen, sized to the height, with the time and controls in a column beside it (Tailwind `landscape:`).
 - Bottom nav: Home · Tasks · Shop · Stats · Help, on every signed-in page, hidden while a session is running.
 
 ### Ambience (Phase 8)
-- 9 water sounds generated with the Web Audio API (no audio files), listed in `AMBIENCE_SOUNDS` with a one-line
-  description each (ids are stored: never rename, only add): Waves, Calm sea, Night shore (+ crickets), Rain on
-  the sea (+ noise-burst drops), Rock pool (shifting ripples + echoing drips), Gentle stream (three jittering
-  noise bands = babble), Harbour (lapping + wooden creak + far bell), Underwater (+ bubbles), Deep ocean (+ whale-
-  like calls through a long echo). Built from looped brown/pink noise, filters, slow LFOs, random events
-  (`randomly`, `blip`) and `echo`. Noise loops are crossfaded at the seam so they never click.
-- Session settings: an Ambience line that opens the list (Off + 9) + volume, remembered with the setup prefs.
+- 5 water sounds generated with the Web Audio API (no audio files), built from many small EVENTS rather than
+  filtered noise (`AMBIENCE_SOUNDS`; ids are stored: never rename, only add): Rain (separate drops = click +
+  rising "plink", plus a granular patter texture), Waves (each wave: build → crash → retreat, irregular gaps),
+  Whales (a beating low hum + gliding, wobbling calls through a long echo every 20–40 s), Stream (many bubble
+  plinks in lively and quiet patches over a soft trickle), Night (darker waves + faraway crickets). Events are
+  scheduled ahead on the audio clock (`ticker`, `moments`). Retired ids from the earlier 9-sound library map to
+  the closest match (`toAmbienceChoice`). The 9-sound version is commit 841c98b, to go back to if needed.
+- The tank reacts (`sceneFor`, tested; drawn in `app/_tank/ambience-scene.tsx`): rain + surface ripples,
+  rolling surface + shifting light, a whale silhouette passing on each call (`useWhaleCalls`), a sideways
+  current with drifting bubbles, a dimmed night tank. During a session (not while paused) and during a preview.
+- Session settings: an Ambience line that opens the list (Off + 5) + volume, remembered with the setup prefs.
   Tapping a sound chooses it AND plays a ~10 s preview (`startPreview`, a separate slot from the session's sound,
   one at a time); tapping it again stops it (`previewTap`, tested). Previews stop on closing the list or
   settings and on Start; they never start a session. Stored on the
@@ -150,9 +170,11 @@ The owner is a student learning to code: explain what you do and why, briefly.
   "More stats". Sign out is on the Help page (Account section with your email), not on Home.
 
 ### Night mode ("Still studying?" check-ins)
-- Optional, off by default, in Session settings: interval 20 / 30 / 45 / 60 min (plus "1 (test)" in development
-  only), style chime / chime + buzz / silent pulse. Remembered with the setup prefs. All modes, Deep and Open,
-  Study and Notes.
+- Optional, off by default, in Session settings: interval 20 / 30 / 45 / 60 min or Custom (any whole 10–120,
+  `isNightInterval`; plus "1 (test)" in development only). Check-ins have their OWN sounds (never the block
+  alarm's rising chime): gentle chime (a soft falling bell), chime + buzz, alarm (an insistent "ding-ding-dong"
+  repeated every 3.5 s until tapped, `CHECK_IN_ALARM_EVERY_MS`) or silent pulse; tapping a style plays a sample.
+  Remembered with the setup prefs. All modes, Deep and Open, Study and Notes.
 - A check-in is due after `interval` of FOCUS time since the last confirmation (or the start), so in cycles it only
   comes due during focus blocks. A small banner, not a takeover; the timer keeps running. Tapping it, or "Got it"
   on any phase alarm, confirms (`confirmCheckIn`, stored as `confirmedAt` on the running session).
@@ -181,6 +203,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 
 ### Fish
 - Fish are DERIVED from `sessions` (never stored): one source of truth, so rule changes apply to past fish too.
+- The running screen shows your real tank. A study session's fish starts as ONE big translucent egg on a rock
+  (0–2 min; bright outline + soft glow so it's visible on every skin), then an eyed egg (2–5), hatches into a
+  see-through fry with a yolk sac at 5, and from 10 min swims among the other fish as it grows. A notes
+  session's plant grows in the tank's next free plant spot. A failed session's egg / fry fades and drifts away.
 - One completed or partial session with at least 5 focus minutes = one fish; under 5 min = no fish (anti-farming).
   Deep and Open Focus earn fish the same way. It grows live on screen during the session.
 - Size by focus minutes (partial cycles: banked minutes): small < 25, medium 25–49, large 50–89, rare 90+.

@@ -1,0 +1,183 @@
+/* Tank scenes that go with each ambience (app/_tank/ambience-scene.tsx).
+   Calm and subtle on purpose: they must never pull attention from the timer.
+   Every animation stops under prefers-reduced-motion (a still version stays). */
+
+.scene-fade {
+  animation: scene-fade 1.5s ease-out both;
+}
+@keyframes scene-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Rain: streaks falling to the surface, ripples spreading on it. */
+.scene-rain-drop {
+  position: absolute;
+  top: -12%;
+  width: 1px;
+  height: 14%;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0), rgb(255 255 255 / 0.6));
+  animation: scene-rain-drop var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+@keyframes scene-rain-drop {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(140%);
+    opacity: 0;
+  }
+}
+.scene-ripple {
+  position: absolute;
+  top: 3.5%;
+  width: 26px;
+  height: 6px;
+  margin-left: -13px;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 50%;
+  animation: scene-ripple var(--dur) ease-out infinite;
+  animation-delay: var(--delay);
+}
+@keyframes scene-ripple {
+  from {
+    transform: scale(0.2);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Waves: the surface rolls; soft light shifts across the water. */
+.scene-surface {
+  animation: scene-surface 7s ease-in-out infinite alternate;
+}
+@keyframes scene-surface {
+  from {
+    transform: translateX(-25px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.scene-light {
+  position: absolute;
+  top: -10%;
+  width: 30%;
+  height: 120%;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0));
+  transform: skewX(-12deg);
+  animation: scene-light var(--dur) ease-in-out infinite alternate;
+  animation-delay: var(--delay);
+}
+@keyframes scene-light {
+  from {
+    transform: skewX(-12deg) translateX(-30%);
+    opacity: 0.4;
+  }
+  to {
+    transform: skewX(-12deg) translateX(60%);
+    opacity: 1;
+  }
+}
+
+/* Whales: a faint silhouette drifting across the far background, once per call. */
+.scene-whale {
+  position: absolute;
+  top: 16%;
+  left: 0;
+  width: 46%;
+  animation: scene-whale 18s ease-in-out forwards;
+}
+@keyframes scene-whale {
+  from {
+    transform: translateX(230%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+}
+
+/* Stream: a gentle sideways current, bubbles drifting with it. */
+.scene-current {
+  position: absolute;
+  left: -30%;
+  width: 30%;
+  height: 1px;
+  background: linear-gradient(to right, rgb(255 255 255 / 0), rgb(255 255 255 / 0.35), rgb(255 255 255 / 0));
+  animation: scene-current var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+@keyframes scene-current {
+  to {
+    transform: translateX(450%);
+  }
+}
+.scene-drift-bubble {
+  position: absolute;
+  left: -4%;
+  width: var(--size);
+  height: var(--size);
+  border: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 50%;
+  animation: scene-drift-bubble var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+@keyframes scene-drift-bubble {
+  to {
+    transform: translate(110cqw, -40px);
+  }
+}
+
+/* Night: the tank dims to a night palette; the light rays fade under it. */
+.scene-night {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgb(10 22 52 / 0.55), rgb(8 16 38 / 0.42));
+  animation: scene-fade 2.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-fade,
+  .scene-rain-drop,
+  .scene-surface,
+  .scene-light,
+  .scene-current,
+  .scene-drift-bubble,
+  .scene-night {
+    animation: none !important;
+  }
+  /* Still versions: no falling rain or drifting bubbles, faint static ripples. */
+  .scene-rain-drop,
+  .scene-drift-bubble,
+  .scene-whale {
+    display: none;
+  }
+  .scene-ripple {
+    animation: none;
+    opacity: 0.35;
+  }
+  .scene-current {
+    left: 20%;
+    opacity: 0.5;
+  }
+}

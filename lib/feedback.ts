@@ -50,6 +50,37 @@ export function playChimes(count: number, gap = 0.8) {
   } catch {}
 }
 
+// One note: `freq` Hz, `delay` s from now, rising quickly to `peak`, then fading over `decay` s.
+function tone(freq: number, delay: number, peak: number, decay: number, type: OscillatorType) {
+  try {
+    const ctx = (audio ??= new AudioContext());
+    if (ctx.state === "suspended") void ctx.resume();
+    const t = ctx.currentTime + 0.03 + delay;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + decay + 0.05);
+  } catch {}
+}
+
+// Night mode's own sounds, never the block alarm's rising two-note chime.
+// Gentle: one soft, low bell falling a fourth (G5 → D5), with a long fade.
+export function playCheckInChime() {
+  tone(784, 0, 0.22, 1.6, "sine");
+  tone(587, 0.35, 0.2, 2, "sine");
+}
+
+// Alarm: a brighter, insistent "ding-ding-dong" (C6 C6 G5). Repeated by the caller.
+export function playCheckInAlarm() {
+  [1047, 1047, 784].forEach((f, i) => tone(f, i * 0.22, 0.35, 0.35, "triangle"));
+}
+
 // Not supported on iPhone (Safari has no Vibration API); harmless there.
 export function vibrate(pattern: number[]) {
   try {

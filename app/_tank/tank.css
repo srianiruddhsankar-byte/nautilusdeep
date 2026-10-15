@@ -103,18 +103,49 @@
   }
 }
 
-.egg-wobble {
-  transform-box: fill-box;
-  transform-origin: 50% 90%;
-  animation: egg-wobble 2.4s ease-in-out infinite;
+/* The session's egg: a soft glow so it stands out on every skin. */
+.egg-glow {
+  filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.85)) drop-shadow(0 0 1px rgb(0 0 0 / 0.25));
 }
-@keyframes egg-wobble {
-  0%,
-  100% {
-    transform: rotate(-5deg);
+
+/* The fry hatching out of its egg (once), then wiggling gently in place. */
+.fry-hatch {
+  animation: fry-hatch 1.6s ease-out both;
+}
+@keyframes fry-hatch {
+  from {
+    opacity: 0;
+    transform: translate(-30px, 22px) scale(0.35);
   }
-  50% {
-    transform: rotate(5deg);
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fry-wiggle {
+  animation: fry-wiggle 2.6s ease-in-out infinite alternate;
+}
+@keyframes fry-wiggle {
+  from {
+    transform: translate(-3px, 2px) rotate(-4deg);
+  }
+  to {
+    transform: translate(4px, -2px) rotate(3deg);
+  }
+}
+
+/* A failed session's eggs or fry: they fade and drift gently up and away. */
+.brood-drift {
+  animation: brood-drift 3s ease-in forwards;
+}
+@keyframes brood-drift {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate(10px, -40px);
   }
 }
 
@@ -239,7 +270,8 @@
   .fish-tail,
   .fish-sparkle,
   .fish-grow,
-  .egg-wobble,
+  .fry-hatch,
+  .fry-wiggle,
   .tank-bubble,
   .tank-rays,
   .plant-sway,
@@ -256,6 +288,10 @@
     opacity: 0;
   }
   /* Show the end state of the failure without movement. */
+  .brood-drift {
+    animation: none;
+    opacity: 0.35;
+  }
   .fish-dying {
     animation: none;
     transform: rotate(180deg);

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { playChimes, stopVibrating, vibrate } from "./feedback";
+import { playCheckInAlarm, playCheckInChime, playChimes, stopVibrating, vibrate } from "./feedback";
 import type { CheckInStyle, Status } from "./timer";
 
 // The end-of-block alarm: 3 chimes plus a vibration, repeated every few
@@ -72,10 +72,19 @@ export function phaseAlarm(status: Status): Alarm {
 
 export const SESSION_DONE_ALARM: Alarm = { title: "Session complete", detail: "Nice focus." };
 
-// Night mode's "Still studying?": deliberately NOT the alarm. One soft chime
-// (plus a short buzz if chosen); "pulse" is silent, the banner pulses instead.
+// Night mode's "Still studying?" has its own sounds, never the block alarm:
+// chime = one soft falling bell (vibrate = the same + a short buzz), alarm = an
+// insistent "ding-ding-dong" the running screen repeats every few seconds until
+// you tap, pulse = silent (the banner pulses instead).
+export const CHECK_IN_ALARM_EVERY_MS = 3_500;
+
 export function checkInAlert(style: CheckInStyle) {
   if (style === "pulse") return;
-  playChimes(1);
+  if (style === "alarm") {
+    playCheckInAlarm();
+    vibrate([300, 100, 300]);
+    return;
+  }
+  playCheckInChime();
   if (style === "vibrate") vibrate([200, 120, 200]);
 }

@@ -71,11 +71,15 @@ export type Session = {
   confirmedAt?: number; // the last confirmed check-in; missing = none yet (counts from the start)
   // Ocean ambience for this session (Phase 8). Missing = off.
   ambience?: SessionAmbience | null;
+  // The one pause (Deep Focus only). endedAt null = still paused (it ends by
+  // itself after MAX_PAUSE_MS). Missing = not used yet.
+  pause?: { startedAt: number; endedAt: number | null } | null;
 };
 
 export type SessionAmbience = { sound: AmbienceChoice; volume: number; paused: boolean };
 
-export type CheckInStyle = "chime" | "vibrate" | "pulse";
+// How a check-in asks: a gentle chime (+ a buzz), a repeating check-in alarm, or a silent pulse.
+export type CheckInStyle = "chime" | "vibrate" | "alarm" | "pulse";
 export type CheckInSettings = { intervalMs: number; style: CheckInStyle };
 
 // checkin = a Night mode check-in went unanswered (fell asleep): credit stops at the last confirmation.
@@ -174,11 +178,75 @@ export function withDetails(session: Session, details: SessionDetails): Session 
   };
 }
 
+// ---------- Pause ----------
+//
+// Deep Focus only, once per session (once per cycle set), up to 5 minutes. The
+// session runs on SESSION TIME: a clock that stands still while paused. Every
+// rule below works in session time (the countdown, focus credit, blocks, the
+// leave rule, Night mode check-ins), so paused minutes never count, leaving
+// can't fail you while paused, and check-ins can't come due. Real timestamps go
+// in and come out; only the conversion knows about the pause.
+
+export const MAX_PAUSE_MS = 5 * MINUTE;
+
+// The pause as it stands at `now`: when it began and how long it has lasted so
+// far (never more than 5 minutes). null = never paused.
+function pauseSpan(session: Session, now: number): { start: number; length: number } | null {
+  const p = session.pause;
+  if (!p) return null;
+  const end = Math.min(p.endedAt ?? now, p.startedAt + MAX_PAUSE_MS);
+  return { start: p.startedAt, length: Math.max(0, end - p.startedAt) };
+}
+
+// Real time → session time.
+function toSession(session: Session, t: number): number {
+  const p = pauseSpan(session, t);
+  if (!p || t <= p.start) return t;
+  return Math.max(p.start, t - p.length);
+}
+
+// Session time → real time (as things stand at `now`, for a pause still going).
+function toReal(session: Session, s: number, now: number): number {
+  const p = pauseSpan(session, now);
+  if (!p || s <= p.start) return s;
+  return s + p.length;
+}
+
+export function isPaused(session: Session, now: number): boolean {
+  const p = session.pause;
+  return !!p && p.endedAt === null && now >= p.startedAt && now < p.startedAt + MAX_PAUSE_MS;
+}
+
+export function pauseRemainingMs(session: Session, now: number): number {
+  return isPaused(session, now) ? session.pause!.startedAt + MAX_PAUSE_MS - now : 0;
+}
+
+// Pause is offered in Deep Focus, once, after the cancel window, while running.
+export function canPause(session: Session, now: number): boolean {
+  return (
+    !isOpenFocus(session) &&
+    !session.pause &&
+    cancelWindowRemainingMs(session, now) === 0 &&
+    !getStatus(session, now).finished
+  );
+}
+
+export function startPause(session: Session, now: number): Session {
+  if (!canPause(session, now)) return session;
+  return { ...session, pause: { startedAt: now, endedAt: null }, awaySince: null };
+}
+
+// Tapping Resume. (After 5 minutes it resumes by itself; nothing to store.)
+export function endPause(session: Session, now: number): Session {
+  if (!isPaused(session, now)) return session;
+  return { ...session, pause: { ...session.pause!, endedAt: now } };
+}
+
 // ---------- Where are we? ----------
 
 type Span = { kind: PhaseKind; start: number; end: number };
 
-// Turns the phase list into absolute [start, end) time ranges.
+// Turns the phase list into absolute [start, end) ranges, in session time.
 function spans(session: Session): Span[] {
   let t = session.startedAt;
   return session.phases.map((p) => {
@@ -188,7 +256,8 @@ function spans(session: Session): Span[] {
   });
 }
 
-export function sessionEnd(session: Session): number {
+// When the last phase ends, in session time.
+function endS(session: Session): number {
   const all = spans(session);
   return all[all.length - 1].end;
 }
@@ -220,7 +289,7 @@ export type Status = {
 
 export function getStatus(session: Session, now: number): Status {
   const all = spans(session);
-  const t = Math.max(now, session.startedAt);
+  const t = Math.max(toSession(session, now), session.startedAt);
   let index = all.findIndex((s) => t < s.end);
   const finished = index === -1;
   if (finished) index = all.length - 1;
@@ -250,23 +319,32 @@ export function isFinalBreak(session: Session, now: number): boolean {
   );
 }
 
-// How much focus time falls inside [from, to).
-export function focusMsBetween(session: Session, from: number, to: number): number {
+// Focus time inside [fromS, toS), in session time.
+function focusBetweenS(session: Session, fromS: number, toS: number): number {
   let total = 0;
   for (const s of spans(session)) {
     if (s.kind !== "focus") continue;
-    total += Math.max(0, Math.min(to, s.end) - Math.max(from, s.start));
+    total += Math.max(0, Math.min(toS, s.end) - Math.max(fromS, s.start));
   }
   return total;
 }
 
-// Focus blocks fully finished by time `at`: these are the banked checkpoints.
-export function bankedFocus(session: Session, at: number) {
-  const done = spans(session).filter((s) => s.kind === "focus" && s.end <= at);
+// How much focus time falls between two real moments (paused time never counts).
+export function focusMsBetween(session: Session, from: number, to: number): number {
+  return focusBetweenS(session, toSession(session, from), toSession(session, to));
+}
+
+function bankedS(session: Session, atS: number) {
+  const done = spans(session).filter((s) => s.kind === "focus" && s.end <= atS);
   return {
     blocks: done.length,
     ms: done.reduce((sum, s) => sum + (s.end - s.start), 0),
   };
+}
+
+// Focus blocks fully finished by real time `at`: these are the banked checkpoints.
+export function bankedFocus(session: Session, at: number) {
+  return bankedS(session, toSession(session, at));
 }
 
 // ---------- Cancel window ----------
@@ -286,9 +364,9 @@ export function pressStop(session: Session, now: number): SessionEnd {
 
 // ---------- Leaving the app ----------
 
-// If the user was away from `from` to `to`, returns the moment they ran out of
-// grace (more than 15 s away during focus), or null if they're fine.
-// Only focus time counts: time away during a break is free.
+// If the user was away from `from` to `to` (real times), returns the moment they
+// ran out of grace (more than 15 s away during focus), or null if they're fine.
+// Only focus time counts: time away during a break, or while paused, is free.
 // Open Focus has no leave rule at all.
 export function leaveFailureTime(
   session: Session,
@@ -296,13 +374,15 @@ export function leaveFailureTime(
   to: number,
 ): number | null {
   if (isOpenFocus(session)) return null;
+  const fromS = toSession(session, from);
+  const toS = toSession(session, to);
   let grace = LEAVE_GRACE_MS;
   for (const s of spans(session)) {
     if (s.kind !== "focus") continue;
-    const awayStart = Math.max(from, s.start);
-    const awayMs = Math.min(to, s.end) - awayStart;
+    const awayStart = Math.max(fromS, s.start);
+    const awayMs = Math.min(toS, s.end) - awayStart;
     if (awayMs <= 0) continue;
-    if (awayMs > grace) return awayStart + grace;
+    if (awayMs > grace) return toReal(session, awayStart + grace, to);
     grace -= awayMs;
   }
   return null;
@@ -315,15 +395,17 @@ export function leaveFailureTime(
 // come due during focus blocks. If it isn't confirmed within 2 minutes, the
 // session ends and its credit stops at the last confirmation: falling asleep
 // isn't quitting, so it's saved as completed (or partial), never failed.
+// All in session time, so nothing comes due (or runs out) while paused.
 
 // Where credit runs up to so far: the last confirmation, or the start.
 export function lastConfirmed(session: Session): number {
   return session.confirmedAt ?? session.startedAt;
 }
 
-// The moment `focusMs` of focus time has passed after `from`, or null if the
-// session ends first. Landing exactly on the end of a focus block rolls over to
-// the start of the next one, so a check-in never pops up as a break begins.
+// The moment `focusMs` of focus time has passed after `from` (session time), or
+// null if the session ends first. Landing exactly on the end of a focus block
+// rolls over to the start of the next one, so a check-in never pops up as a
+// break begins.
 function afterFocus(session: Session, from: number, focusMs: number): number | null {
   let left = focusMs;
   for (const s of spans(session)) {
@@ -335,27 +417,39 @@ function afterFocus(session: Session, from: number, focusMs: number): number | n
   return null;
 }
 
-// When the next check-in is due, or null (Night mode off, or the session ends first).
-export function checkInDueAt(session: Session): number | null {
+// When the next check-in is due, in session time (or null).
+function dueS(session: Session): number | null {
   if (!session.checkIn) return null;
-  const due = afterFocus(session, lastConfirmed(session), session.checkIn.intervalMs);
-  return due !== null && due < sessionEnd(session) ? due : null;
+  const due = afterFocus(session, toSession(session, lastConfirmed(session)), session.checkIn.intervalMs);
+  return due !== null && due < endS(session) ? due : null;
+}
+
+// When the next check-in is due (real time), or null (Night mode off, or the session ends first).
+export function checkInDueAt(session: Session, now = session.startedAt): number | null {
+  const due = dueS(session);
+  return due === null ? null : toReal(session, due, now);
 }
 
 // Is a check-in waiting for a tap right now?
 export function checkInState(session: Session, now: number) {
-  const dueAt = checkInDueAt(session);
-  if (dueAt === null || now < dueAt) return { status: "none" as const, dueAt };
-  return { status: "due" as const, dueAt, deadline: dueAt + CHECK_IN_GRACE_MS };
+  const due = dueS(session);
+  if (due === null || toSession(session, now) < due) {
+    return { status: "none" as const, dueAt: due === null ? null : toReal(session, due, now) };
+  }
+  return {
+    status: "due" as const,
+    dueAt: toReal(session, due, now),
+    deadline: toReal(session, due + CHECK_IN_GRACE_MS, now),
+  };
 }
 
-// The moment an unanswered check-in ends the session, or null if it can't
-// (Night mode off, or the session finishes before the deadline).
-export function missedCheckInAt(session: Session): number | null {
-  const dueAt = checkInDueAt(session);
-  if (dueAt === null) return null;
-  const deadline = dueAt + CHECK_IN_GRACE_MS;
-  return deadline < sessionEnd(session) ? deadline : null;
+// When (session time) an unanswered check-in ends the session, or null if it
+// can't (Night mode off, or the session finishes before the deadline).
+function missedS(session: Session): number | null {
+  const due = dueS(session);
+  if (due === null) return null;
+  const deadline = due + CHECK_IN_GRACE_MS;
+  return deadline < endS(session) ? deadline : null;
 }
 
 // Tapping "Still studying?" (or "Got it" on a phase alarm): credit now runs to here.
@@ -367,16 +461,18 @@ export function confirmCheckIn(session: Session, now: number): Session {
 // ---------- Ending ----------
 
 export function endSession(session: Session, reason: EndReason, at: number): Result {
-  const end = sessionEnd(session);
-  if (at >= end) {
-    at = end;
+  let atS = toSession(session, at);
+  const end = endS(session);
+  if (atS >= end) {
+    atS = end;
+    at = toReal(session, end, at);
     reason = "finished";
   }
   // Stopping during the final long break ("Finish") is a full finish, not an early end.
   if (reason === "stopped" && isFinalBreak(session, at)) reason = "finished";
   if (reason === "checkin") return endAtLastCheckIn(session);
 
-  const focusSoFar = focusMsBetween(session, session.startedAt, at);
+  const focusSoFar = focusBetweenS(session, session.startedAt, atS);
   let failed: boolean;
   let focusMs: number;
   let blocksCompleted: number;
@@ -384,7 +480,7 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   if (session.mode === "cycle") {
     // Checkpoints: finished blocks are banked, the unfinished one is lost.
     // Nothing banked yet (still in the first block) means the session failed.
-    const banked = bankedFocus(session, at);
+    const banked = bankedS(session, atS);
     focusMs = banked.ms;
     blocksCompleted = banked.blocks;
     failed = blocksCompleted === 0;
@@ -420,8 +516,9 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
 // then, so it's partial); never failed, so no bone and no dying fish.
 function endAtLastCheckIn(session: Session): Result {
   const end = lastConfirmed(session);
+  const endAtS = toSession(session, end);
   const isCycle = session.mode === "cycle";
-  const banked = bankedFocus(session, end);
+  const banked = bankedS(session, endAtS);
   return {
     id: session.id,
     mode: session.mode,
@@ -431,7 +528,7 @@ function endAtLastCheckIn(session: Session): Result {
     startedAt: session.startedAt,
     endedAt: end,
     plannedMs: plannedFocusMs(session),
-    focusMs: isCycle ? banked.ms : focusMsBetween(session, session.startedAt, end),
+    focusMs: isCycle ? banked.ms : focusBetweenS(session, session.startedAt, endAtS),
     lostMs: 0, // the time asleep isn't "lost focus": it was never focus
     blocksCompleted: isCycle ? banked.blocks : 1,
     totalBlocks: countFocusBlocks(session),
@@ -447,9 +544,10 @@ function endAtLastCheckIn(session: Session): Result {
 // the natural end. All from timestamps, so a refresh or a hidden page gives the
 // same answer on return.
 export function checkSession(session: Session, now: number): Check {
+  const nowS = toSession(session, now);
   const failAt = session.awaySince !== null ? leaveFailureTime(session, session.awaySince, now) : null;
-  const missedAt = missedCheckInAt(session);
-  const missed = missedAt !== null && missedAt <= now ? missedAt : null;
+  const missS = missedS(session);
+  const missed = missS !== null && missS <= nowS ? toReal(session, missS, now) : null;
 
   if (failAt !== null && (missed === null || failAt <= missed)) {
     // Left during the first 10 s and didn't come back in time: an accidental
@@ -458,7 +556,7 @@ export function checkSession(session: Session, now: number): Check {
     return { status: "ended", result: endSession(session, "left", failAt) };
   }
   if (missed !== null) return { status: "ended", result: endSession(session, "checkin", missed) };
-  if (now >= sessionEnd(session)) {
+  if (nowS >= endS(session)) {
     return { status: "ended", result: endSession(session, "finished", now) };
   }
   return { status: "running" };

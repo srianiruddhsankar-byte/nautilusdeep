@@ -18,7 +18,7 @@ describe("remembered setup", () => {
       cycleChoice: "6f1c2a9e-1111-4222-8333-944455556666",
       custom: { focusMin: "50", shortBreakMin: "10", longBreakMin: "20", blocksPerSet: "3" },
       night: { on: true, intervalMin: 45, style: "pulse" },
-      ambience: { sound: "calm", volume: 0.4 },
+      ambience: { sound: "stream", volume: 0.4 },
     };
     assert.deepEqual(sanitizePrefs(JSON.parse(JSON.stringify(saved))), saved);
   });
@@ -32,7 +32,7 @@ describe("remembered setup", () => {
       target: "abc",
       cycleChoice: "",
       custom: { focusMin: "50", shortBreakMin: "-5", longBreakMin: "15", blocksPerSet: "13" },
-      night: { on: "yes", intervalMin: 25, style: "siren" },
+      night: { on: "yes", intervalMin: 7, style: "siren" },
     });
     assert.equal(prefs.sessionType, "notes");
     assert.equal(prefs.mode, "timer");
@@ -47,5 +47,16 @@ describe("remembered setup", () => {
   test("Night mode is off unless it was turned on, and the 1-minute test interval survives a reload", () => {
     assert.equal(sanitizePrefs({}).night.on, false);
     assert.equal(sanitizePrefs({ night: { on: true, intervalMin: 1, style: "vibrate" } }).night.intervalMin, 1);
+  });
+
+  test("a Custom interval is any whole number of minutes from 10 to 120", () => {
+    const night = (intervalMin: unknown) => sanitizePrefs({ night: { on: true, intervalMin, style: "alarm" } }).night;
+    assert.equal(night(10).intervalMin, 10);
+    assert.equal(night(75).intervalMin, 75);
+    assert.equal(night(120).intervalMin, 120);
+    assert.equal(night(9).intervalMin, 30); // too short → the default
+    assert.equal(night(121).intervalMin, 30);
+    assert.equal(night(12.5).intervalMin, 30);
+    assert.equal(night(75).style, "alarm");
   });
 });

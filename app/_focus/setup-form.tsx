@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { totalMinutes } from "@/lib/cycle-blocks";
 import { useCycles } from "@/lib/cycles";
 import { setPreviewVolume, startPreview, stopPreview, usePreview } from "@/lib/ambience";
@@ -14,7 +14,16 @@ import {
   type AmbienceChoice,
 } from "@/lib/ambience-logic";
 import { loadPrefs, savePrefs } from "@/lib/prefs-store";
-import { NIGHT_INTERVALS, NIGHT_TEST_INTERVAL, type NightPrefs, type SetupPrefs } from "@/lib/setup-prefs";
+import {
+  NIGHT_CUSTOM_MAX,
+  NIGHT_CUSTOM_MIN,
+  NIGHT_INTERVALS,
+  NIGHT_TEST_INTERVAL,
+  isNightInterval,
+  type NightPrefs,
+  type SetupPrefs,
+} from "@/lib/setup-prefs";
+import { checkInAlert } from "@/lib/alarm";
 import { formatDuration } from "@/lib/stats";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
 import { groupTasks, openTasksInOrder } from "@/lib/task-views";
@@ -48,8 +57,9 @@ const FOCUS_MODES: { id: FocusMode; explanation: string }[] = [
 ];
 const SESSION_TYPES: SessionType[] = ["study", "notes"];
 const NIGHT_STYLES: { id: CheckInStyle; label: string }[] = [
-  { id: "chime", label: "Chime" },
+  { id: "chime", label: "Gentle chime" },
   { id: "vibrate", label: "Chime + buzz" },
+  { id: "alarm", label: "Alarm" },
   { id: "pulse", label: "Silent pulse" },
 ];
 // The 1-minute check-in is only for testing on your computer (npm run dev).
@@ -368,6 +378,11 @@ export function VolumeSlider({ value, onChange }: { value: number; onChange: (vo
 
 // "Still studying?" check-ins, for late sessions where you might fall asleep.
 function NightMode({ night, onChange }: { night: NightPrefs; onChange: (night: NightPrefs) => void }) {
+  const isPreset = (NIGHT_CHOICES as number[]).includes(night.intervalMin);
+  const [customOpen, setCustomOpen] = useState(!isPreset);
+  const [customText, setCustomText] = useState(isPreset ? "" : String(night.intervalMin));
+  const customValid = isNightInterval(Number(customText)) && Number(customText) >= NIGHT_CUSTOM_MIN;
+
   return (
     <div className="flex flex-col gap-3">
       <button
@@ -399,27 +414,86 @@ function NightMode({ night, onChange }: { night: NightPrefs; onChange: (night: N
             <span className="text-sm text-zinc-500">Check in every (minutes of focus)</span>
             <div className="flex flex-wrap gap-2">
               {NIGHT_CHOICES.map((m) => (
-                <button
+                <Chip
                   key={m}
-                  type="button"
-                  aria-pressed={night.intervalMin === m}
-                  onClick={() => onChange({ ...night, intervalMin: m })}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                    night.intervalMin === m ? "border-sky-700 bg-sky-700 text-white" : "border-zinc-300 dark:border-zinc-700"
-                  }`}
+                  on={!customOpen && night.intervalMin === m}
+                  onClick={() => {
+                    setCustomOpen(false);
+                    onChange({ ...night, intervalMin: m });
+                  }}
                 >
                   {m === NIGHT_TEST_INTERVAL ? "1 (test)" : m}
+                </Chip>
+              ))}
+              <Chip on={customOpen} onClick={() => setCustomOpen(true)}>
+                Custom
+              </Chip>
+            </div>
+            {customOpen && (
+              <label className="flex items-center gap-2 pt-1 text-sm text-zinc-500">
+                Every
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={NIGHT_CUSTOM_MIN}
+                  max={NIGHT_CUSTOM_MAX}
+                  value={customText}
+                  placeholder="40"
+                  onChange={(e) => {
+                    setCustomText(e.target.value);
+                    const n = Number(e.target.value);
+                    if (isNightInterval(n) && n >= NIGHT_CUSTOM_MIN) onChange({ ...night, intervalMin: n });
+                  }}
+                  className="w-20 rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-base text-foreground dark:border-zinc-700"
+                />
+                minutes{" "}
+                {!customValid && customText !== "" && (
+                  <span className="text-amber-600">
+                    ({NIGHT_CUSTOM_MIN}–{NIGHT_CUSTOM_MAX})
+                  </span>
+                )}
+              </label>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-zinc-500">How it asks (tap to hear)</span>
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
+              {NIGHT_STYLES.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  aria-pressed={night.style === o.id}
+                  onClick={() => {
+                    onChange({ ...night, style: o.id });
+                    checkInAlert(o.id); // a sample, so you know what you picked
+                  }}
+                  className={`rounded-lg py-2.5 text-sm font-medium ${
+                    night.style === o.id ? "bg-white shadow dark:bg-zinc-700" : "text-zinc-500"
+                  }`}
+                >
+                  {o.label}
                 </button>
               ))}
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-zinc-500">How it asks</span>
-            <Segmented options={NIGHT_STYLES} value={night.style} onChange={(style) => onChange({ ...night, style })} />
-          </div>
         </>
       )}
     </div>
+  );
+}
+
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`rounded-full border px-4 py-2 text-sm font-medium ${
+        on ? "border-sky-700 bg-sky-700 text-white" : "border-zinc-300 dark:border-zinc-700"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -5,7 +5,8 @@ import { COIN_MIN_MINUTES, SKIN_UNLOCKS } from "@/lib/economy";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
 import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
-import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, LEAVE_GRACE_MS } from "@/lib/timer";
+import { EYED_AT, FRY_UNTIL, HATCH_AT } from "@/lib/brood";
+import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, LEAVE_GRACE_MS, MAX_PAUSE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
 import { Account } from "./account";
 
@@ -77,12 +78,31 @@ export default function HelpPage() {
         </p>
       </Card>
 
+      <Card title="Pause (Deep Focus)">
+        <Points>
+          <li>
+            Once per session (once per cycle set), you can pause for up to {MAX_PAUSE_MS / 60_000} minutes. The button
+            appears under the timer after the first {CANCEL} seconds.
+          </li>
+          <li>While paused you can leave the app. The timer stands still and paused time doesn&apos;t count: no minutes, coins or growth.</li>
+          <li>
+            Tap Resume, or after {MAX_PAUSE_MS / 60_000} minutes it carries on by itself. Then the {GRACE}-second leave
+            rule is back on, so come back in time.
+          </li>
+          <li>Open Focus doesn&apos;t need a pause: leaving never ends it.</li>
+        </Points>
+      </Card>
+
       <Card title="Night mode">
         <p>For late sessions, when you might nod off. Turn it on in Session settings.</p>
         <Points>
           <li>
-            Every 20–60 minutes of focus, a small banner asks <b>Still studying?</b> Tap it. The timer keeps running
-            the whole time.
+            Every 20–60 minutes of focus (or a custom 10–120), a small banner asks <b>Still studying?</b> Tap it. The
+            timer keeps running the whole time.
+          </li>
+          <li>
+            It has its own sound, not the block alarm: a gentle chime, a chime with a buzz, a repeating alarm until
+            you tap, or a silent pulse.
           </li>
           <li>
             No tap within {CHECK_IN_GRACE_MS / 60_000} minutes: the session ends quietly, counting only up to your last
@@ -99,10 +119,14 @@ export default function HelpPage() {
       <Card title="Ambience">
         <Points>
           <li>
-            Ocean and water sounds while you focus, from Waves and Rain on the sea to Harbour and Deep ocean. Pick one
-            under Ambience in Session settings: tapping a sound plays a short preview.
+            Five water sounds while you focus: <b>Rain</b>, <b>Waves</b>, <b>Whales</b>, <b>Stream</b> and{" "}
+            <b>Night</b>. Pick one under Ambience in Session settings: tapping a sound plays a short preview.
           </li>
-          <li>It fades in when you start, keeps going through breaks, and fades out when the session ends.</li>
+          <li>
+            Your tank changes with it: rain on the surface, rolling waves, a whale passing far off with each call, a
+            gentle current, or a darker night tank.
+          </li>
+          <li>It fades in when you start, keeps going through breaks, and fades out when the session ends or pauses.</li>
           <li>Tap the small speaker on the timer screen to pause it or change the volume.</li>
           <li>It gets quieter while an alarm or a &ldquo;Still studying?&rdquo; check-in sounds.</li>
           <li>On iPhone, the silent switch mutes it. It may pause while you&apos;re in another app.</li>
@@ -111,6 +135,11 @@ export default function HelpPage() {
 
       <Card title="Fish">
         <Points>
+          <li>
+            While you focus, your tank shows a fish egg on a rock. At {EYED_AT} minutes its eyes show; at{" "}
+            {HATCH_AT} minutes it hatches into a tiny fry, and from {FRY_UNTIL} minutes it&apos;s a small fish
+            swimming with the others.
+          </li>
           <li>Every session with at least {FISH_MIN_MINUTES} minutes of focus hatches a fish. Shorter ones don&apos;t.</li>
           <li>The longer you focus, the bigger it grows:</li>
         </Points>

@@ -1,4 +1,4 @@
-import { AMBIENCE_CHOICES, DEFAULT_VOLUME, cleanVolume, type AmbienceChoice } from "./ambience-logic.ts";
+import { DEFAULT_VOLUME, cleanVolume, toAmbienceChoice, type AmbienceChoice } from "./ambience-logic.ts";
 import { MAX_REPEAT } from "./cycle-blocks.ts";
 import {
   DEFAULT_CYCLE,
@@ -24,6 +24,17 @@ export type CustomFields = {
 // (offered on localhost only), but it's accepted here so testing survives a reload.
 export const NIGHT_INTERVALS = [20, 30, 45, 60] as const;
 export const NIGHT_TEST_INTERVAL = 1;
+// A Custom interval: any whole number of minutes in this range.
+export const NIGHT_CUSTOM_MIN = 10;
+export const NIGHT_CUSTOM_MAX = 120;
+
+export function isNightInterval(n: unknown): n is number {
+  return (
+    typeof n === "number" &&
+    Number.isInteger(n) &&
+    (n === NIGHT_TEST_INTERVAL || (n >= NIGHT_CUSTOM_MIN && n <= NIGHT_CUSTOM_MAX))
+  );
+}
 export type NightPrefs = { on: boolean; intervalMin: number; style: CheckInStyle };
 
 export type SetupPrefs = {
@@ -73,7 +84,6 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
   const c = (typeof d.custom === "object" && d.custom !== null ? d.custom : {}) as Record<string, unknown>;
   const blocks = Number(c.blocksPerSet);
   const n = (typeof d.night === "object" && d.night !== null ? d.night : {}) as Record<string, unknown>;
-  const intervals: number[] = [...NIGHT_INTERVALS, NIGHT_TEST_INTERVAL];
   const a = (typeof d.ambience === "object" && d.ambience !== null ? d.ambience : {}) as Record<string, unknown>;
 
   return {
@@ -97,13 +107,11 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
     },
     night: {
       on: n.on === true,
-      intervalMin: intervals.includes(n.intervalMin as number)
-        ? (n.intervalMin as number)
-        : DEFAULT_PREFS.night.intervalMin,
-      style: oneOf(n.style, ["chime", "vibrate", "pulse"], DEFAULT_PREFS.night.style),
+      intervalMin: isNightInterval(n.intervalMin) ? n.intervalMin : DEFAULT_PREFS.night.intervalMin,
+      style: oneOf(n.style, ["chime", "vibrate", "alarm", "pulse"], DEFAULT_PREFS.night.style),
     },
     ambience: {
-      sound: oneOf(a.sound, AMBIENCE_CHOICES, DEFAULT_PREFS.ambience.sound),
+      sound: toAmbienceChoice(a.sound), // an old, retired sound becomes its closest match
       volume: cleanVolume(a.volume),
     },
   };

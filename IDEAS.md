@@ -65,6 +65,10 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 
 ## Sounds
 
+- **Revisit ambience**: Rain is weak and some static remains in the generated sounds. Consider real recordings
+  instead (Freesound CC0 / Pixabay), looped and crossfaded.
+  - Why parked: the generated five are good enough for now; recordings need sourcing, licence checks and hosting.
+  - Revisit: in Phase 9 (polish) or after Phase 11 testing.
 - **Real music tracks** (lo-fi, piano) as a library alongside the generated ambience.
   - Why parked: needs licensed or CC0 tracks (and hosting them). For now you can play your own music app in
     the background.
@@ -92,8 +96,13 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 
 ## Deliberately rejected (and why)
 
-- **Pause button**: a loophole around the leave rule.
 - **Categories / subject tags**: an extra step before studying.
 - **App blocking, controlling phone notifications, native-only features**: not possible on the web, and not needed.
 - **Leaderboards**: no competition between users, ever.
 - **Ads, monetisation, charity, YouTube**: this is a personal project.
+
+## Reconsidered
+
+- **Pause button**: first rejected as a loophole around the leave rule. Built after all as a limited pause
+  (Deep Focus only, once per session, up to 5 minutes, paused time not credited), the way Flipd does it, which
+  closes the loophole. Rules in CLAUDE.md.

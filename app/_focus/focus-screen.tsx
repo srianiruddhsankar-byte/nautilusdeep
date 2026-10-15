@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { SESSION_DONE_ALARM, checkInAlert, phaseAlarm, startAlarm, useAlarm } from "@/lib/alarm";
-import { syncAmbience } from "@/lib/ambience";
-import { AMBIENCE_LABEL, ambienceTarget } from "@/lib/ambience-logic";
+import {
+  CHECK_IN_ALARM_EVERY_MS,
+  SESSION_DONE_ALARM,
+  checkInAlert,
+  phaseAlarm,
+  startAlarm,
+  useAlarm,
+} from "@/lib/alarm";
+import { syncAmbience, usePreview } from "@/lib/ambience";
+import { AMBIENCE_LABEL, ambienceTarget, sceneFor, type AmbienceSound } from "@/lib/ambience-logic";
 import { unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
@@ -19,17 +26,23 @@ import {
   CANCEL_WINDOW_MS,
   FOCUS_MODE_LABEL,
   LEAVE_GRACE_MS,
+  MAX_PAUSE_MS,
   SESSION_TYPE_LABEL,
+  canPause,
   cancelWindowRemainingMs,
   checkInState,
   checkSession,
   confirmCheckIn,
+  endPause,
   formatClock,
   getStatus,
   isFinalBreak,
   isNotes,
   isOpenFocus,
+  isPaused,
+  pauseRemainingMs,
   pressStop,
+  startPause,
   type Result,
   type Session,
   type SessionAmbience,
@@ -39,10 +52,10 @@ import {
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
 import { StatsLine } from "../_stats/stats-line";
-import { LiveFish } from "../_tank/live-fish";
-import { LivePlant, SeedlingCard } from "../_tank/live-plant";
+import { SeedlingCard } from "../_tank/live-plant";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
+import { RunningTank } from "../_tank/running-tank";
 import { SKINS } from "../_tank/skins";
 import { Coin, Tank } from "../_tank/tank";
 import { AlarmOverlay } from "./alarm-overlay";
@@ -115,11 +128,14 @@ export function FocusScreen() {
   // follow. It ducks while an alarm rings or a check-in waits, and stops when the
   // session ends or is cancelled (session becomes null).
   const alarm = useAlarm();
-  const checkInDue = session !== null && checkInState(session, now ?? session.startedAt).status === "due";
+  const at = session ? (now ?? session.startedAt) : 0;
+  const checkInDue = session !== null && checkInState(session, at).status === "due";
+  // Silent while you've paused the sound, or the session itself is paused.
+  const soundOff = (session?.ambience?.paused ?? false) || (session !== null && isPaused(session, at));
   const target = ambienceTarget({
     sound: session?.ambience?.sound,
     running: session !== null,
-    paused: session?.ambience?.paused ?? false,
+    paused: soundOff,
     volume: session?.ambience?.volume ?? 0,
     alerting: alarm !== null || checkInDue,
   });
@@ -130,6 +146,10 @@ export function FocusScreen() {
   }, [targetSound, targetGain]);
   // Leaving Home (e.g. to another page) stops it too.
   useEffect(() => () => syncAmbience(null), []);
+  // The tank's scene goes with it: the session's sound, or a preview on Home.
+  const previewing = usePreview();
+  const scene = sceneFor({ running: session !== null, sound: session?.ambience?.sound, paused: soundOff, previewing });
+  const skinOf = (t: number) => SKINS[economy.skinIdOf(t)];
 
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
   // Wake lock only for Deep Focus (Open Focus users are using the device anyway).
@@ -141,7 +161,12 @@ export function FocusScreen() {
   if (session && status) {
     return (
       <>
-        <RunningView session={session} status={status} now={now ?? session.startedAt} garden={garden} />
+        <RunningView
+          session={session}
+          status={status}
+          now={now ?? session.startedAt}
+          tank={{ aquarium, garden, skinOf, decorations: economy.owned, scene }}
+        />
         <AlarmOverlay onDismiss={confirmNow} />
       </>
     );
@@ -169,9 +194,10 @@ export function FocusScreen() {
         aquarium={aquarium}
         garden={garden}
         error={error}
-        skinOf={(t) => SKINS[economy.skinIdOf(t)]}
+        skinOf={skinOf}
         decorations={economy.owned}
         coins={economy.balance}
+        scene={scene}
       />
       <SeedlingCard garden={garden} />
       <SetupForm
@@ -204,6 +230,8 @@ function useSessionClock(active: boolean): number | null {
     if (!active) return;
     let lastPhase: number | null = null;
     let promptedFor: number | null = null; // the check-in we've already chimed for
+    let wasPaused = false;
+    let lastRing = 0; // the "alarm" check-in style rings again every few seconds
     const isVisible = () => document.visibilityState === "visible";
 
     function tick() {
@@ -227,11 +255,25 @@ function useSessionClock(active: boolean): number | null {
         lastPhase = status.phaseIndex;
       }
 
+      // The pause ran out by itself (not Resume): say so, since the leave rule is back on.
+      const pausedNow = isPaused(session, t);
+      if (wasPaused && !pausedNow && session.pause?.endedAt === null && isVisible()) {
+        startAlarm({ title: "Pause over", detail: "The timer is running again." });
+      }
+      wasPaused = pausedNow;
+
       // Night mode: a gentle nudge (never the alarm) when a check-in comes due.
       const checkIn = checkInState(session, t);
-      if (checkIn.status === "due" && checkIn.dueAt !== promptedFor) {
-        promptedFor = checkIn.dueAt;
-        if (isVisible() && session.checkIn) checkInAlert(session.checkIn.style);
+      if (checkIn.status === "due" && session.checkIn) {
+        const style = session.checkIn.style;
+        if (checkIn.dueAt !== promptedFor) {
+          promptedFor = checkIn.dueAt;
+          lastRing = t;
+          if (isVisible()) checkInAlert(style);
+        } else if (style === "alarm" && t - lastRing >= CHECK_IN_ALARM_EVERY_MS && isVisible()) {
+          lastRing = t;
+          checkInAlert(style);
+        }
       }
     }
 
@@ -282,16 +324,25 @@ function useSessionClock(active: boolean): number | null {
   return now;
 }
 
+// Everything the running screen's tank needs, passed down from Home.
+type RunningTankData = {
+  aquarium: Aquarium | null;
+  garden: Garden | null;
+  skinOf: (tank: number) => (typeof SKINS)[keyof typeof SKINS];
+  decorations: Parameters<typeof RunningTank>[0]["decorations"];
+  scene: AmbienceSound | null;
+};
+
 function RunningView({
   session,
   status,
   now,
-  garden,
+  tank,
 }: {
   session: Session;
   status: Status;
   now: number;
-  garden: Garden | null;
+  tank: RunningTankData;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -350,7 +401,10 @@ function RunningView({
       : formatClock(Math.ceil(status.remainingMs / 1000) * 1000);
 
   const losesWholeSession = !isCycle || status.focusBlock === 1;
-  const hint = finalBreak
+  const paused = isPaused(session, now);
+  const hint = paused
+    ? "Paused. You can leave the app; the timer is stopped and nothing counts until you resume."
+    : finalBreak
     ? "Last break. Every block is banked. Tap Finish whenever you're ready."
     : !isFocus
       ? `Break. It's safe to leave the app. Next: Focus ${status.focusBlock + 1} of ${status.totalBlocks}.`
@@ -374,62 +428,90 @@ function RunningView({
   const checkIn = checkInState(session, now);
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-6">
-      {checkIn.status === "due" && (
-        <CheckInBanner
-          secondsLeft={Math.max(0, Math.ceil((checkIn.deadline - now) / 1000))}
-          pulse={session.checkIn?.style === "pulse"}
-        />
-      )}
-      <div className="flex flex-col items-center gap-1">
-        <p className="flex items-center gap-1 text-sm text-zinc-500">
-          {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
-          {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
-          {session.ambience && <SoundControl ambience={session.ambience} />}
-        </p>
-        <p
-          className={`max-w-full truncate px-2 text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
-        >
-          {heading}
-        </p>
-        {subheading && <p className="text-sm text-zinc-500">{subheading}</p>}
-        {task && <InProgressBadge taskName={task} />}
-        <p className="text-7xl font-semibold tabular-nums sm:text-8xl">{time}</p>
-      </div>
+    // The running screen covers the whole window (no page header or nav), so it
+    // can lay out for any shape:
+    // - portrait (phones): time, then a compact tank, then the controls.
+    // - landscape (laptops, phones turned sideways): the tank takes most of the
+    //   screen, with the time and controls in a column beside it.
+    <div className="fixed inset-0 z-30 overflow-y-auto bg-background">
+      <div className="mx-auto grid min-h-full w-full max-w-md grid-rows-[auto_auto_1fr] gap-4 p-4 landscape:max-w-7xl landscape:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] landscape:grid-rows-[1fr_1fr] landscape:gap-x-8">
+        {/* What's running, and the time. */}
+        <div className="flex flex-col items-center gap-3 landscape:col-start-2 landscape:row-start-1 landscape:self-end">
+          {checkIn.status === "due" && (
+            <CheckInBanner
+              secondsLeft={Math.max(0, Math.ceil((checkIn.deadline - now) / 1000))}
+              pulse={session.checkIn?.style === "pulse"}
+            />
+          )}
+          <div className="flex flex-col items-center gap-1">
+            <p className="flex items-center gap-1 text-sm text-zinc-500">
+              {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
+              {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
+              {session.ambience && <SoundControl ambience={session.ambience} />}
+            </p>
+            <p
+              className={`max-w-full truncate px-2 text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
+            >
+              {heading}
+            </p>
+            {subheading && <p className="text-sm text-zinc-500">{subheading}</p>}
+            {task && <InProgressBadge taskName={task} />}
+            <p
+              className={`text-6xl font-semibold tabular-nums sm:text-7xl lg:text-8xl ${paused ? "text-zinc-400" : ""}`}
+            >
+              {time}
+            </p>
+          </div>
+        </div>
 
-      {notes ? (
-        <LivePlant session={session} now={now} garden={garden} note={targetLine(session, status)} />
-      ) : (
-        <LiveFish session={session} now={now} />
-      )}
+        {/* The tank: compact in portrait; as big as the height allows in landscape. */}
+        <div className="mx-auto w-full max-w-[calc(34svh*4/3)] landscape:col-start-1 landscape:row-span-2 landscape:row-start-1 landscape:max-w-[calc((100svh-6rem)*4/3)] landscape:self-center">
+          <RunningTank session={session} now={now} {...tank} note={notes ? targetLine(session, status) : null} />
+        </div>
 
-      <p className="max-w-xs text-center text-zinc-500">{hint}</p>
-      {session.checkIn && (
-        <p className="-mt-4 text-center text-sm text-zinc-500">
-          Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
-        </p>
-      )}
-
-      {/* Bottom of the screen = easy to reach one-handed. */}
-      <div className="mt-auto flex w-full flex-col items-center gap-2">
-        {cancellable && (
-          <p className="text-sm text-zinc-500">Started by accident? Cancel now and nothing is saved.</p>
-        )}
-        <button
-          onClick={stop}
-          aria-label={cancellable ? `Cancel session, ${cancelSeconds} seconds left` : undefined}
-          className={`w-full rounded-2xl py-5 text-xl font-semibold tabular-nums ${
-            confirming
-              ? "bg-red-600 text-white"
-              : cancellable
-                ? "bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-                : finalBreak
-                  ? "bg-sky-700 text-white hover:bg-sky-800"
-                  : "border-2 border-zinc-300 dark:border-zinc-700"
-          }`}
-        >
-          {stopLabel}
-        </button>
+        {/* Hint and buttons: at the bottom in portrait, easy to reach one-handed. */}
+        <div className="flex w-full flex-col items-center gap-2 self-end landscape:col-start-2 landscape:row-start-2 landscape:self-start">
+          <p className="max-w-xs text-center text-sm text-zinc-500">{hint}</p>
+          {session.checkIn && !paused && (
+            <p className="text-center text-sm text-zinc-500">
+              Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
+            </p>
+          )}
+          {paused ? (
+            <PausePanel msLeft={pauseRemainingMs(session, now)} />
+          ) : (
+            canPause(session, now) && (
+              <button
+                type="button"
+                onClick={() => {
+                  const current = getSnapshot().session;
+                  if (current) save({ session: startPause(current, Date.now()), result: null });
+                }}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              >
+                Pause · once, up to {MAX_PAUSE_MS / 60_000} min
+              </button>
+            )
+          )}
+          {cancellable && (
+            <p className="text-center text-sm text-zinc-500">Started by accident? Cancel now and nothing is saved.</p>
+          )}
+          <button
+            onClick={stop}
+            aria-label={cancellable ? `Cancel session, ${cancelSeconds} seconds left` : undefined}
+            className={`w-full rounded-2xl py-5 text-xl font-semibold tabular-nums ${
+              confirming
+                ? "bg-red-600 text-white"
+                : cancellable
+                  ? "bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                  : finalBreak
+                    ? "bg-sky-700 text-white hover:bg-sky-800"
+                    : "border-2 border-zinc-300 dark:border-zinc-700"
+            }`}
+          >
+            {stopLabel}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -495,6 +577,28 @@ function ResultView({
 }
 
 // Notes sessions grow no fish: show the target instead, while it runs…
+// While paused: how long is left, and Resume. Calm, never a takeover.
+function PausePanel({ msLeft }: { msLeft: number }) {
+  return (
+    <div className="flex w-full items-center justify-between gap-3 rounded-2xl bg-zinc-100 px-4 py-3 dark:bg-zinc-900">
+      <span className="flex flex-col">
+        <span className="font-semibold">Paused</span>
+        <span className="text-sm text-zinc-500 tabular-nums">{formatClock(msLeft)} left, then it carries on</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          const current = getSnapshot().session;
+          if (current) save({ session: endPause(current, Date.now()), result: null });
+        }}
+        className="rounded-xl bg-sky-700 px-5 py-3 font-semibold text-white hover:bg-sky-800"
+      >
+        Resume
+      </button>
+    </div>
+  );
+}
+
 // The running screen's sound control: a small speaker next to the focus mode.
 // Tap it for Pause / Play and volume, without leaving the session. A volume
 // change is also remembered for next time.

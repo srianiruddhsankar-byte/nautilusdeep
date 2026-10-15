@@ -9,6 +9,7 @@ import {
   ambienceTarget,
   cleanVolume,
   previewTap,
+  sceneFor,
 } from "./ambience-logic.ts";
 import { sanitizePrefs } from "./setup-prefs.ts";
 
@@ -54,8 +55,8 @@ describe("volume and preferences", () => {
 
   test("Ambience is off by default and remembered when set", () => {
     assert.deepEqual(sanitizePrefs({}).ambience, { sound: "off", volume: DEFAULT_VOLUME });
-    assert.deepEqual(sanitizePrefs({ ambience: { sound: "underwater", volume: 0.35 } }).ambience, {
-      sound: "underwater",
+    assert.deepEqual(sanitizePrefs({ ambience: { sound: "rain", volume: 0.35 } }).ambience, {
+      sound: "rain",
       volume: 0.35,
     });
     assert.deepEqual(sanitizePrefs({ ambience: { sound: "thunder", volume: 9 } }).ambience, {
@@ -71,7 +72,7 @@ describe("previews in Session settings", () => {
   });
 
   test("tapping a different sound switches the preview (only one plays)", () => {
-    assert.deepEqual(previewTap("rain", "harbour"), { choose: "harbour", preview: "harbour" });
+    assert.deepEqual(previewTap("rain", "stream"), { choose: "stream", preview: "stream" });
   });
 
   test("tapping the one that's playing stops it, and it stays chosen", () => {
@@ -79,15 +80,39 @@ describe("previews in Session settings", () => {
   });
 
   test("Off chooses off and stops any preview", () => {
-    assert.deepEqual(previewTap("deep", "off"), { choose: "off", preview: null });
+    assert.deepEqual(previewTap("whales", "off"), { choose: "off", preview: null });
   });
 
-  test("every sound has a name and a one-line description, and old choices still load", () => {
+  test("five sounds, each with a name and a one-line description", () => {
+    assert.equal(AMBIENCE_CHOICES.length, 6); // Off + 5
     for (const c of AMBIENCE_CHOICES) {
       assert.ok(AMBIENCE_LABEL[c]);
       assert.ok(AMBIENCE_DESCRIPTION[c].length < 60, c);
     }
-    assert.equal(sanitizePrefs({ ambience: { sound: "calm", volume: 0.5 } }).ambience.sound, "calm");
-    assert.equal(sanitizePrefs({ ambience: { sound: "rockpool", volume: 0.5 } }).ambience.sound, "rockpool");
+  });
+
+  test("retired sounds from the old library map to their closest match", () => {
+    assert.equal(sanitizePrefs({ ambience: { sound: "calm", volume: 0.5 } }).ambience.sound, "waves");
+    assert.equal(sanitizePrefs({ ambience: { sound: "deep", volume: 0.5 } }).ambience.sound, "whales");
+    assert.equal(sanitizePrefs({ ambience: { sound: "rockpool", volume: 0.5 } }).ambience.sound, "stream");
+    // A session started before the update keeps playing (as its new match).
+    assert.deepEqual(ambienceTarget({ ...playing, sound: "underwater" }), { sound: "whales", gain: 0.6 });
+  });
+});
+
+describe("which tank scene shows", () => {
+  test("Home / setup: the sound being previewed, or none", () => {
+    assert.equal(sceneFor({ running: false, sound: null, paused: false, previewing: "rain" }), "rain");
+    assert.equal(sceneFor({ running: false, sound: null, paused: false, previewing: null }), null);
+  });
+
+  test("during a session: its sound; nothing while paused or with Off", () => {
+    assert.equal(sceneFor({ running: true, sound: "whales", paused: false, previewing: null }), "whales");
+    assert.equal(sceneFor({ running: true, sound: "whales", paused: true, previewing: null }), null);
+    assert.equal(sceneFor({ running: true, sound: "off", paused: false, previewing: null }), null);
+  });
+
+  test("a session's scene wins over a stray preview", () => {
+    assert.equal(sceneFor({ running: true, sound: "night", paused: false, previewing: "rain" }), "night");
   });
 });

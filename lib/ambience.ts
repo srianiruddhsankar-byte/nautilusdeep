@@ -2,33 +2,41 @@ import { useSyncExternalStore } from "react";
 import { PREVIEW_SECONDS, type AmbienceSound, type AmbienceTarget } from "./ambience-logic";
 import { audioContext } from "./feedback";
 
-// The ocean ambience engine: looping water sounds made entirely in code with
-// the Web Audio API (no audio files). Browser-only; every call is wrapped so a
-// browser without Web Audio simply stays silent.
+// The ambience engine: five water sounds made entirely in code with the Web
+// Audio API (no audio files). Browser-only; every call is wrapped so a browser
+// without Web Audio simply stays silent.
 //
-// How the sounds are made:
-// - A few seconds of NOISE are computed once and looped: "brown" noise (each
-//   sample a small random step from the last, so it's deep and rumbly) and
-//   "pink" noise (equal energy per octave, softer than white static).
-// - FILTERS remove the high frequencies; that's what turns noise into water.
-// - LFOs (oscillators far too slow to hear, ~0.05–0.15 times a second) gently
-//   move the volume and brightness up and down: swells. Two LFOs at rates that
-//   never line up keep the pattern from sounding like a loop.
-// - EVENTS at random moments give each sound its character: bubbles and drips
-//   (tiny sines whose pitch sweeps), rain drops (tiny bursts of noise), crickets,
-//   a wooden creak, a far bell, whale-like calls. An ECHO (a delay feeding back
-//   into itself, darker each time) makes things sound far away or in a hollow.
-// Everything goes into one master gain, which fades in, fades out and ducks.
+// Each sound is built from many small EVENTS scheduled at random moments, not
+// from one block of filtered noise:
+// - Rain: dozens of separate drops a second. A drop = a tiny click + a short
+//   "plink" whose pitch rises fast (a drop hitting water traps a little bubble
+//   that rings), at a random pitch, loudness and left/right position. Under it,
+//   a soft patter: a precomputed texture of thousands of tiny taps.
+// - Waves: each wave is one event in three parts: BUILD (a dark rumble swelling
+//   and brightening), CRASH (a quick bright burst), RETREAT (a fizzy, bubbly
+//   draw-back fading out). Irregular gaps; sometimes they overlap.
+// - Whales: a deep hum (two very low tones slightly out of tune, so it slowly
+//   pulses) and every 20–40 s a call: 2–3 long gliding tones with a slow wobble,
+//   shaped to sound voice-like, through a long echo.
+// - Stream: a fine soft trickle plus many separate bubble plinks of different
+//   sizes (small bubbles ring higher and shorter), in livelier and quieter patches.
+// - Night: the same waves, darker, softer and slower, plus 2–3 faraway crickets
+//   (short trains of high pulses), each with its own pitch, place and rhythm.
+//
+// Events are scheduled a quarter-second ahead on the audio clock (a "look-ahead"
+// timer), so their timing stays smooth even when the page's own timers jitter.
 
 type Playing = { sound: AmbienceSound; master: GainNode; stop: () => void };
 let playing: Playing | null = null;
+
+// ---------- Building blocks ----------
+
+const LOOP_SECONDS = 8;
 const buffers = new Map<string, AudioBuffer>();
 
-const NOISE_SECONDS = 8;
-
-// Raw noise samples. "brown": a slow random walk (deep, rumbly). "pink": Paul
-// Kellet's filter, a few leaky averages of white noise (soft, even).
-function rawNoise(kind: "brown" | "pink", length: number): Float32Array {
+// Raw samples. brown: a slow random walk (deep). pink: Paul Kellet's filter
+// (soft, even). patter: thousands of tiny decaying taps (granular, not a hiss).
+function rawSamples(kind: "brown" | "pink" | "patter", length: number, rate: number): Float32Array {
   const data = new Float32Array(length);
   if (kind === "brown") {
     let last = 0;
@@ -36,35 +44,49 @@ function rawNoise(kind: "brown" | "pink", length: number): Float32Array {
       last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
       data[i] = last * 3.5;
     }
-    return data;
-  }
-  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-  for (let i = 0; i < length; i++) {
-    const w = Math.random() * 2 - 1;
-    b0 = 0.99886 * b0 + w * 0.0555179;
-    b1 = 0.99332 * b1 + w * 0.0750759;
-    b2 = 0.969 * b2 + w * 0.153852;
-    b3 = 0.8665 * b3 + w * 0.3104856;
-    b4 = 0.55 * b4 + w * 0.5329522;
-    b5 = -0.7616 * b5 - w * 0.016898;
-    data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
-    b6 = w * 0.115926;
+  } else if (kind === "pink") {
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < length; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179;
+      b1 = 0.99332 * b1 + w * 0.0750759;
+      b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856;
+      b4 = 0.55 * b4 + w * 0.5329522;
+      b5 = -0.7616 * b5 - w * 0.016898;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+      b6 = w * 0.115926;
+    }
+  } else {
+    const taps = Math.floor((length / rate) * 380); // ~380 taps a second
+    for (let n = 0; n < taps; n++) {
+      const at = Math.floor(Math.random() * length);
+      const amp = Math.random() ** 3; // mostly faint, a few clear
+      const len = Math.floor(rate * (0.0015 + Math.random() * 0.004));
+      for (let i = 0; i < len && at + i < length; i++) {
+        data[at + i] += (Math.random() * 2 - 1) * amp * Math.exp(-i / (len / 4));
+      }
+    }
+    let smooth = 0; // soften the taps a little
+    for (let i = 0; i < length; i++) {
+      smooth += (data[i] - smooth) * 0.45;
+      data[i] = smooth * 0.9;
+    }
   }
   return data;
 }
 
-// Stereo noise, a different random stream per ear for a wide, natural sound.
-// Made a little longer than needed, and the extra tail is crossfaded into the
-// start, so the loop's end flows straight into its beginning: no click.
-function noise(ctx: AudioContext, kind: "brown" | "pink"): AudioBuffer {
+// A loopable stereo buffer, a different stream per ear. Made a little longer
+// and the extra tail crossfaded into the start, so the loop never clicks.
+function loopBuffer(ctx: AudioContext, kind: "brown" | "pink" | "patter"): AudioBuffer {
   const key = `${kind}-${ctx.sampleRate}`;
   const cached = buffers.get(key);
   if (cached) return cached;
-  const length = ctx.sampleRate * NOISE_SECONDS;
+  const length = ctx.sampleRate * LOOP_SECONDS;
   const fade = Math.floor(ctx.sampleRate * 0.5);
   const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
-    const raw = rawNoise(kind, length + fade);
+    const raw = rawSamples(kind, length + fade, ctx.sampleRate);
     const data = buffer.getChannelData(ch);
     for (let i = 0; i < length; i++) {
       const t = i < fade ? i / fade : 1;
@@ -75,12 +97,12 @@ function noise(ctx: AudioContext, kind: "brown" | "pink"): AudioBuffer {
   return buffer;
 }
 
-function loop(ctx: AudioContext, kind: "brown" | "pink") {
+function loop(ctx: AudioContext, kind: "brown" | "pink" | "patter", at = 0, rate = 1) {
   const src = ctx.createBufferSource();
-  src.buffer = noise(ctx, kind);
+  src.buffer = loopBuffer(ctx, kind);
   src.loop = true;
-  // Start each loop at a random point so layers never line up the same way.
-  src.start(0, Math.random() * NOISE_SECONDS);
+  src.playbackRate.value = rate;
+  src.start(at, Math.random() * LOOP_SECONDS); // a random point, so layers never line up
   return src;
 }
 
@@ -98,109 +120,24 @@ function gain(ctx: AudioContext, value: number) {
   return g;
 }
 
+// Left (-1) … right (1). Older browsers without a panner just play it centred.
+function panner(ctx: AudioContext, value: number): AudioNode {
+  if (!ctx.createStereoPanner) return gain(ctx, 1);
+  const p = ctx.createStereoPanner();
+  p.pan.value = Math.max(-1, Math.min(1, value));
+  return p;
+}
+
 // A very slow wobble added on top of `param`: ±depth, `hz` times a second.
 function lfo(ctx: AudioContext, hz: number, depth: number, param: AudioParam) {
   const osc = ctx.createOscillator();
   osc.frequency.value = hz;
-  const amount = gain(ctx, depth);
-  osc.connect(amount).connect(param);
+  osc.connect(gain(ctx, depth)).connect(param);
   osc.start();
   return osc;
 }
 
-// Each builder wires its sound into `out` and returns what must be stopped later.
-type Build = (ctx: AudioContext, out: GainNode) => { stop: () => void };
-
-// Waves: deep surf rising and falling every ~8–12 s, brighter (foamier) at each crest.
-const waves: Build = (ctx, out) => {
-  const surf = loop(ctx, "brown");
-  const surfFilter = filter(ctx, "lowpass", 650, 0.5);
-  const swell = gain(ctx, 0.5);
-  surf.connect(surfFilter).connect(swell).connect(out);
-
-  const foam = loop(ctx, "pink");
-  const foamFilter = filter(ctx, "highpass", 1800);
-  const foamGain = gain(ctx, 0.06);
-  foam.connect(foamFilter).connect(foamGain).connect(out);
-
-  const oscs = [
-    lfo(ctx, 0.085, 0.32, swell.gain), // the main swell
-    lfo(ctx, 0.13, 0.13, swell.gain), // a second, out-of-step swell
-    lfo(ctx, 0.085, 380, surfFilter.frequency), // brighter at the crest
-    lfo(ctx, 0.085, 0.05, foamGain.gain), // foam hisses as the wave breaks
-  ];
-  return { stop: () => [surf, foam, ...oscs].forEach((n) => n.stop()) };
-};
-
-// Underwater: a deep, muffled rumble that slowly breathes, with gentle bubbles.
-const underwater: Build = (ctx, out) => {
-  const deep = loop(ctx, "brown");
-  const muffle = filter(ctx, "lowpass", 260, 0.9);
-  deep.connect(muffle).connect(gain(ctx, 1.1)).connect(out);
-  const oscs = [lfo(ctx, 0.05, 70, muffle.frequency)];
-
-  const bubbleBus = filter(ctx, "lowpass", 1600);
-  bubbleBus.connect(gain(ctx, 0.5)).connect(out);
-  let timer: ReturnType<typeof setTimeout> | null = null;
-
-  function bubble(at: number) {
-    const osc = ctx.createOscillator();
-    const env = gain(ctx, 0);
-    const start = 300 + Math.random() * 500;
-    osc.frequency.setValueAtTime(start, at);
-    osc.frequency.exponentialRampToValueAtTime(start * 2.6, at + 0.09); // the "bloop" rises
-    env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.04, at + 0.01);
-    env.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
-    osc.connect(env).connect(bubbleBus);
-    osc.start(at);
-    osc.stop(at + 0.16);
-  }
-
-  // Now and then, one bubble or a short little cluster.
-  function schedule() {
-    const now = ctx.currentTime;
-    const count = Math.random() < 0.3 ? 2 + Math.floor(Math.random() * 3) : 1;
-    for (let i = 0; i < count; i++) bubble(now + 0.05 + i * (0.06 + Math.random() * 0.1));
-    timer = setTimeout(schedule, 600 + Math.random() * 2600);
-  }
-  schedule();
-
-  return {
-    stop: () => {
-      if (timer) clearTimeout(timer);
-      [deep, ...oscs].forEach((n) => n.stop());
-    },
-  };
-};
-
-// Calm sea: a soft, steady wash with only the faintest movement.
-const calm: Build = (ctx, out) => {
-  const wash = loop(ctx, "pink");
-  const washGain = gain(ctx, 0.45);
-  wash.connect(filter(ctx, "lowpass", 900, 0.5)).connect(washGain).connect(out);
-
-  const body = loop(ctx, "brown");
-  body.connect(filter(ctx, "lowpass", 300)).connect(gain(ctx, 0.35)).connect(out);
-
-  const oscs = [lfo(ctx, 0.06, 0.07, washGain.gain), lfo(ctx, 0.11, 0.03, washGain.gain)];
-  return { stop: () => [wash, body, ...oscs].forEach((n) => n.stop()) };
-};
-
-// Calls `fn` again and again at random gaps (ms), the first after `firstMs`. Returns stop.
-function randomly(firstMs: number, minMs: number, maxMs: number, fn: () => void) {
-  let timer: ReturnType<typeof setTimeout> | null = setTimeout(function tick() {
-    fn();
-    timer = setTimeout(tick, minMs + Math.random() * (maxMs - minMs));
-  }, firstMs);
-  return () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-  };
-}
-
-// An echo: whatever goes into the returned node is heard now, then again and
-// again, quieter and darker each time. Makes a sound feel distant (or in a hollow).
+// An echo: what goes in is heard now, then again and again, quieter and darker.
 function echo(ctx: AudioContext, out: AudioNode, seconds: number, feedback: number, dryLevel = 1) {
   const input = gain(ctx, 1);
   const delay = ctx.createDelay(2);
@@ -214,259 +151,332 @@ function echo(ctx: AudioContext, out: AudioNode, seconds: number, feedback: numb
   return input;
 }
 
-// A short sound "event": a tone gliding from `from` to `to` Hz with a quick rise
-// and a fade, into `dest`.
-function blip(
-  ctx: AudioContext,
-  dest: AudioNode,
-  at: number,
-  { from, to, glide, peak, decay, type = "sine" }: {
-    from: number;
-    to: number;
-    glide: number;
-    peak: number;
-    decay: number;
-    type?: OscillatorType;
-  },
-) {
+// Look-ahead scheduling: every 100 ms, `fn(from, to)` schedules the events that
+// fall in the next slice of audio time. Returns stop.
+function ticker(ctx: AudioContext, fn: (from: number, to: number) => void) {
+  let last = ctx.currentTime + 0.05;
+  const tick = () => {
+    const to = ctx.currentTime + 0.25;
+    if (to > last) {
+      fn(last, to);
+      last = to;
+    }
+  };
+  tick();
+  const id = setInterval(tick, 100);
+  return () => clearInterval(id);
+}
+
+// Random moments at `rate` per second inside [from, to) (a Poisson process).
+function moments(rate: number, from: number, to: number): number[] {
+  const times: number[] = [];
+  if (rate <= 0) return times;
+  for (let t = from - Math.log(1 - Math.random()) / rate; t < to; t -= Math.log(1 - Math.random()) / rate) {
+    times.push(t);
+  }
+  return times;
+}
+
+const rand = (min: number, max: number) => min + Math.random() * (max - min);
+
+// A bubble ringing: a sine whose pitch rises as it fades (how small bubbles in
+// water sound). Used for raindrops and the stream.
+function bubble(ctx: AudioContext, dest: AudioNode, at: number, freq: number, peak: number, decay: number) {
   const osc = ctx.createOscillator();
-  osc.type = type;
+  osc.frequency.setValueAtTime(freq, at);
+  osc.frequency.exponentialRampToValueAtTime(freq * rand(1.3, 1.9), at + decay);
   const env = gain(ctx, 0);
-  osc.frequency.setValueAtTime(from, at);
-  osc.frequency.exponentialRampToValueAtTime(to, at + glide);
   env.gain.setValueAtTime(0, at);
-  env.gain.linearRampToValueAtTime(peak, at + 0.005);
+  env.gain.linearRampToValueAtTime(peak, at + 0.002);
   env.gain.exponentialRampToValueAtTime(0.0001, at + decay);
   osc.connect(env).connect(dest);
   osc.start(at);
-  osc.stop(at + decay + 0.05);
+  osc.stop(at + decay + 0.02);
 }
 
-// Night shore: slower, darker surf, with faint crickets far up the beach.
-const night: Build = (ctx, out) => {
-  const surf = loop(ctx, "brown");
-  const dark = filter(ctx, "lowpass", 420, 0.5);
-  const swell = gain(ctx, 0.45);
-  surf.connect(dark).connect(swell).connect(out);
-  const oscs = [
-    lfo(ctx, 0.06, 0.3, swell.gain),
-    lfo(ctx, 0.097, 0.1, swell.gain),
-    lfo(ctx, 0.06, 200, dark.frequency),
-  ];
+// A tiny burst of noise (a click / tap), `seconds` long.
+function tap(ctx: AudioContext, dest: AudioNode, at: number, peak: number, seconds: number) {
+  const src = ctx.createBufferSource();
+  src.buffer = loopBuffer(ctx, "pink");
+  const env = gain(ctx, 0);
+  env.gain.setValueAtTime(peak, at);
+  env.gain.exponentialRampToValueAtTime(0.0001, at + seconds);
+  src.connect(env).connect(dest);
+  src.start(at, Math.random() * LOOP_SECONDS, seconds + 0.01);
+}
 
-  const crickets = gain(ctx, 1);
-  crickets.connect(out);
-  // A chirp: three or four very short high pulses.
-  const stopCrickets = randomly(500, 900, 2600, () => {
-    const at = ctx.currentTime + 0.05;
-    const pitch = 4200 + Math.random() * 500;
-    const pulses = 3 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < pulses; i++) {
-      blip(ctx, crickets, at + i * 0.06, { from: pitch, to: pitch, glide: 0.01, peak: 0.012, decay: 0.035 });
+// ---------- Events the tank can react to ----------
+
+const whaleListeners = new Set<() => void>();
+let whaleCalls = 0;
+function announceWhaleCall() {
+  whaleCalls++;
+  whaleListeners.forEach((listener) => listener());
+}
+
+// How many whale calls have started (the tank's whale swims by on each one).
+export function useWhaleCalls(): number {
+  return useSyncExternalStore(
+    (listener) => {
+      whaleListeners.add(listener);
+      return () => {
+        whaleListeners.delete(listener);
+      };
+    },
+    () => whaleCalls,
+    () => 0,
+  );
+}
+
+// ---------- The five sounds ----------
+
+type Build = (ctx: AudioContext, out: GainNode) => { stop: () => void };
+
+const rain: Build = (ctx, out) => {
+  // The patter: a soft granular bed of tiny taps.
+  const patter = loop(ctx, "patter");
+  patter.connect(filter(ctx, "lowpass", 4200)).connect(gain(ctx, 0.35)).connect(out);
+  // A faint low body: rain over a wide stretch of water.
+  const body = loop(ctx, "brown");
+  body.connect(filter(ctx, "lowpass", 220)).connect(gain(ctx, 0.12)).connect(out);
+
+  const near = gain(ctx, 1);
+  near.connect(out);
+  const far = filter(ctx, "lowpass", 2500);
+  far.connect(gain(ctx, 0.6)).connect(out);
+
+  const stop = ticker(ctx, (from, to) => {
+    for (const at of moments(34, from, to)) {
+      const close = Math.random() < 0.25; // most drops are further off
+      const dest = panner(ctx, rand(-0.85, 0.85));
+      dest.connect(close ? near : far);
+      tap(ctx, dest, at, close ? rand(0.04, 0.09) : rand(0.01, 0.03), 0.004);
+      bubble(ctx, dest, at + 0.003, rand(1400, 4200), close ? rand(0.03, 0.07) : rand(0.008, 0.02), rand(0.025, 0.07));
     }
   });
   return {
     stop: () => {
-      stopCrickets();
-      [surf, ...oscs].forEach((n) => n.stop());
+      stop();
+      [patter, body].forEach((n) => n.stop());
     },
   };
 };
 
-// Rain on the sea: a soft hiss with gusts, a low sea beneath, and countless tiny drops.
-const rain: Build = (ctx, out) => {
-  const hiss = loop(ctx, "pink");
-  const hissGain = gain(ctx, 0.3);
-  hiss.connect(filter(ctx, "highpass", 1200)).connect(filter(ctx, "lowpass", 7000)).connect(hissGain).connect(out);
+// One wave: build → crash → retreat, starting at `at`. `dark` softens it (Night).
+function wave(ctx: AudioContext, out: AudioNode, at: number, dark: boolean) {
+  const build = rand(2.2, 3.8);
+  const crash = at + build;
+  const end = crash + rand(3.5, 5.5);
+  const where = panner(ctx, rand(-0.4, 0.4));
+  where.connect(out);
 
-  const sea = loop(ctx, "brown");
-  const seaGain = gain(ctx, 0.35);
-  sea.connect(filter(ctx, "lowpass", 350)).connect(seaGain).connect(out);
+  // BUILD: a dark rumble swelling and brightening, then opening up at the crash.
+  const rumble = loop(ctx, "brown", at);
+  const rumbleFilter = filter(ctx, "lowpass", 160, 0.6);
+  const rumbleGain = gain(ctx, 0.0001);
+  rumble.connect(rumbleFilter).connect(rumbleGain).connect(where);
+  rumbleFilter.frequency.setValueAtTime(160, at);
+  rumbleFilter.frequency.exponentialRampToValueAtTime(dark ? 420 : 900, crash);
+  rumbleFilter.frequency.exponentialRampToValueAtTime(dark ? 520 : 1300, crash + 0.15);
+  rumbleFilter.frequency.exponentialRampToValueAtTime(200, end);
+  rumbleGain.gain.setValueAtTime(0.0001, at);
+  rumbleGain.gain.exponentialRampToValueAtTime(dark ? 0.35 : 0.55, crash);
+  rumbleGain.gain.exponentialRampToValueAtTime(0.0001, end);
 
-  const oscs = [lfo(ctx, 0.23, 0.06, hissGain.gain), lfo(ctx, 0.071, 0.08, hissGain.gain), lfo(ctx, 0.07, 0.1, seaGain.gain)];
+  // CRASH: a quick bright burst.
+  const burst = loop(ctx, "pink", crash - 0.05);
+  const burstGain = gain(ctx, 0.0001);
+  burst.connect(filter(ctx, "highpass", dark ? 500 : 800)).connect(burstGain).connect(where);
+  burstGain.gain.setValueAtTime(0.0001, crash - 0.05);
+  burstGain.gain.exponentialRampToValueAtTime(dark ? 0.18 : 0.45, crash + 0.08);
+  burstGain.gain.exponentialRampToValueAtTime(0.0001, crash + rand(1, 1.6));
 
-  // A drop: a few milliseconds of noise, each a slightly different pitch.
-  const drops = filter(ctx, "bandpass", 3000, 0.8);
-  drops.connect(out);
-  const stopDrops = randomly(0, 15, 70, () => {
-    const at = ctx.currentTime + 0.02;
-    const src = ctx.createBufferSource();
-    src.buffer = noise(ctx, "pink");
-    src.playbackRate.value = 0.8 + Math.random() * 1.2;
-    const env = gain(ctx, 0);
-    env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.12, at + 0.002);
-    env.gain.exponentialRampToValueAtTime(0.0001, at + 0.03);
-    src.connect(env).connect(drops);
-    src.start(at, Math.random() * NOISE_SECONDS, 0.05);
+  // RETREAT: the water drawing back over sand, fizzy and bubbly, fading out.
+  const fizz = loop(ctx, "patter", crash, 1.5);
+  const fizzGain = gain(ctx, 0.0001);
+  fizz.connect(filter(ctx, "highpass", 1800)).connect(fizzGain).connect(where);
+  fizzGain.gain.setValueAtTime(0.0001, crash);
+  fizzGain.gain.exponentialRampToValueAtTime(dark ? 0.12 : 0.3, crash + 0.4);
+  fizzGain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+  [rumble, burst, fizz].forEach((s) => s.stop(end + 0.1));
+}
+
+// Waves arriving at irregular gaps over a faint, distant ocean bed.
+function shore(ctx: AudioContext, out: GainNode, dark: boolean) {
+  const bed = loop(ctx, "brown");
+  bed.connect(filter(ctx, "lowpass", dark ? 110 : 140)).connect(gain(ctx, dark ? 0.12 : 0.18)).connect(out);
+  let next = ctx.currentTime + 0.2;
+  const stop = ticker(ctx, (_from, to) => {
+    while (next < to) {
+      wave(ctx, out, next, dark);
+      next += dark ? rand(7, 13) : rand(5, 10);
+    }
   });
   return {
     stop: () => {
-      stopDrops();
-      [hiss, sea, ...oscs].forEach((n) => n.stop());
+      stop();
+      bed.stop();
     },
   };
-};
+}
 
-// Rock pool: small shifting ripples, a gentle wash, and drips echoing off the rock.
-const rockpool: Build = (ctx, out) => {
-  const ripple = loop(ctx, "pink");
-  const band = filter(ctx, "bandpass", 900, 0.8);
-  const rippleGain = gain(ctx, 0.3);
-  ripple.connect(band).connect(rippleGain).connect(out);
-  const stopRipple = randomly(0, 120, 320, () => {
-    const now = ctx.currentTime;
-    band.frequency.setTargetAtTime(600 + Math.random() * 900, now, 0.08);
-    rippleGain.gain.setTargetAtTime(0.18 + Math.random() * 0.18, now, 0.1);
+const waves: Build = (ctx, out) => shore(ctx, out, false);
+
+const whales: Build = (ctx, out) => {
+  // The hum: two very low tones a little out of tune (a slow pulse) + rumble.
+  const hums = [48, 48.6, 96.3].map((f, i) => {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = f;
+    osc.connect(gain(ctx, i === 2 ? 0.035 : 0.12)).connect(out);
+    osc.start();
+    return osc;
   });
+  const deep = loop(ctx, "brown");
+  const deepFilter = filter(ctx, "lowpass", 110, 0.9);
+  deep.connect(deepFilter).connect(gain(ctx, 0.5)).connect(out);
+  const wobble = lfo(ctx, 0.03, 30, deepFilter.frequency);
 
-  const wash = loop(ctx, "brown");
-  const washGain = gain(ctx, 0.3);
-  wash.connect(filter(ctx, "lowpass", 300)).connect(washGain).connect(out);
-  const oscs = [lfo(ctx, 0.11, 0.15, washGain.gain)];
+  // Calls, far away: shaped to sound voice-like, through a long echo.
+  const far = echo(ctx, out, 0.55, 0.5, 0.6);
+  const voice = filter(ctx, "bandpass", 600, 1);
+  voice.connect(filter(ctx, "lowpass", 1200)).connect(far);
 
-  const hollow = echo(ctx, out, 0.09, 0.3);
-  const stopDrips = randomly(800, 500, 2200, () => {
-    const from = 1100 + Math.random() * 1300;
-    blip(ctx, hollow, ctx.currentTime + 0.02, { from, to: from * 1.5, glide: 0.025, peak: 0.07, decay: 0.12 });
+  function call(at: number) {
+    announceWhaleCall();
+    let t = at;
+    const phrases = 2 + Math.floor(Math.random() * 2);
+    const where = panner(ctx, rand(-0.5, 0.5));
+    where.connect(voice);
+    for (let p = 0; p < phrases; p++) {
+      const len = rand(1.5, 3);
+      const f0 = rand(120, 260);
+      const peak = f0 * rand(1.4, 2);
+      const env = gain(ctx, 0);
+      env.connect(where);
+      // A sine plus a softer triangle an octave up: a fuller, voice-like tone.
+      const layers: [OscillatorType, number, number][] = [
+        ["sine", 1, 1],
+        ["triangle", 2, 0.25],
+      ];
+      for (const [type, mult, level] of layers) {
+        const osc = ctx.createOscillator();
+        osc.type = type;
+        osc.frequency.setValueAtTime(f0 * mult, t);
+        osc.frequency.linearRampToValueAtTime(peak * mult, t + len * 0.45);
+        osc.frequency.linearRampToValueAtTime(f0 * 0.9 * mult, t + len);
+        const vib = ctx.createOscillator(); // the slow wobble
+        vib.frequency.value = rand(4, 6);
+        vib.connect(gain(ctx, f0 * 0.03 * mult)).connect(osc.frequency);
+        osc.connect(gain(ctx, level)).connect(env);
+        [osc, vib].forEach((o) => {
+          o.start(t);
+          o.stop(t + len + 0.05);
+        });
+      }
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(0.13, t + len * 0.3);
+      env.gain.linearRampToValueAtTime(0.09, t + len * 0.75);
+      env.gain.linearRampToValueAtTime(0, t + len);
+      t += len + rand(0.3, 1.2);
+    }
+  }
+
+  let next = ctx.currentTime + 3; // the first call comes soon, so a preview has one
+  const stop = ticker(ctx, (_from, to) => {
+    while (next < to) {
+      call(next);
+      next += rand(20, 40);
+    }
   });
   return {
     stop: () => {
-      stopRipple();
-      stopDrips();
-      [ripple, wash, ...oscs].forEach((n) => n.stop());
+      stop();
+      [...hums, deep, wobble].forEach((n) => n.stop());
     },
   };
 };
 
-// Gentle stream: water babbling over stones. Three narrow bands of noise whose
-// pitches keep jumping around quickly: that busy shifting is what "babble" is.
 const stream: Build = (ctx, out) => {
-  const bands: [number, number][] = [
-    [500, 0.35],
-    [1100, 0.25],
-    [2300, 0.12],
-  ];
-  const sources: AudioBufferSourceNode[] = [];
-  const stops = bands.map(([base, level]) => {
-    const src = loop(ctx, "pink");
-    const band = filter(ctx, "bandpass", base, 2.2);
-    const level0 = gain(ctx, level);
-    src.connect(band).connect(level0).connect(out);
-    sources.push(src);
-    return randomly(0, 70, 180, () => {
-      const now = ctx.currentTime;
-      band.frequency.setTargetAtTime(base * (0.65 + Math.random() * 0.7), now, 0.04);
-      level0.gain.setTargetAtTime(level * (0.6 + Math.random() * 0.8), now, 0.05);
-    });
-  });
+  // A fine, soft trickle underneath.
+  const trickle = loop(ctx, "patter", 0, 0.7);
+  trickle.connect(filter(ctx, "bandpass", 1300, 0.6)).connect(gain(ctx, 0.25)).connect(out);
   const body = loop(ctx, "brown");
-  body.connect(filter(ctx, "lowpass", 400)).connect(gain(ctx, 0.25)).connect(out);
+  body.connect(filter(ctx, "lowpass", 300)).connect(gain(ctx, 0.08)).connect(out);
+
+  const bubbles = gain(ctx, 1);
+  bubbles.connect(out);
+  let mood = 1; // livelier and quieter patches
+  const stop = ticker(ctx, (from, to) => {
+    mood += (rand(0.4, 1.6) - mood) * 0.08;
+    for (const at of moments(40 * mood, from, to)) {
+      const size = Math.random(); // 0 = tiny bubble, 1 = bigger
+      const where = panner(ctx, rand(-0.7, 0.7));
+      where.connect(bubbles);
+      bubble(ctx, where, at, 2800 - size * 2100, rand(0.008, 0.03) * (0.6 + size * 0.6), 0.015 + size * 0.05);
+    }
+  });
   return {
     stop: () => {
-      stops.forEach((stop) => stop());
-      [body, ...sources].forEach((n) => n.stop());
+      stop();
+      [trickle, body].forEach((n) => n.stop());
     },
   };
 };
 
-// Harbour: water slapping lightly at hulls, a slow wooden creak, a bell far off.
-const harbour: Build = (ctx, out) => {
-  const lap = loop(ctx, "brown");
-  const lapGain = gain(ctx, 0.4);
-  lap.connect(filter(ctx, "lowpass", 520, 0.7)).connect(lapGain).connect(out);
-  const oscs = [lfo(ctx, 0.31, 0.18, lapGain.gain), lfo(ctx, 0.47, 0.1, lapGain.gain), lfo(ctx, 0.05, 0.08, lapGain.gain)];
+const night: Build = (ctx, out) => {
+  const sea = shore(ctx, out, true);
 
-  // Creak: a low, rough tone sinking in pitch, heard through a narrow band.
-  const wood = filter(ctx, "bandpass", 420, 3);
-  wood.connect(out);
-  const stopCreaks = randomly(2500, 7000, 15000, () => {
-    const at = ctx.currentTime + 0.05;
-    const osc = ctx.createOscillator();
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(115 + Math.random() * 30, at);
-    osc.frequency.linearRampToValueAtTime(85 + Math.random() * 15, at + 0.8);
-    const env = gain(ctx, 0);
-    env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(0.035, at + 0.25);
-    env.gain.linearRampToValueAtTime(0, at + 0.9);
-    osc.connect(env).connect(wood);
-    osc.start(at);
-    osc.stop(at + 1);
-  });
+  // Crickets far up the beach: each its own pitch, place and rhythm.
+  const far = echo(ctx, out, 0.12, 0.2, 1);
+  const lowered = filter(ctx, "lowpass", 6000);
+  lowered.connect(far);
+  const crickets = Array.from({ length: 2 + Math.floor(Math.random() * 2) }, () => ({
+    pitch: rand(3800, 4800),
+    where: panner(ctx, rand(-0.9, 0.9)),
+    every: rand(0.75, 1.3),
+    next: ctx.currentTime + rand(0.2, 1.5),
+    level: rand(0.006, 0.012),
+  }));
+  crickets.forEach((c) => c.where.connect(lowered));
 
-  // Bell: a few ringing partials with a long fade, through a long echo.
-  const far = echo(ctx, out, 0.45, 0.4, 0.6);
-  const stopBells = randomly(6000, 18000, 35000, () => {
-    const at = ctx.currentTime + 0.05;
-    [1, 2.76, 5.4].forEach((ratio, i) => {
-      blip(ctx, far, at, { from: 620 * ratio, to: 620 * ratio, glide: 0.01, peak: 0.02 / (i + 1), decay: 4 - i });
-    });
+  const stop = ticker(ctx, (_from, to) => {
+    for (const c of crickets) {
+      while (c.next < to) {
+        const pulses = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < pulses; i++) {
+          const at = c.next + i * 0.04;
+          const osc = ctx.createOscillator();
+          osc.frequency.value = c.pitch;
+          const env = gain(ctx, 0);
+          env.gain.setValueAtTime(0, at);
+          env.gain.linearRampToValueAtTime(c.level, at + 0.006);
+          env.gain.linearRampToValueAtTime(0, at + 0.025);
+          osc.connect(env).connect(c.where);
+          osc.start(at);
+          osc.stop(at + 0.03);
+        }
+        // Now and then a cricket rests for a few seconds.
+        c.next += Math.random() < 0.1 ? rand(3, 7) : c.every * rand(0.9, 1.1);
+      }
+    }
   });
   return {
     stop: () => {
-      stopCreaks();
-      stopBells();
-      [lap, ...oscs].forEach((n) => n.stop());
+      stop();
+      sea.stop();
     },
   };
 };
 
-// Deep ocean: a very low hum, and now and then a slow, distant whale-like call.
-const deep: Build = (ctx, out) => {
-  const hum = loop(ctx, "brown");
-  const low = filter(ctx, "lowpass", 150, 1);
-  hum.connect(low).connect(gain(ctx, 1.4)).connect(out);
-  const oscs = [lfo(ctx, 0.03, 40, low.frequency)];
+const BUILDERS: Record<AmbienceSound, Build> = { rain, waves, whales, stream, night };
 
-  const far = echo(ctx, out, 0.6, 0.45, 0.5);
-  const callBus = filter(ctx, "lowpass", 700);
-  callBus.connect(far);
-  // A call: a tone gliding up and back down over ~3 s, with a slow wobble.
-  const stopCalls = randomly(2000, 10000, 22000, () => {
-    const at = ctx.currentTime + 0.05;
-    const f = 170 + Math.random() * 130;
-    const osc = ctx.createOscillator();
-    osc.frequency.setValueAtTime(f, at);
-    osc.frequency.linearRampToValueAtTime(f * (1.4 + Math.random() * 0.4), at + 1.3);
-    osc.frequency.linearRampToValueAtTime(f * 1.05, at + 2.8);
-    const wobble = ctx.createOscillator();
-    wobble.frequency.value = 4.5;
-    wobble.connect(gain(ctx, 5)).connect(osc.frequency);
-    const env = gain(ctx, 0);
-    env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(0.06, at + 0.7);
-    env.gain.linearRampToValueAtTime(0.045, at + 2.2);
-    env.gain.linearRampToValueAtTime(0, at + 3);
-    osc.connect(env).connect(callBus);
-    [osc, wobble].forEach((o) => {
-      o.start(at);
-      o.stop(at + 3.1);
-    });
-  });
-  return {
-    stop: () => {
-      stopCalls();
-      [hum, ...oscs].forEach((n) => n.stop());
-    },
-  };
-};
-
-const BUILDERS: Record<AmbienceSound, Build> = {
-  waves,
-  calm,
-  night,
-  rain,
-  rockpool,
-  stream,
-  harbour,
-  underwater,
-  deep,
-};
+// ---------- Playing a session's sound ----------
 
 const FADE_IN = 1.2; // time constants (s): ~3× this to fully arrive
 const FADE_OUT = 0.5;
 const ADJUST = 0.15; // volume changes and ducking
+const HEADROOM = 0.8;
 
 function fadeOutAndStop(p: Playing, ctx: AudioContext) {
   p.master.gain.cancelScheduledValues(ctx.currentTime);
@@ -477,6 +487,12 @@ function fadeOutAndStop(p: Playing, ctx: AudioContext) {
       p.master.disconnect();
     } catch {}
   }, FADE_OUT * 5 * 1000);
+}
+
+function begin(ctx: AudioContext, sound: AmbienceSound): Playing {
+  const master = gain(ctx, 0);
+  master.connect(ctx.destination);
+  return { sound, master, ...BUILDERS[sound](ctx, master) };
 }
 
 // Make the speakers match `target`: start, switch, re-level or stop.
@@ -494,13 +510,11 @@ export function syncAmbience(target: AmbienceTarget) {
     let fade = ADJUST;
     if (!playing || playing.sound !== target.sound) {
       if (playing) fadeOutAndStop(playing, ctx);
-      const master = gain(ctx, 0);
-      master.connect(ctx.destination);
-      playing = { sound: target.sound, master, ...BUILDERS[target.sound](ctx, master) };
+      playing = begin(ctx, target.sound);
       fade = FADE_IN;
     }
     playing.master.gain.cancelScheduledValues(ctx.currentTime);
-    playing.master.gain.setTargetAtTime(target.gain * 0.8, ctx.currentTime, fade); // 0.8: headroom
+    playing.master.gain.setTargetAtTime(target.gain * HEADROOM, ctx.currentTime, fade);
   } catch {}
 }
 
@@ -518,13 +532,11 @@ export function startPreview(sound: AmbienceSound, volume: number) {
     const ctx = audioContext();
     if (!ctx) return;
     if (ctx.state === "suspended") void ctx.resume(); // a tap, so this works on phones too
-    const master = gain(ctx, 0);
-    master.connect(ctx.destination);
+    const p = begin(ctx, sound);
     const endsAt = ctx.currentTime + PREVIEW_SECONDS - 1.5;
-    master.gain.setTargetAtTime(volume * 0.8, ctx.currentTime, 0.3);
-    master.gain.setTargetAtTime(0, endsAt, 0.4); // fade before the end
-    const timer = setTimeout(stopPreview, PREVIEW_SECONDS * 1000);
-    preview = { sound, master, timer, endsAt, ...BUILDERS[sound](ctx, master) };
+    p.master.gain.setTargetAtTime(volume * HEADROOM, ctx.currentTime, 0.3);
+    p.master.gain.setTargetAtTime(0, endsAt, 0.4); // fade before the end
+    preview = { ...p, endsAt, timer: setTimeout(stopPreview, PREVIEW_SECONDS * 1000) };
     emitPreview();
   } catch {}
 }
@@ -542,12 +554,12 @@ export function setPreviewVolume(volume: number) {
   const ctx = audioContext();
   if (!preview || !ctx) return;
   preview.master.gain.cancelScheduledValues(ctx.currentTime);
-  preview.master.gain.setTargetAtTime(volume * 0.8, ctx.currentTime, ADJUST);
+  preview.master.gain.setTargetAtTime(volume * HEADROOM, ctx.currentTime, ADJUST);
   // That cancelled the closing fade too: schedule it again.
   preview.master.gain.setTargetAtTime(0, Math.max(ctx.currentTime, preview.endsAt), 0.4);
 }
 
-// Which sound is previewing right now (null = none), for the settings list.
+// Which sound is previewing right now (null = none), for the settings list and the tank.
 export function usePreview(): AmbienceSound | null {
   return useSyncExternalStore(
     (listener) => {

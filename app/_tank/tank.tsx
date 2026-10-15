@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import type { AmbienceSound } from "@/lib/ambience-logic";
 import { inTank, type Owned } from "@/lib/economy";
 import { FISH_SIZE_LABEL, TANK_CAPACITY, type Aquarium, type Fish, type FishSize } from "@/lib/fish";
 import { fishLook } from "@/lib/fish-look";
@@ -11,6 +12,7 @@ import { formatDuration } from "@/lib/stats";
 import { FOCUS_MODE_LABEL } from "@/lib/timer";
 import { Bone, FISH_WIDTH, FishSprite } from "./fish-sprite";
 import { PlantSprite } from "./plant-sprite";
+import { AmbienceScene } from "./ambience-scene";
 import { DecorationSprite } from "./decoration-sprite";
 import { DEFAULT_SKIN, type TankSkin } from "./skins";
 
@@ -20,7 +22,7 @@ const SPEED: Record<FishSize, number> = { small: 0.85, medium: 1, large: 1.15, r
 const SWIPE_PX = 50;
 // Plant spots along the sand (% from the left), one per slot. Low in the tank,
 // below the fish lanes, so plants never crowd the fish.
-const PLANT_SLOTS_X = [9, 25, 41, 58, 74, 90];
+export const PLANT_SLOTS_X = [9, 25, 41, 58, 74, 90];
 // Decorations stand on the sand: y = 0 (front) … 1 (back) maps to this band,
 // as % up from the bottom. Drawn behind plants and fish, so they never block them.
 const SAND_BOTTOM = 2;
@@ -44,6 +46,11 @@ export function Tank({
   decorations = null,
   coins = null,
   edit,
+  bare = false,
+  fixedIndex,
+  scene = null,
+  overlay = null,
+  liveFish = null,
 }: {
   aquarium: Aquarium | null; // null while loading
   garden: Garden | null;
@@ -52,20 +59,29 @@ export function Tank({
   decorations?: Owned[] | null;
   coins?: number | null; // shown in the header (a link to Decorate) when given
   edit?: TankEdit;
+  // The running screen: just the tank (no header, swiping, tapping or cards),
+  // showing `fixedIndex`, with the session's eggs / plant (`overlay`) and, once
+  // grown past a fry, its fish (`liveFish`) swimming with the rest.
+  bare?: boolean;
+  fixedIndex?: number;
+  scene?: AmbienceSound | null; // the ambience scene (rain, waves…), or none
+  overlay?: ReactNode;
+  liveFish?: Fish | null;
 }) {
   const [ownPick, setOwnPick] = useState<number | null>(null); // null = newest tank
-  const picked = edit ? edit.index : ownPick;
+  const picked = fixedIndex ?? (edit ? edit.index : ownPick);
   // "fish:<id>" or "plant:<id>": what's tapped (its card is open).
   const [selected, setSelected] = useState<string | null>(null);
   const swipeStartX = useRef<number | null>(null);
   const justSwiped = useRef(false);
 
   // Plants can overflow into a tank that has no fish yet, so count both.
-  const tankCount = Math.max(aquarium?.tanks.length ?? 1, garden?.tankCount ?? 1);
+  // (A session's new fish may be heading for a tank that doesn't exist yet.)
+  const tankCount = Math.max(aquarium?.tanks.length ?? 1, garden?.tankCount ?? 1, (fixedIndex ?? 0) + 1);
   const index = Math.min(picked ?? tankCount - 1, tankCount - 1);
   const skin = skinOf(index);
   const decor = decorations ? inTank(decorations, index) : [];
-  const fish = aquarium?.tanks[index] ?? [];
+  const fish = [...(aquarium?.tanks[index] ?? []), ...(liveFish ? [liveFish] : [])];
   const plants = garden?.matured.filter((p) => p.tank === index) ?? [];
   const selectedFish = fish.find((f) => `fish:${f.id}` === selected) ?? null;
   const selectedPlant = plants.find((p) => `plant:${p.id}` === selected) ?? null;
@@ -89,9 +105,11 @@ export function Tank({
   function tap(key: string) {
     if (!justSwiped.current) setSelected(key === selected ? null : key);
   }
+  const tappable = !edit && !bare;
 
   return (
     <section className="flex flex-col gap-2" aria-label="Your tank">
+      {!bare && (
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <NavButton label="Previous tank" disabled={index === 0} onClick={() => go(-1)}>
@@ -124,6 +142,7 @@ export function Tank({
           )}
         </span>
       </div>
+      )}
 
       <div
         className={`relative aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-2xl select-none ${skin.frame}`}
@@ -132,7 +151,7 @@ export function Tank({
           justSwiped.current = false;
         }}
         onPointerUp={(e) => {
-          if (swipeStartX.current === null) return;
+          if (swipeStartX.current === null || fixedIndex !== undefined) return;
           const dx = e.clientX - swipeStartX.current;
           swipeStartX.current = null;
           if (Math.abs(dx) > SWIPE_PX) {
@@ -151,6 +170,7 @@ export function Tank({
         }}
       >
         <skin.Scene />
+        <AmbienceScene scene={scene} layer="back" />
 
         {decor.map((d) => (
           <PlacedDecoration
@@ -172,20 +192,26 @@ export function Tank({
             key={p.id}
             plant={p}
             selected={`plant:${p.id}` === selected}
-            onTap={edit ? undefined : () => tap(`plant:${p.id}`)}
+            onTap={tappable ? () => tap(`plant:${p.id}`) : undefined}
           />
         ))}
+
+        {overlay}
 
         {fish.map((f) => (
           <SwimmingFish
-            key={f.id}
+            // The live fish remounts on each new size, which replays the "pop".
+            key={f === liveFish ? `${f.id}-${f.size}` : f.id}
             fish={f}
             selected={`fish:${f.id}` === selected}
-            onTap={edit ? undefined : () => tap(`fish:${f.id}`)}
+            onTap={tappable ? () => tap(`fish:${f.id}`) : undefined}
+            grows={f === liveFish}
           />
         ))}
 
-        {(aquarium === null || empty) && (
+        <AmbienceScene scene={scene} layer="front" />
+
+        {(aquarium === null || empty) && !bare && (
           <p
             className={`absolute inset-x-6 top-1/3 text-center text-sm font-medium ${skin.emptyText}`}
           >
@@ -201,7 +227,7 @@ export function Tank({
         {selectedPlant && <PlantCard plant={selectedPlant} onClose={() => setSelected(null)} />}
       </div>
 
-      {tankCount > 1 && (
+      {tankCount > 1 && !bare && (
         <div className="flex justify-center gap-1.5" aria-hidden>
           {Array.from({ length: tankCount }, (_, i) => (
             <span
@@ -219,10 +245,12 @@ function SwimmingFish({
   fish,
   selected,
   onTap,
+  grows = false,
 }: {
   fish: Fish;
   selected: boolean;
-  onTap?: () => void; // none in decorate mode: taps go through to the sand
+  onTap?: () => void; // none in decorate mode or on the running screen
+  grows?: boolean; // the session's own fish: pops in at each new size
 }) {
   const look = fishLook(fish.id);
   const width = FISH_WIDTH[fish.size];
@@ -250,7 +278,13 @@ function SwimmingFish({
               selected ? "bg-white/40 ring-2 ring-white" : ""
             }`}
           >
-            <FishSprite look={look} size={fish.size} />
+            {grows ? (
+              <div className="fish-grow">
+                <FishSprite look={look} size={fish.size} />
+              </div>
+            ) : (
+              <FishSprite look={look} size={fish.size} />
+            )}
           </button>
         </div>
       </div>
