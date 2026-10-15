@@ -172,6 +172,37 @@
   filter: saturate(0.45) brightness(0.95);
 }
 
+/* Decorations: the bubbler's bubbles rise a short way and fade. */
+.decor-bubble {
+  animation: decor-bubble 2.1s ease-in infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes decor-bubble {
+  from {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(-52px);
+    opacity: 0;
+  }
+}
+
+/* The Deep skin: specks that softly glow and fade. */
+.deep-glow {
+  animation: deep-glow 3.6s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes deep-glow {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
 /* Scenery */
 .tank-bubble {
   animation: tank-bubble var(--dur) linear infinite;
@@ -212,6 +243,8 @@
   .tank-bubble,
   .tank-rays,
   .plant-sway,
+  .decor-bubble,
+  .deep-glow,
   .bone-appear {
     animation: none !important;
   }

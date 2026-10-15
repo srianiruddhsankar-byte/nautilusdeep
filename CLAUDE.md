@@ -53,8 +53,15 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
 - `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor), `fish-sprite.tsx` (SVG fish/egg/bone),
   `plant-sprite.tsx` (SVG underwater plants: stem / fern / grass × 5 stages, no flowers), `live-fish.tsx`, `live-plant.tsx` (live plant +
-  Home `SeedlingCard`), `result-fish.tsx`, `result-plant.tsx`, `skins.tsx` (the tank's look; `SHALLOWS` is the
-  default), `tank.css` (all animation + reduced-motion rules)
+  Home `SeedlingCard`), `result-fish.tsx`, `result-plant.tsx`, `decoration-sprite.tsx` (SVG decorations),
+  `skins.tsx` (the 5 tank looks built on one `WaterScene`; `SHALLOWS` is the default), `tank.css` (all animation +
+  reduced-motion rules). `Tank` takes `skinOf`, `decorations`, `coins`, and `edit` (decorate mode)
+- `lib/decorations.ts` — the shop catalogue: prices and milestone items (tune here). `lib/economy.ts` — pure coins
+  (`coinsFor`, balance), milestones, `canGet`, placement helpers, skin unlock thresholds (`SKIN_UNLOCKS`), tested in
+  `lib/economy.test.ts`. `lib/owned.ts` — `useOwned()`: your decorations + per-tank skins, buy / place / put away /
+  set skin. `lib/use-economy.ts` — `useEconomy()`: balance, hours, milestones, `skinIdOf(tank)` in one place
+- `app/_decorate/decorate-view.tsx` + `app/decorate/page.tsx` — the `/decorate` route (tank in edit mode, Your
+  items / Shop / Skins), reached by tapping the coin balance in the tank header
 - `lib/stats.ts` — pure stats from sessions (`computeStats(rows, now, timeZone)`), tested in `lib/stats.test.ts`.
   `lib/use-clock.ts` — `useClock()`: now + browser time zone, read in an effect (never `Date.now()` in render)
 - `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
@@ -172,7 +179,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   Users save Custom settings under a name (unique per user) and can delete them; no editing.
   `cycle_name` is stored on cycle sessions (null = Custom). "Finish" only applies to a long break that is the last phase.
 
-### Plants (Phase 7 part 1) and economy (Phase 7, coins not built yet)
+### Plants, coins, decorations and skins (Phase 7)
 - Study sessions grow FISH. Notes sessions grow PLANTS, never fish; study sessions never touch plants.
 - Plants are DERIVED from `sessions` like fish (no table). One plant grows at a time from notes focus minutes added
   up across sessions (completed / partial, 5+ minutes each). Stages: seed 0 → sprout 30 → young 90 → full 180 →
@@ -186,13 +193,27 @@ The owner is a student learning to code: explain what you do and why, briefly.
   notes session that counts. No bones from notes. Plants never die; time passing does nothing (holidays are safe).
 - A plant's look is seeded from the session that started it (`plantLook`); a session that starts several plants
   gives ids `<id>`, `<id>#2`… Don't change the order of random draws in `plantLook()`.
-- Coins: 1 focus minute = 1 coin; Open Focus earns half, rounded down; under 5 focus minutes earns none;
-  failed sessions earn none. Spent on decorations.
+- Coins (Phase 7 part 2): DERIVED from sessions like fish; only spending is stored. Per completed / partial
+  session with 5+ credited focus minutes, Study and Notes alike: Deep Focus 1 coin per minute, Open Focus half
+  (rounded down). Failed: 0. Night mode: credited minutes only (focus_seconds already is). Balance = earned − sum of
+  `price` on your decorations. Coins are computed in the browser, so the database can't stop a determined cheat
+  (fine for a personal app).
+- Decorations: catalogue in `lib/decorations.ts` (8 bought, 30–600 coins; 4 milestone items: first rare fish,
+  10 hours, 7-day longest streak, first mature plant; free, once each). `public.decorations`: one row per owned
+  item with `price` paid and placement (`tank`, `x` 0–100 %, `y` 0 front … 1 back of the sand), or all null = in
+  your inventory. Owned forever: no delete; "put away" clears the placement, no refund. Only the placement columns
+  are updatable. Decorations sit on the sand BEHIND plants and fish and are only tappable on /decorate.
+- Skins: unlocked by total credited hours (study + notes): Shallows 0, Pond 10, River 30, Lake 75, Deep 150
+  (`SKIN_UNLOCKS`). Chosen per tank (`public.tank_skins`, no row = Shallows); a choice that's no longer unlocked
+  falls back to Shallows. Cosmetic only for now.
+- Tank numbers in `decorations.tank` and `tank_skins.tank` (0 = Tank 1) point at the DERIVED tanks. Changing the
+  fish rules (tank size, what earns a fish) could shift which tank a number means.
 
 ### Tanks
 - 10 fish per tank, filled oldest first. The 11th fish starts Tank 2, and so on. Opens on the newest tank.
 - Up to 6 mature plants per tank, in fixed spots on the sand below the fish lanes. Tap one for its card.
-- The default tank is "Shallows". Skins are unlocked by total hours (Phase 7; list and thresholds TBD).
+- Each tank shows its own skin (default Shallows) and its placed decorations. The tank header shows the coin
+  balance, which links to /decorate.
 
 ### Stats and data
 - Stats are DERIVED from `sessions` in the browser (no table, no SQL). Definitions — use exactly these:
@@ -248,8 +269,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - Stats: study and notes separately, time per task, tasks completed, most-used cycle.
   - Streak freeze: streak = any day with 5+ minutes of study or notes; one missed day per Monday–Sunday week
     is forgiven, and never two consecutive missed days.
-- Phase 7: plants, coins, decorations, skins (rules in "Plants … and economy" above)
+- Phase 7: plants, coins, decorations, skins (rules in "Plants, coins, decorations and skins" above)
   - Part 1 (done): plants only.
+  - Part 2 (done): coins, decorations (shop + milestones + placing), skins per tank.
   - Plants: notes sessions grow plants from cumulative notes minutes; they never die from time passing; a failed
     Deep Focus notes session loses only that session's growth.
   - Coins: 1 focus minute = 1 coin; Open Focus = half.

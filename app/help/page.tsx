@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
+import { DECORATIONS, MILESTONE_LABEL } from "@/lib/decorations";
+import { COIN_MIN_MINUTES, SKIN_UNLOCKS } from "@/lib/economy";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
 import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
@@ -154,6 +156,41 @@ export default function HelpPage() {
           <li>A failed notes session adds no growth, and the plant looks a little wilted until your next notes session.</li>
           <li>Plants never die, and nothing happens while you&apos;re away.</li>
         </Points>
+      </Card>
+
+      <Card title="Coins">
+        <Points>
+          <li>Every focus minute earns a coin, from study and notes alike. Open Focus earns half.</li>
+          <li>Sessions under {COIN_MIN_MINUTES} minutes and failed sessions earn nothing.</li>
+          <li>Your balance is in the corner of the tank. Tap it to decorate.</li>
+        </Points>
+      </Card>
+
+      <Card title="Decorations">
+        <Points>
+          <li>
+            Buy decorations in the Shop ({Math.min(...DECORATIONS.flatMap((d) => (d.price ? [d.price] : [])))}–
+            {Math.max(...DECORATIONS.flatMap((d) => (d.price ? [d.price] : [])))} coins). They&apos;re yours forever.
+          </li>
+          <li>To place one: tap it in Your items, then tap the sand. Tap a placed one to move it or put it away.</li>
+          <li>Decorations sit behind your fish and plants, so they never get in the way.</li>
+          <li>
+            A few can&apos;t be bought, only earned:{" "}
+            {DECORATIONS.filter((d) => d.milestone)
+              .map((d) => `${d.name} (${MILESTONE_LABEL[d.milestone!].toLowerCase()})`)
+              .join(", ")}
+            .
+          </li>
+        </Points>
+      </Card>
+
+      <Card title="Tank skins">
+        <p>New looks unlock with your total focus time (study + notes). Each tank can use any skin you&apos;ve unlocked.</p>
+        <dl className="grid grid-cols-2 gap-2 text-sm">
+          {SKIN_UNLOCKS.map((s) => (
+            <Size key={s.id} label={s.name} range={s.hours === 0 ? "from the start" : `at ${s.hours} hours`} />
+          ))}
+        </dl>
       </Card>
 
       <Card title="Tasks">

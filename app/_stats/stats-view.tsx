@@ -3,7 +3,9 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { FISH_SIZE_LABEL, type FishSize } from "@/lib/fish";
 import { MATURE_MINUTES, PLANT_STAGE_LABEL, deriveGarden, type Garden } from "@/lib/plants";
+import { SKIN_UNLOCKS, formatHours, nextSkin, skinUnlocked } from "@/lib/economy";
 import { useSessions } from "@/lib/sessions-data";
+import { useEconomy } from "@/lib/use-economy";
 import {
   computeAllStats,
   formatDay,
@@ -29,6 +31,7 @@ const percent = (part: number, whole: number) =>
 export function StatsView() {
   const { rows, error } = useSessions();
   const { tasks } = useTasks();
+  const economy = useEconomy();
   const clock = useClock();
   const [type, setType] = useState<SessionType>("study");
   const all = useMemo(
@@ -82,6 +85,15 @@ export function StatsView() {
           <Tile label="This week" value={completed ? String(completed.week) : "–"} />
           <Tile label="This month" value={completed ? String(completed.month) : "–"} />
         </dl>
+      </Section>
+
+      <Section title="Coins & tank" note="1 coin per focus minute (Open Focus: half). Study and notes both count.">
+        <Tiles>
+          <Tile label="Earned" value={economy.earned === null ? "–" : String(economy.earned)} />
+          <Tile label="Spent" value={economy.spent === null ? "–" : String(economy.spent)} />
+          <Tile label="Decorations" value={economy.owned ? String(economy.owned.length) : "–"} sub="Owned" />
+          <SkinTile hours={economy.hours} />
+        </Tiles>
       </Section>
 
       <div role="tablist" aria-label="Session type" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
@@ -321,6 +333,18 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
         </div>
       </details>
     </div>
+  );
+}
+
+function SkinTile({ hours }: { hours: number }) {
+  const unlocked = SKIN_UNLOCKS.filter((s) => skinUnlocked(s.id, hours)).length;
+  const next = nextSkin(hours);
+  return (
+    <Tile
+      label="Skins"
+      value={`${unlocked} of ${SKIN_UNLOCKS.length}`}
+      sub={next ? `${next.name} at ${next.hours}h · you're at ${formatHours(hours)}` : "All unlocked"}
+    />
   );
 }
 

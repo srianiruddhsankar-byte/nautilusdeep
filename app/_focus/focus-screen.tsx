@@ -8,7 +8,10 @@ import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-sto
 import { compareToTarget } from "@/lib/notes";
 import { deriveGarden, type Garden } from "@/lib/plants";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
+import { coinsFor } from "@/lib/economy";
+import { toRow } from "@/lib/session-record";
 import { useSessions } from "@/lib/sessions-data";
+import { useEconomy } from "@/lib/use-economy";
 import {
   CANCEL_WINDOW_MS,
   FOCUS_MODE_LABEL,
@@ -36,7 +39,8 @@ import { LiveFish } from "../_tank/live-fish";
 import { LivePlant, SeedlingCard } from "../_tank/live-plant";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
-import { Tank } from "../_tank/tank";
+import { SKINS } from "../_tank/skins";
+import { Coin, Tank } from "../_tank/tank";
 import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
 import { InProgressBadge, MarkDone } from "./task-status";
@@ -99,6 +103,8 @@ export function FocusScreen() {
   const aquarium = useMemo(() => (rows ? deriveAquarium(rows) : null), [rows]);
   // Plants too: notes sessions grow them, derived the same way.
   const garden = useMemo(() => (rows ? deriveGarden(rows) : null), [rows]);
+  // Coins, decorations and each tank's skin.
+  const economy = useEconomy();
 
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
   // Wake lock only for Deep Focus (Open Focus users are using the device anyway).
@@ -134,7 +140,14 @@ export function FocusScreen() {
           scrollToStart();
         }}
       />
-      <Tank aquarium={aquarium} garden={garden} error={error} />
+      <Tank
+        aquarium={aquarium}
+        garden={garden}
+        error={error}
+        skinOf={(t) => SKINS[economy.skinIdOf(t)]}
+        decorations={economy.owned}
+        coins={economy.balance}
+      />
       <SeedlingCard garden={garden} />
       <SetupForm
         task={task}
@@ -428,6 +441,7 @@ function ResultView({
         <span className="text-6xl font-semibold tabular-nums">{Math.floor(result.focusMs / 60_000)}</span>
         <span className="text-zinc-500">focus minutes</span>
       </p>
+      <EarnedCoins result={result} />
 
       {notes ? <NotesResult result={result} garden={garden} /> : <ResultFish result={result} aquarium={aquarium} />}
 
@@ -499,6 +513,18 @@ function NotesResult({ result, garden }: { result: Result; garden: Garden | null
       )}
       <ResultPlant result={result} garden={garden} />
     </div>
+  );
+}
+
+// "+25 coins" (Open Focus earns half). Nothing for failed or under-5-minute sessions.
+function EarnedCoins({ result }: { result: Result }) {
+  const coins = coinsFor(toRow(result, result.id ?? "legacy", null));
+  if (coins === 0) return null;
+  return (
+    <p className="-mt-4 flex items-center gap-1.5 text-lg font-semibold text-amber-600 dark:text-amber-400">
+      <Coin size={18} />+{coins} coins
+      {result.focusMode === "open" && <span className="text-sm font-normal text-zinc-500">(Open Focus: half)</span>}
+    </p>
   );
 }
 
