@@ -5,7 +5,13 @@ import { useMemo, useState } from "react";
 import { totalMinutes } from "@/lib/cycle-blocks";
 import { useCycles } from "@/lib/cycles";
 import { createLocalStore } from "@/lib/local-store";
-import { sanitizePrefs, type SetupPrefs } from "@/lib/setup-prefs";
+import {
+  NIGHT_INTERVALS,
+  NIGHT_TEST_INTERVAL,
+  sanitizePrefs,
+  type NightPrefs,
+  type SetupPrefs,
+} from "@/lib/setup-prefs";
 import { formatDuration } from "@/lib/stats";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
 import { groupTasks, openTasksInOrder } from "@/lib/task-views";
@@ -18,6 +24,7 @@ import {
   startStopwatch,
   startTimer,
   withDetails,
+  type CheckInStyle,
   type FocusMode,
   type Mode,
   type Session,
@@ -37,6 +44,14 @@ const FOCUS_MODES: { id: FocusMode; explanation: string }[] = [
   { id: "open", explanation: "Use this device to study. No leave rule." },
 ];
 const SESSION_TYPES: SessionType[] = ["study", "notes"];
+const NIGHT_STYLES: { id: CheckInStyle; label: string }[] = [
+  { id: "chime", label: "Chime" },
+  { id: "vibrate", label: "Chime + buzz" },
+  { id: "pulse", label: "Silent pulse" },
+];
+// The 1-minute check-in is only for testing on your computer (npm run dev).
+const NIGHT_CHOICES =
+  process.env.NODE_ENV === "development" ? [NIGHT_TEST_INTERVAL, ...NIGHT_INTERVALS] : [...NIGHT_INTERVALS];
 const CHIPS = 8;
 
 // Last-used settings, in this browser only. Checked field by field on the way
@@ -90,6 +105,7 @@ export function SetupForm({
         sessionType: prefs.sessionType,
         task, // blank = no task, exactly like before
         targetMinutes: hasTarget && prefs.target.trim() !== "" ? Number(prefs.target) : null,
+        checkIn: prefs.night.on ? { intervalMs: prefs.night.intervalMin * 60_000, style: prefs.night.style } : null,
       }),
     );
   }
@@ -182,6 +198,8 @@ export function SetupForm({
             </p>
           )}
 
+          <NightMode night={prefs.night} onChange={(night) => set({ night })} />
+
           {/* Focus mode toggle: applies to all three modes */}
           <div className="grid grid-cols-2 gap-2">
             {FOCUS_MODES.map((f) => (
@@ -215,6 +233,7 @@ export function SetupForm({
             </span>
             <span className="truncate text-sm text-zinc-500">
               {SESSION_TYPE_LABEL[prefs.sessionType]} · {modeSummary} · {FOCUS_MODE_LABEL[prefs.focusMode]}
+              {prefs.night.on && " · Night mode"}
             </span>
           </span>
           <span className="shrink-0 text-sm font-medium text-sky-700 dark:text-sky-400">Change</span>
@@ -229,6 +248,63 @@ export function SetupForm({
       >
         {cycleLoading ? "Loading…" : taskName ? `Start · ${taskName}` : "Start"}
       </button>
+    </div>
+  );
+}
+
+// "Still studying?" check-ins, for late sessions where you might fall asleep.
+function NightMode({ night, onChange }: { night: NightPrefs; onChange: (night: NightPrefs) => void }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={night.on}
+        onClick={() => onChange({ ...night, on: !night.on })}
+        className="flex items-center justify-between gap-3 text-left"
+      >
+        <span className="flex flex-col">
+          <span className="font-semibold">Night mode</span>
+          <span className="text-sm text-zinc-500">
+            Asks &ldquo;Still studying?&rdquo; now and then. No answer in 2 min: it ends at your last check-in.
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${night.on ? "bg-sky-700" : "bg-zinc-300 dark:bg-zinc-700"}`}
+        >
+          <span
+            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-[left] ${night.on ? "left-6" : "left-1"}`}
+          />
+        </span>
+      </button>
+
+      {night.on && (
+        <>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-zinc-500">Check in every (minutes of focus)</span>
+            <div className="flex flex-wrap gap-2">
+              {NIGHT_CHOICES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={night.intervalMin === m}
+                  onClick={() => onChange({ ...night, intervalMin: m })}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    night.intervalMin === m ? "border-sky-700 bg-sky-700 text-white" : "border-zinc-300 dark:border-zinc-700"
+                  }`}
+                >
+                  {m === NIGHT_TEST_INTERVAL ? "1 (test)" : m}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-zinc-500">How it asks</span>
+            <Segmented options={NIGHT_STYLES} value={night.style} onChange={(style) => onChange({ ...night, style })} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

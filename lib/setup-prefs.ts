@@ -1,5 +1,12 @@
 import { MAX_REPEAT } from "./cycle-blocks.ts";
-import { DEFAULT_CYCLE, isValidMinutes, type FocusMode, type Mode, type SessionType } from "./timer.ts";
+import {
+  DEFAULT_CYCLE,
+  isValidMinutes,
+  type CheckInStyle,
+  type FocusMode,
+  type Mode,
+  type SessionType,
+} from "./timer.ts";
 
 // The setup screen's choices, remembered in this browser so the usual session
 // is one tap: open the app, press Start. The task isn't remembered (you pick it
@@ -12,6 +19,12 @@ export type CustomFields = {
   blocksPerSet: string;
 };
 
+// Night mode: "Still studying?" check-ins. 1 minute is a test-only interval
+// (offered on localhost only), but it's accepted here so testing survives a reload.
+export const NIGHT_INTERVALS = [20, 30, 45, 60] as const;
+export const NIGHT_TEST_INTERVAL = 1;
+export type NightPrefs = { on: boolean; intervalMin: number; style: CheckInStyle };
+
 export type SetupPrefs = {
   sessionType: SessionType;
   mode: Mode;
@@ -20,6 +33,7 @@ export type SetupPrefs = {
   target: string; // notes stopwatch target, "" = none
   cycleChoice: string; // a premade slug, a saved cycle's id, or "custom"
   custom: CustomFields;
+  night: NightPrefs;
 };
 
 export const CUSTOM = "custom";
@@ -40,6 +54,7 @@ export const DEFAULT_PREFS: SetupPrefs = {
   target: "",
   cycleChoice: DEFAULT_CHOICE,
   custom: DEFAULT_CUSTOM,
+  night: { on: false, intervalMin: 30, style: "chime" },
 };
 
 const oneOf = <T extends string>(value: unknown, options: readonly T[], fallback: T): T =>
@@ -54,6 +69,8 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
   const d = (typeof data === "object" && data !== null ? data : {}) as Record<string, unknown>;
   const c = (typeof d.custom === "object" && d.custom !== null ? d.custom : {}) as Record<string, unknown>;
   const blocks = Number(c.blocksPerSet);
+  const n = (typeof d.night === "object" && d.night !== null ? d.night : {}) as Record<string, unknown>;
+  const intervals: number[] = [...NIGHT_INTERVALS, NIGHT_TEST_INTERVAL];
 
   return {
     sessionType: oneOf(d.sessionType, ["study", "notes"], DEFAULT_PREFS.sessionType),
@@ -73,6 +90,13 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
         typeof c.blocksPerSet === "string" && Number.isInteger(blocks) && blocks >= 1 && blocks <= MAX_REPEAT
           ? c.blocksPerSet
           : DEFAULT_CUSTOM.blocksPerSet,
+    },
+    night: {
+      on: n.on === true,
+      intervalMin: intervals.includes(n.intervalMin as number)
+        ? (n.intervalMin as number)
+        : DEFAULT_PREFS.night.intervalMin,
+      style: oneOf(n.style, ["chime", "vibrate", "pulse"], DEFAULT_PREFS.night.style),
     },
   };
 }

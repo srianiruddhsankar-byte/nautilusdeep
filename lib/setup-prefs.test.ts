@@ -17,6 +17,7 @@ describe("remembered setup", () => {
       target: "40",
       cycleChoice: "6f1c2a9e-1111-4222-8333-944455556666",
       custom: { focusMin: "50", shortBreakMin: "10", longBreakMin: "20", blocksPerSet: "3" },
+      night: { on: true, intervalMin: 45, style: "pulse" },
     };
     assert.deepEqual(sanitizePrefs(JSON.parse(JSON.stringify(saved))), saved);
   });
@@ -30,6 +31,7 @@ describe("remembered setup", () => {
       target: "abc",
       cycleChoice: "",
       custom: { focusMin: "50", shortBreakMin: "-5", longBreakMin: "15", blocksPerSet: "13" },
+      night: { on: "yes", intervalMin: 25, style: "siren" },
     });
     assert.equal(prefs.sessionType, "notes");
     assert.equal(prefs.mode, "timer");
@@ -38,5 +40,11 @@ describe("remembered setup", () => {
     assert.equal(prefs.target, "");
     assert.equal(prefs.cycleChoice, "pomodoro");
     assert.deepEqual(prefs.custom, { focusMin: "50", shortBreakMin: "5", longBreakMin: "15", blocksPerSet: "4" });
+    assert.deepEqual(prefs.night, { on: false, intervalMin: 30, style: "chime" }); // Night mode stays off
+  });
+
+  test("Night mode is off unless it was turned on, and the 1-minute test interval survives a reload", () => {
+    assert.equal(sanitizePrefs({}).night.on, false);
+    assert.equal(sanitizePrefs({ night: { on: true, intervalMin: 1, style: "vibrate" } }).night.intervalMin, 1);
   });
 });

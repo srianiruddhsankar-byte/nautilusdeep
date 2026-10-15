@@ -8,6 +8,8 @@ import { cleanTaskName } from "./task-name.ts";
 export const LEAVE_GRACE_MS = 15_000;
 // For the first 10 s a session can be cancelled: it vanishes with no record, no bone.
 export const CANCEL_WINDOW_MS = 10_000;
+// Night mode: how long a "Still studying?" check-in waits for a tap.
+export const CHECK_IN_GRACE_MS = 2 * 60_000;
 const MINUTE = 60_000;
 
 export type Mode = "timer" | "stopwatch" | "cycle";
@@ -63,9 +65,16 @@ export type Session = {
   task?: string | null;
   targetMinutes?: number | null; // notes only: "finish in N minutes"
   cycleName?: string | null; // a saved or premade cycle's name; null = Custom
+  // Night mode ("Still studying?" check-ins). Off when missing (older sessions too).
+  checkIn?: CheckInSettings | null;
+  confirmedAt?: number; // the last confirmed check-in; missing = none yet (counts from the start)
 };
 
-export type EndReason = "finished" | "stopped" | "left";
+export type CheckInStyle = "chime" | "vibrate" | "pulse";
+export type CheckInSettings = { intervalMs: number; style: CheckInStyle };
+
+// checkin = a Night mode check-in went unanswered (fell asleep): credit stops at the last confirmation.
+export type EndReason = "finished" | "stopped" | "left" | "checkin";
 
 export type Result = {
   id?: string; // copied from the session
@@ -137,6 +146,7 @@ export type SessionDetails = {
   sessionType: SessionType;
   task: string; // as typed; blank = no task
   targetMinutes: number | null;
+  checkIn?: CheckInSettings | null; // Night mode; missing/null = off
 };
 
 // Adds what the setup screen chose. A blank task means no task (the session
@@ -152,6 +162,7 @@ export function withDetails(session: Session, details: SessionDetails): Session 
     sessionType: details.sessionType,
     task: cleanTaskName(details.task),
     targetMinutes: keepsTarget ? details.targetMinutes : null,
+    checkIn: details.checkIn ?? null,
   };
 }
 
@@ -289,6 +300,62 @@ export function leaveFailureTime(
   return null;
 }
 
+// ---------- Night mode check-ins ----------
+//
+// Every `intervalMs` of FOCUS time since the last confirmation (or the start),
+// a check-in is due. Breaks don't count toward it, so in a cycle check-ins only
+// come due during focus blocks. If it isn't confirmed within 2 minutes, the
+// session ends and its credit stops at the last confirmation: falling asleep
+// isn't quitting, so it's saved as completed (or partial), never failed.
+
+// Where credit runs up to so far: the last confirmation, or the start.
+export function lastConfirmed(session: Session): number {
+  return session.confirmedAt ?? session.startedAt;
+}
+
+// The moment `focusMs` of focus time has passed after `from`, or null if the
+// session ends first. Landing exactly on the end of a focus block rolls over to
+// the start of the next one, so a check-in never pops up as a break begins.
+function afterFocus(session: Session, from: number, focusMs: number): number | null {
+  let left = focusMs;
+  for (const s of spans(session)) {
+    if (s.kind !== "focus" || s.end <= from) continue;
+    const start = Math.max(from, s.start);
+    if (s.end - start > left) return start + left;
+    left -= s.end - start;
+  }
+  return null;
+}
+
+// When the next check-in is due, or null (Night mode off, or the session ends first).
+export function checkInDueAt(session: Session): number | null {
+  if (!session.checkIn) return null;
+  const due = afterFocus(session, lastConfirmed(session), session.checkIn.intervalMs);
+  return due !== null && due < sessionEnd(session) ? due : null;
+}
+
+// Is a check-in waiting for a tap right now?
+export function checkInState(session: Session, now: number) {
+  const dueAt = checkInDueAt(session);
+  if (dueAt === null || now < dueAt) return { status: "none" as const, dueAt };
+  return { status: "due" as const, dueAt, deadline: dueAt + CHECK_IN_GRACE_MS };
+}
+
+// The moment an unanswered check-in ends the session, or null if it can't
+// (Night mode off, or the session finishes before the deadline).
+export function missedCheckInAt(session: Session): number | null {
+  const dueAt = checkInDueAt(session);
+  if (dueAt === null) return null;
+  const deadline = dueAt + CHECK_IN_GRACE_MS;
+  return deadline < sessionEnd(session) ? deadline : null;
+}
+
+// Tapping "Still studying?" (or "Got it" on a phase alarm): credit now runs to here.
+export function confirmCheckIn(session: Session, now: number): Session {
+  if (!session.checkIn || now < lastConfirmed(session)) return session;
+  return { ...session, confirmedAt: now };
+}
+
 // ---------- Ending ----------
 
 export function endSession(session: Session, reason: EndReason, at: number): Result {
@@ -299,6 +366,7 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   }
   // Stopping during the final long break ("Finish") is a full finish, not an early end.
   if (reason === "stopped" && isFinalBreak(session, at)) reason = "finished";
+  if (reason === "checkin") return endAtLastCheckIn(session);
 
   const focusSoFar = focusMsBetween(session, session.startedAt, at);
   let failed: boolean;
@@ -339,17 +407,49 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   };
 }
 
+// A missed check-in: the session counts only up to the last confirmation, and
+// that's when it ends. Completed (a cycle keeps only blocks fully finished by
+// then, so it's partial); never failed, so no bone and no dying fish.
+function endAtLastCheckIn(session: Session): Result {
+  const end = lastConfirmed(session);
+  const isCycle = session.mode === "cycle";
+  const banked = bankedFocus(session, end);
+  return {
+    id: session.id,
+    mode: session.mode,
+    focusMode: isOpenFocus(session) ? "open" : "deep",
+    outcome: "completed",
+    endedBy: "checkin",
+    startedAt: session.startedAt,
+    endedAt: end,
+    plannedMs: plannedFocusMs(session),
+    focusMs: isCycle ? banked.ms : focusMsBetween(session, session.startedAt, end),
+    lostMs: 0, // the time asleep isn't "lost focus": it was never focus
+    blocksCompleted: isCycle ? banked.blocks : 1,
+    totalBlocks: countFocusBlocks(session),
+    sessionType: isNotes(session) ? "notes" : "study",
+    task: session.task ?? null,
+    targetMinutes: session.targetMinutes ?? null,
+    cycleName: isCycle ? (session.cycleName ?? null) : null,
+  };
+}
+
 // The one check the UI runs on every tick and when the user comes back.
+// Whatever happened FIRST decides: leaving (Deep Focus), a missed check-in, or
+// the natural end. All from timestamps, so a refresh or a hidden page gives the
+// same answer on return.
 export function checkSession(session: Session, now: number): Check {
-  if (session.awaySince !== null) {
-    const failAt = leaveFailureTime(session, session.awaySince, now);
-    if (failAt !== null) {
-      // Left during the first 10 s and didn't come back in time: an accidental
-      // start, so it's a cancel (no record, no bone), not a failure.
-      if (session.awaySince < session.startedAt + CANCEL_WINDOW_MS) return { status: "cancelled" };
-      return { status: "ended", result: endSession(session, "left", failAt) };
-    }
+  const failAt = session.awaySince !== null ? leaveFailureTime(session, session.awaySince, now) : null;
+  const missedAt = missedCheckInAt(session);
+  const missed = missedAt !== null && missedAt <= now ? missedAt : null;
+
+  if (failAt !== null && (missed === null || failAt <= missed)) {
+    // Left during the first 10 s and didn't come back in time: an accidental
+    // start, so it's a cancel (no record, no bone), not a failure.
+    if (session.awaySince! < session.startedAt + CANCEL_WINDOW_MS) return { status: "cancelled" };
+    return { status: "ended", result: endSession(session, "left", failAt) };
   }
+  if (missed !== null) return { status: "ended", result: endSession(session, "checkin", missed) };
   if (now >= sessionEnd(session)) {
     return { status: "ended", result: endSession(session, "finished", now) };
   }

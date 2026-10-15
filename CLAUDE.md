@@ -16,6 +16,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Punish quitting, never absence: fish die only when you quit Deep Focus; nothing dies from time passing,
   so holidays are safe.
 - The app should never make you feel trapped: Open Focus and the 10-second cancel are the escape hatches.
+- Falling asleep isn't quitting: Night mode ends a session at the last check-in you confirmed, with no bone and no
+  dying fish, so the record stays honest without punishing you.
 - Keep tasks simple: title, optional due date, done.
 - No leaderboards. Any future friends features are about encouragement, not ranking.
 - Web-first: no features that require native iPhone/Android apps.
@@ -116,6 +118,20 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Result screen: big focus minutes, fish / notes result, then one main button (New session); Mark done is quieter.
 - Stats: Streak, Tasks done, then per type: time, last 7 days, target (notes), time per task; the rest under
   "More stats". Sign out is on the Help page (Account section with your email), not on Home.
+
+### Night mode ("Still studying?" check-ins)
+- Optional, off by default, in Session settings: interval 20 / 30 / 45 / 60 min (plus "1 (test)" in development
+  only), style chime / chime + buzz / silent pulse. Remembered with the setup prefs. All modes, Deep and Open,
+  Study and Notes.
+- A check-in is due after `interval` of FOCUS time since the last confirmation (or the start), so in cycles it only
+  comes due during focus blocks. A small banner, not a takeover; the timer keeps running. Tapping it, or "Got it"
+  on any phase alarm, confirms (`confirmCheckIn`, stored as `confirmedAt` on the running session).
+- No tap within 2 min (`CHECK_IN_GRACE_MS`): the session ends quietly with `ended_by = 'checkin'`. Credited focus
+  and `ended_at` both stop at the last confirmation (or the start). Saved as completed (cycles: partial, only
+  blocks fully finished by then are banked). No bone, no dying fish; fish / plant use only credited time.
+- All in `lib/timer.ts` from timestamps (`checkInDueAt`, `missedCheckInAt`, `checkSession`), so a hidden page or a
+  refresh gives the same answer on return. The earliest event wins: a Deep Focus leave (15 s), a missed check-in,
+  or the natural end.
 
 ### Tasks and session types (Phase 6)
 - Tasks: name, optional due date (a plain calendar date), done. Names are unique among NOT-done tasks only
@@ -218,7 +234,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Phase 6: app structure + tasks + session types
   - Part 1 (done): task list, task on sessions, Study / Notes + target time, stats split by type and time per
     task, streak freeze.
-  - Part 2 (in progress): everything below that part 1 didn't cover.
+  - Part 2 (done): everything below that part 1 didn't cover.
   - Navigation between Home, Tasks, Stats and Help, organised and consistent.
   - Help / "How it works" page: modes, Deep vs Open Focus, cycles, the 10-second cancel, fish, bones, plants, streaks.
   - Tasks: title + optional due date; grouped Today / Overdue / Upcoming / Done. States: To do, In progress
@@ -233,7 +249,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - Streak freeze: streak = any day with 5+ minutes of study or notes; one missed day per Monday–Sunday week
     is forgiven, and never two consecutive missed days.
 - Phase 7: plants, coins, decorations, skins (rules in "Plants … and economy" above)
-  - Part 1 (in progress): plants only.
+  - Part 1 (done): plants only.
   - Plants: notes sessions grow plants from cumulative notes minutes; they never die from time passing; a failed
     Deep Focus notes session loses only that session's growth.
   - Coins: 1 focus minute = 1 coin; Open Focus = half.

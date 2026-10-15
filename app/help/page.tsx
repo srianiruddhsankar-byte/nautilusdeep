@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
 import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
-import { CANCEL_WINDOW_MS, LEAVE_GRACE_MS } from "@/lib/timer";
+import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, LEAVE_GRACE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
 import { Account } from "./account";
 
@@ -73,6 +73,25 @@ export default function HelpPage() {
           Started by accident? For the first {CANCEL} seconds the button says <b>Cancel</b>. Tap it and the session
           disappears: nothing saved, nothing lost.
         </p>
+      </Card>
+
+      <Card title="Night mode">
+        <p>For late sessions, when you might nod off. Turn it on in Session settings.</p>
+        <Points>
+          <li>
+            Every 20–60 minutes of focus, a small banner asks <b>Still studying?</b> Tap it. The timer keeps running
+            the whole time.
+          </li>
+          <li>
+            No tap within {CHECK_IN_GRACE_MS / 60_000} minutes: the session ends quietly, counting only up to your last
+            check-in (or the start, if you never answered one).
+          </li>
+          <li>
+            Falling asleep isn&apos;t quitting: no bone, no lost fish. Your fish or plant grows from the time that
+            counted.
+          </li>
+          <li>In a cycle, check-ins only come during focus, and tapping Got it on a break alarm counts as one.</li>
+        </Points>
       </Card>
 
       <Card title="Fish">

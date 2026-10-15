@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { SESSION_DONE_ALARM, phaseAlarm, startAlarm } from "@/lib/alarm";
+import { SESSION_DONE_ALARM, checkInAlert, phaseAlarm, startAlarm } from "@/lib/alarm";
 import { unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
@@ -15,7 +15,9 @@ import {
   LEAVE_GRACE_MS,
   SESSION_TYPE_LABEL,
   cancelWindowRemainingMs,
+  checkInState,
   checkSession,
+  confirmCheckIn,
   formatClock,
   getStatus,
   isFinalBreak,
@@ -61,6 +63,19 @@ function endWith(result: Result, withAlarm: boolean) {
   if (withAlarm) startAlarm(SESSION_DONE_ALARM);
 }
 
+// "Still studying?" answered (the banner, or "Got it" on a phase alarm): credit
+// now runs to this moment. Checked first, so a tap that lands just after the
+// deadline can't undo a session that has already ended.
+function confirmNow() {
+  const session = getSnapshot().session;
+  if (!session) return;
+  const t = Date.now();
+  const check = checkSession(session, t);
+  if (check.status !== "running") return finish(check);
+  const next = confirmCheckIn(session, t);
+  if (next !== session) save({ session: next, result: null });
+}
+
 export function FocusScreen() {
   // null until we've read localStorage in the browser (the server has none).
   const saved = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -96,7 +111,7 @@ export function FocusScreen() {
     return (
       <>
         <RunningView session={session} status={status} now={now ?? session.startedAt} garden={garden} />
-        <AlarmOverlay />
+        <AlarmOverlay onDismiss={confirmNow} />
       </>
     );
   }
@@ -150,6 +165,7 @@ function useSessionClock(active: boolean): number | null {
   useEffect(() => {
     if (!active) return;
     let lastPhase: number | null = null;
+    let promptedFor: number | null = null; // the check-in we've already chimed for
     const isVisible = () => document.visibilityState === "visible";
 
     function tick() {
@@ -171,6 +187,13 @@ function useSessionClock(active: boolean): number | null {
       if (status.phaseIndex !== lastPhase) {
         if (lastPhase !== null && isVisible()) startAlarm(phaseAlarm(status));
         lastPhase = status.phaseIndex;
+      }
+
+      // Night mode: a gentle nudge (never the alarm) when a check-in comes due.
+      const checkIn = checkInState(session, t);
+      if (checkIn.status === "due" && checkIn.dueAt !== promptedFor) {
+        promptedFor = checkIn.dueAt;
+        if (isVisible() && session.checkIn) checkInAlert(session.checkIn.style);
       }
     }
 
@@ -310,8 +333,16 @@ function RunningView({
         : "Tap again: this block is lost";
   }
 
+  const checkIn = checkInState(session, now);
+
   return (
     <div className="flex flex-1 flex-col items-center gap-6">
+      {checkIn.status === "due" && (
+        <CheckInBanner
+          secondsLeft={Math.max(0, Math.ceil((checkIn.deadline - now) / 1000))}
+          pulse={session.checkIn?.style === "pulse"}
+        />
+      )}
       <div className="flex flex-col items-center gap-1">
         <p className="text-sm text-zinc-500">
           {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
@@ -334,6 +365,11 @@ function RunningView({
       )}
 
       <p className="max-w-xs text-center text-zinc-500">{hint}</p>
+      {session.checkIn && (
+        <p className="-mt-4 text-center text-sm text-zinc-500">
+          Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
+        </p>
+      )}
 
       {/* Bottom of the screen = easy to reach one-handed. */}
       <div className="mt-auto flex w-full flex-col items-center gap-2">
@@ -419,6 +455,24 @@ function ResultView({
 }
 
 // Notes sessions grow no fish: show the target instead, while it runs…
+// Night mode: a small, calm banner at the top. The timer keeps running under it.
+function CheckInBanner({ secondsLeft, pulse }: { secondsLeft: number; pulse: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={confirmNow}
+      className={`flex w-full flex-col items-center gap-0.5 rounded-2xl px-4 py-3 text-center ${
+        pulse ? "alarm-flash" : "bg-sky-100 dark:bg-sky-950"
+      }`}
+    >
+      <span className="text-lg font-semibold">Still studying? Tap to continue</span>
+      <span className="text-sm text-zinc-600 dark:text-zinc-300">
+        No tap in {formatClock(secondsLeft * 1000)} and it ends at your last check-in.
+      </span>
+    </button>
+  );
+}
+
 // The target line under the growing plant (notes stopwatch with a target), or null.
 function targetLine(session: Session, status: Status): string | null {
   const target = session.targetMinutes ?? null;
@@ -458,6 +512,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function describe(r: Result): { title: string; detail: string } {
+  // Night mode: not a failure, just an honest record of the time that counted.
+  if (r.endedBy === "checkin") {
+    return {
+      title: "Session ended",
+      detail: `Ended at your last check-in — looks like you fell asleep. Credited: ${Math.floor(r.focusMs / 60_000)} min.`,
+    };
+  }
   if (isNotes(r)) {
     if (r.outcome === "failed") {
       return {
