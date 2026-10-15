@@ -4,14 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { totalMinutes } from "@/lib/cycle-blocks";
 import { useCycles } from "@/lib/cycles";
-import { createLocalStore } from "@/lib/local-store";
-import {
-  NIGHT_INTERVALS,
-  NIGHT_TEST_INTERVAL,
-  sanitizePrefs,
-  type NightPrefs,
-  type SetupPrefs,
-} from "@/lib/setup-prefs";
+import { AMBIENCE_LABEL, type AmbienceChoice } from "@/lib/ambience-logic";
+import { loadPrefs, savePrefs } from "@/lib/prefs-store";
+import { NIGHT_INTERVALS, NIGHT_TEST_INTERVAL, type NightPrefs, type SetupPrefs } from "@/lib/setup-prefs";
 import { formatDuration } from "@/lib/stats";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
 import { groupTasks, openTasksInOrder } from "@/lib/task-views";
@@ -54,9 +49,7 @@ const NIGHT_CHOICES =
   process.env.NODE_ENV === "development" ? [NIGHT_TEST_INTERVAL, ...NIGHT_INTERVALS] : [...NIGHT_INTERVALS];
 const CHIPS = 8;
 
-// Last-used settings, in this browser only. Checked field by field on the way
-// out (sanitizePrefs), so a bad stored value can never break the form.
-const prefsStore = createLocalStore<unknown>("deep-nautilus:setup:v1", null, () => true);
+const AMBIENCES: AmbienceChoice[] = ["off", "waves", "underwater", "calm"];
 
 // The task is owned by the Home screen, so the Today card can fill it in.
 export function SetupForm({
@@ -69,7 +62,7 @@ export function SetupForm({
   onStart: (session: Session) => void;
 }) {
   // Only rendered in the browser (Home waits for localStorage), so reading it here is safe.
-  const [prefs, setPrefs] = useState<SetupPrefs>(() => sanitizePrefs(prefsStore.get()));
+  const [prefs, setPrefs] = useState<SetupPrefs>(() => loadPrefs());
   const [open, setOpen] = useState(false);
   const set = (patch: Partial<SetupPrefs>) => setPrefs((p) => ({ ...p, ...patch }));
 
@@ -98,7 +91,7 @@ export function SetupForm({
         : prefs.mode === "stopwatch"
           ? startStopwatch(now, prefs.focusMode)
           : startCycleBlocks(cycle.blocks!, now, prefs.focusMode, cycle.name);
-    prefsStore.set({ ...prefs, cycleChoice: choice ?? prefs.cycleChoice }); // next time starts like this
+    savePrefs({ ...prefs, cycleChoice: choice ?? prefs.cycleChoice }); // next time starts like this
     setOpen(false);
     onStart(
       withDetails(session, {
@@ -106,6 +99,7 @@ export function SetupForm({
         task, // blank = no task, exactly like before
         targetMinutes: hasTarget && prefs.target.trim() !== "" ? Number(prefs.target) : null,
         checkIn: prefs.night.on ? { intervalMs: prefs.night.intervalMin * 60_000, style: prefs.night.style } : null,
+        ambience: prefs.ambience,
       }),
     );
   }
@@ -198,6 +192,8 @@ export function SetupForm({
             </p>
           )}
 
+          <Ambience value={prefs.ambience} onChange={(ambience) => set({ ambience })} />
+
           <NightMode night={prefs.night} onChange={(night) => set({ night })} />
 
           {/* Focus mode toggle: applies to all three modes */}
@@ -233,6 +229,7 @@ export function SetupForm({
             </span>
             <span className="truncate text-sm text-zinc-500">
               {SESSION_TYPE_LABEL[prefs.sessionType]} · {modeSummary} · {FOCUS_MODE_LABEL[prefs.focusMode]}
+              {prefs.ambience.sound !== "off" && ` · ${AMBIENCE_LABEL[prefs.ambience.sound]}`}
               {prefs.night.on && " · Night mode"}
             </span>
           </span>
@@ -249,6 +246,54 @@ export function SetupForm({
         {cycleLoading ? "Loading…" : taskName ? `Start · ${taskName}` : "Start"}
       </button>
     </div>
+  );
+}
+
+// Ocean sounds while you focus. Volume can also be changed during the session.
+function Ambience({
+  value,
+  onChange,
+}: {
+  value: SetupPrefs["ambience"];
+  onChange: (value: SetupPrefs["ambience"]) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="font-semibold">Ambience</span>
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 sm:grid-cols-4 dark:bg-zinc-900">
+        {AMBIENCES.map((sound) => (
+          <button
+            key={sound}
+            type="button"
+            aria-pressed={value.sound === sound}
+            onClick={() => onChange({ ...value, sound })}
+            className={`rounded-lg py-2.5 text-sm font-medium ${
+              value.sound === sound ? "bg-white shadow dark:bg-zinc-700" : "text-zinc-500"
+            }`}
+          >
+            {AMBIENCE_LABEL[sound]}
+          </button>
+        ))}
+      </div>
+      {value.sound !== "off" && <VolumeSlider value={value.volume} onChange={(volume) => onChange({ ...value, volume })} />}
+    </div>
+  );
+}
+
+export function VolumeSlider({ value, onChange }: { value: number; onChange: (volume: number) => void }) {
+  return (
+    <label className="flex items-center gap-3 text-sm text-zinc-500">
+      Volume
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 accent-sky-700"
+      />
+    </label>
   );
 }
 

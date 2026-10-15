@@ -3,6 +3,18 @@
 
 let audio: AudioContext | null = null;
 
+// The one AudioContext for chimes AND ambience. Phones unlock sound per context
+// (after a tap), so sharing it means the Start tap unlocks both. null if the
+// browser has no Web Audio.
+export function audioContext(): AudioContext | null {
+  try {
+    audio ??= new AudioContext();
+    return audio;
+  } catch {
+    return null;
+  }
+}
+
 // Phones only allow sound after a user tap, so call this from a tap handler
 // (the Start button, or any tap on Home). Later chimes can then play without one.
 export function unlockAudio() {

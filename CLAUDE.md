@@ -60,8 +60,12 @@ The owner is a student learning to code: explain what you do and why, briefly.
   (`coinsFor`, balance), milestones, `canGet`, placement helpers, skin unlock thresholds (`SKIN_UNLOCKS`), tested in
   `lib/economy.test.ts`. `lib/owned.ts` — `useOwned()`: your decorations + per-tank skins, buy / place / put away /
   set skin. `lib/use-economy.ts` — `useEconomy()`: balance, hours, milestones, `skinIdOf(tank)` in one place
-- `app/_decorate/decorate-view.tsx` + `app/decorate/page.tsx` — the `/decorate` route (tank in edit mode, Your
-  items / Shop / Skins), reached by tapping the coin balance in the tank header
+- `app/_decorate/decorate-view.tsx` + `app/decorate/page.tsx` — the `/decorate` route, titled "Shop" (the Shop tab;
+  tank in edit mode, Shop / Your items / Skins). The coin balance in the tank header links here too
+- `lib/ambience-logic.ts` — pure: what should play and how loud (`ambienceTarget`, ducking, volume), tested in
+  `lib/ambience-logic.test.ts`. `lib/ambience.ts` — the Web Audio engine (`syncAmbience`): generated noise →
+  filters → slow LFO swells → one master gain. `lib/prefs-store.ts` — the remembered setup in localStorage
+  (`loadPrefs` / `savePrefs` / `updatePrefs`); `lib/feedback.ts` shares one `AudioContext` for chimes + ambience
 - `lib/stats.ts` — pure stats from sessions (`computeStats(rows, now, timeZone)`), tested in `lib/stats.test.ts`.
   `lib/use-clock.ts` — `useClock()`: now + browser time zone, read in an effect (never `Date.now()` in render)
 - `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
@@ -74,8 +78,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/cycle-blocks.ts` — pure cycle blocks: premade cycles, `expandBlocks` (blocks → phases), `parseBlocks`, tested.
   `lib/cycles.ts` — `useCycles()` (premade + saved) + save / delete (`public.cycles`).
   `app/_focus/cycle-picker.tsx` — cycle chips, Custom fields, "Save as…"
-- `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Stats · Help; each page renders it, Home hides it while
-  a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
+- `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Shop · Stats · Help; each page renders it, Home hides it
+  while a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
 - `app/_focus/today-tasks.tsx` — Home's "Today" card. `app/_focus/task-status.tsx` — "In progress" badge, "Mark done"
 - `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): 3 chimes + vibration every 4 s,
   stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay
@@ -118,7 +122,20 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - No confirmation popup before starting.
 
 ### App structure (Phase 6)
-- Bottom nav: Home · Tasks · Stats · Help, on every signed-in page, hidden while a session is running.
+- Bottom nav: Home · Tasks · Shop · Stats · Help, on every signed-in page, hidden while a session is running.
+
+### Ambience (Phase 8)
+- Ocean sounds generated with the Web Audio API (no audio files): Waves (brown noise, lowpass, two out-of-step
+  swell LFOs + a foam hiss layer), Underwater (heavily lowpassed brown noise + random rising sine "bubbles"),
+  Calm sea (soft pink + brown wash, barely moving). Noise loops are crossfaded at the seam so they never click.
+- Session settings: Off / Waves / Underwater / Calm sea + volume, remembered with the setup prefs. Stored on the
+  running session (`ambience: { sound, volume, paused }`), so a refresh keeps it. The running screen has a small
+  speaker by the focus mode: Pause / Play + volume (a volume change is remembered too).
+- Starts with the session (the Start tap unlocks audio; after a refresh the first tap does), fades in/out, keeps
+  playing in breaks, stops when the session ends or is cancelled, and when leaving Home. Ducks to 20 % while an
+  alarm rings or a check-in waits. Decided by `ambienceTarget` (pure); `syncAmbience` just follows.
+- Limits: the iPhone silent switch mutes Web Audio; browsers may pause audio when the page is hidden (Open Focus in
+  another app); phones need a tap before any sound.
 - Home, top to bottom: greeting, stats line, "Today" card (due today + overdue; tap one to pick it for the next
   session), tank, setup summary card ("Change" opens every option) and Start. The setup is remembered in this
   browser (`lib/setup-prefs.ts`, saved on Start; the task isn't remembered).
@@ -277,7 +294,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - Coins: 1 focus minute = 1 coin; Open Focus = half.
   - Decorations: mostly bought with coins, some unlocked by milestones.
   - Skins unlocked by total hours.
-- Phase 8: ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files).
+- Phase 8 (in progress): ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files),
+  plus Shop as a bottom-bar tab.
 - Phase 9: UI polish pass across the whole app.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it

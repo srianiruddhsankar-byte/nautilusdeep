@@ -96,6 +96,19 @@ export default function HelpPage() {
         </Points>
       </Card>
 
+      <Card title="Ambience">
+        <Points>
+          <li>
+            Ocean sounds while you focus: <b>Waves</b> (surf with slow swells), <b>Underwater</b> (deep and muffled,
+            with gentle bubbles) or <b>Calm sea</b> (a soft, steady wash). Pick one in Session settings.
+          </li>
+          <li>It fades in when you start, keeps going through breaks, and fades out when the session ends.</li>
+          <li>Tap the small speaker on the timer screen to pause it or change the volume.</li>
+          <li>It gets quieter while an alarm or a &ldquo;Still studying?&rdquo; check-in sounds.</li>
+          <li>On iPhone, the silent switch mutes it. It may pause while you&apos;re in another app.</li>
+        </Points>
+      </Card>
+
       <Card title="Fish">
         <Points>
           <li>Every session with at least {FISH_MIN_MINUTES} minutes of focus hatches a fish. Shorter ones don&apos;t.</li>
@@ -162,7 +175,7 @@ export default function HelpPage() {
         <Points>
           <li>Every focus minute earns a coin, from study and notes alike. Open Focus earns half.</li>
           <li>Sessions under {COIN_MIN_MINUTES} minutes and failed sessions earn nothing.</li>
-          <li>Your balance is in the corner of the tank. Tap it to decorate.</li>
+          <li>Your balance is in the corner of the tank. Spend it in the Shop tab (or tap the balance).</li>
         </Points>
       </Card>
 

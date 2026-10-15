@@ -77,7 +77,7 @@ describe("session type, task and target", () => {
   test("a blank task starts exactly as before: a Study session with no task", () => {
     const plain = { ...startTimer(25, T0), id: ID };
     const detailed = withDetails(plain, blank);
-    assert.deepEqual(detailed, { ...plain, sessionType: "study", task: null, targetMinutes: null, checkIn: null });
+    assert.deepEqual(detailed, { ...plain, sessionType: "study", task: null, targetMinutes: null, checkIn: null, ambience: null });
     // Same row as a session started before Phase 6 (no details at all).
     const before = toRow(endSession(plain, "finished", T0 + 25 * MIN), ID, null);
     const after = toRow(endSession(detailed, "finished", T0 + 25 * MIN), ID, null);

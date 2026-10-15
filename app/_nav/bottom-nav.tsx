@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 // timer screen stays distraction-free). It also adds a spacer at the end of the
 // page so the fixed bar never covers the last thing on it.
 
-export type NavPage = "home" | "tasks" | "stats" | "help";
+export type NavPage = "home" | "tasks" | "shop" | "stats" | "help";
 
 const ITEMS: { page: NavPage; href: string; label: string; icon: ReactNode }[] = [
   {
@@ -23,6 +23,17 @@ const ITEMS: { page: NavPage; href: string; label: string; icon: ReactNode }[] =
       <>
         <path d="m4 7 1.5 1.5L8 6M4 13l1.5 1.5L8 12M4 19l1.5 1.5L8 18" />
         <path d="M11 7h9M11 13h9M11 19h9" />
+      </>
+    ),
+  },
+  {
+    page: "shop",
+    href: "/decorate",
+    label: "Shop",
+    icon: (
+      <>
+        <path d="M5 8.5h14l-1.2 11a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9z" />
+        <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" />
       </>
     ),
   },
@@ -53,7 +64,7 @@ export function BottomNav({ active }: { active: NavPage }) {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-zinc-800"
       >
-        <ul className="mx-auto grid max-w-md grid-cols-4">
+        <ul className="mx-auto grid max-w-md grid-cols-5">
           {ITEMS.map((item) => {
             const current = item.page === active;
             return (
@@ -61,7 +72,7 @@ export function BottomNav({ active }: { active: NavPage }) {
                 <Link
                   href={item.href}
                   aria-current={current ? "page" : undefined}
-                  className={`flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium ${
+                  className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
                     current ? "text-sky-700 dark:text-sky-400" : "text-zinc-500 hover:text-foreground"
                   }`}
                 >

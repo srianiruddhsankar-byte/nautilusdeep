@@ -18,6 +18,7 @@ describe("remembered setup", () => {
       cycleChoice: "6f1c2a9e-1111-4222-8333-944455556666",
       custom: { focusMin: "50", shortBreakMin: "10", longBreakMin: "20", blocksPerSet: "3" },
       night: { on: true, intervalMin: 45, style: "pulse" },
+      ambience: { sound: "calm", volume: 0.4 },
     };
     assert.deepEqual(sanitizePrefs(JSON.parse(JSON.stringify(saved))), saved);
   });

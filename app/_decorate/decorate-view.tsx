@@ -33,7 +33,7 @@ export function DecorateView() {
   const [picked, setPicked] = useState<number | null>(null); // null = newest tank
   const index = Math.min(picked ?? tankCount - 1, tankCount - 1);
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
-  const [tab, setTab] = useState<TabId>("items");
+  const [tab, setTab] = useState<TabId>("shop");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -137,8 +137,8 @@ export function DecorateView() {
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900" role="tablist">
         {(
           [
-            ["items", "Your items"],
             ["shop", "Shop"],
+            ["items", "Your items"],
             ["skins", "Skins"],
           ] as const
         ).map(([id, label]) => (

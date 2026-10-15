@@ -2,6 +2,7 @@
 // Every function takes the current time as an argument, so tests can fake time
 // and the answer is always computed from timestamps (never from counting ticks).
 
+import type { AmbienceChoice } from "./ambience-logic.ts";
 import { blocksFromSettings, expandBlocks, type CycleBlock } from "./cycle-blocks.ts";
 import { cleanTaskName } from "./task-name.ts";
 
@@ -68,7 +69,11 @@ export type Session = {
   // Night mode ("Still studying?" check-ins). Off when missing (older sessions too).
   checkIn?: CheckInSettings | null;
   confirmedAt?: number; // the last confirmed check-in; missing = none yet (counts from the start)
+  // Ocean ambience for this session (Phase 8). Missing = off.
+  ambience?: SessionAmbience | null;
 };
+
+export type SessionAmbience = { sound: AmbienceChoice; volume: number; paused: boolean };
 
 export type CheckInStyle = "chime" | "vibrate" | "pulse";
 export type CheckInSettings = { intervalMs: number; style: CheckInStyle };
@@ -147,6 +152,7 @@ export type SessionDetails = {
   task: string; // as typed; blank = no task
   targetMinutes: number | null;
   checkIn?: CheckInSettings | null; // Night mode; missing/null = off
+  ambience?: { sound: AmbienceChoice; volume: number } | null; // missing/null = off
 };
 
 // Adds what the setup screen chose. A blank task means no task (the session
@@ -163,6 +169,8 @@ export function withDetails(session: Session, details: SessionDetails): Session 
     task: cleanTaskName(details.task),
     targetMinutes: keepsTarget ? details.targetMinutes : null,
     checkIn: details.checkIn ?? null,
+    ambience:
+      details.ambience && details.ambience.sound !== "off" ? { ...details.ambience, paused: false } : null,
   };
 }
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { SESSION_DONE_ALARM, checkInAlert, phaseAlarm, startAlarm } from "@/lib/alarm";
+import { SESSION_DONE_ALARM, checkInAlert, phaseAlarm, startAlarm, useAlarm } from "@/lib/alarm";
+import { syncAmbience } from "@/lib/ambience";
+import { AMBIENCE_LABEL, ambienceTarget } from "@/lib/ambience-logic";
 import { unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
@@ -9,6 +11,7 @@ import { compareToTarget } from "@/lib/notes";
 import { deriveGarden, type Garden } from "@/lib/plants";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import { coinsFor } from "@/lib/economy";
+import { updatePrefs } from "@/lib/prefs-store";
 import { toRow } from "@/lib/session-record";
 import { useSessions } from "@/lib/sessions-data";
 import { useEconomy } from "@/lib/use-economy";
@@ -29,6 +32,7 @@ import {
   pressStop,
   type Result,
   type Session,
+  type SessionAmbience,
   type SessionEnd,
   type Status,
 } from "@/lib/timer";
@@ -43,6 +47,7 @@ import { SKINS } from "../_tank/skins";
 import { Coin, Tank } from "../_tank/tank";
 import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
+import { VolumeSlider } from "./setup-form";
 import { InProgressBadge, MarkDone } from "./task-status";
 import { TodayTasks } from "./today-tasks";
 
@@ -105,6 +110,26 @@ export function FocusScreen() {
   const garden = useMemo(() => (rows ? deriveGarden(rows) : null), [rows]);
   // Coins, decorations and each tank's skin.
   const economy = useEconomy();
+
+  // Ocean ambience: decide what should play (pure, tested) and let the engine
+  // follow. It ducks while an alarm rings or a check-in waits, and stops when the
+  // session ends or is cancelled (session becomes null).
+  const alarm = useAlarm();
+  const checkInDue = session !== null && checkInState(session, now ?? session.startedAt).status === "due";
+  const target = ambienceTarget({
+    sound: session?.ambience?.sound,
+    running: session !== null,
+    paused: session?.ambience?.paused ?? false,
+    volume: session?.ambience?.volume ?? 0,
+    alerting: alarm !== null || checkInDue,
+  });
+  const targetSound = target?.sound ?? null;
+  const targetGain = target?.gain ?? 0;
+  useEffect(() => {
+    syncAmbience(targetSound ? { sound: targetSound, gain: targetGain } : null);
+  }, [targetSound, targetGain]);
+  // Leaving Home (e.g. to another page) stops it too.
+  useEffect(() => () => syncAmbience(null), []);
 
   const status = session ? getStatus(session, now ?? session.startedAt) : null;
   // Wake lock only for Deep Focus (Open Focus users are using the device anyway).
@@ -357,9 +382,10 @@ function RunningView({
         />
       )}
       <div className="flex flex-col items-center gap-1">
-        <p className="text-sm text-zinc-500">
+        <p className="flex items-center gap-1 text-sm text-zinc-500">
           {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
           {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
+          {session.ambience && <SoundControl ambience={session.ambience} />}
         </p>
         <p
           className={`max-w-full truncate px-2 text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
@@ -469,6 +495,62 @@ function ResultView({
 }
 
 // Notes sessions grow no fish: show the target instead, while it runs…
+// The running screen's sound control: a small speaker next to the focus mode.
+// Tap it for Pause / Play and volume, without leaving the session. A volume
+// change is also remembered for next time.
+function SoundControl({ ambience }: { ambience: SessionAmbience }) {
+  const [open, setOpen] = useState(false);
+
+  function update(patch: Partial<SessionAmbience>) {
+    const current = getSnapshot().session;
+    if (!current?.ambience) return;
+    const next = { ...current.ambience, ...patch };
+    save({ session: { ...current, ambience: next }, result: null });
+    if (patch.volume !== undefined) updatePrefs({ ambience: { sound: next.sound, volume: next.volume } });
+  }
+
+  return (
+    <span className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-label={`Sound: ${AMBIENCE_LABEL[ambience.sound]}${ambience.paused ? ", paused" : ""}`}
+        className="-my-1 flex h-8 w-8 items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900"
+      >
+        <SpeakerIcon off={ambience.paused} />
+      </button>
+      {open && (
+        <span className="absolute top-full left-1/2 z-20 mt-2 flex w-64 -translate-x-1/2 flex-col gap-3 rounded-2xl border border-zinc-200 bg-background p-4 text-left shadow-lg dark:border-zinc-800">
+          <span className="flex items-center justify-between gap-2">
+            <span className="font-medium text-foreground">{AMBIENCE_LABEL[ambience.sound]}</span>
+            <button
+              type="button"
+              onClick={() => update({ paused: !ambience.paused })}
+              className="rounded-lg bg-zinc-100 px-3 py-1.5 font-medium text-foreground hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            >
+              {ambience.paused ? "Play" : "Pause"}
+            </button>
+          </span>
+          <VolumeSlider value={ambience.volume} onChange={(volume) => update({ volume })} />
+          <button type="button" onClick={() => setOpen(false)} className="self-end text-sky-700 dark:text-sky-400">
+            Done
+          </button>
+        </span>
+      )}
+    </span>
+  );
+}
+
+function SpeakerIcon({ off }: { off: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" />
+      {off ? <path d="m16 9.5 5 5m0-5-5 5" /> : <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />}
+    </svg>
+  );
+}
+
 // Night mode: a small, calm banner at the top. The timer keeps running under it.
 function CheckInBanner({ secondsLeft, pulse }: { secondsLeft: number; pulse: boolean }) {
   return (

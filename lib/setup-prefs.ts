@@ -1,3 +1,4 @@
+import { DEFAULT_VOLUME, cleanVolume, type AmbienceChoice } from "./ambience-logic.ts";
 import { MAX_REPEAT } from "./cycle-blocks.ts";
 import {
   DEFAULT_CYCLE,
@@ -34,6 +35,7 @@ export type SetupPrefs = {
   cycleChoice: string; // a premade slug, a saved cycle's id, or "custom"
   custom: CustomFields;
   night: NightPrefs;
+  ambience: { sound: AmbienceChoice; volume: number };
 };
 
 export const CUSTOM = "custom";
@@ -55,6 +57,7 @@ export const DEFAULT_PREFS: SetupPrefs = {
   cycleChoice: DEFAULT_CHOICE,
   custom: DEFAULT_CUSTOM,
   night: { on: false, intervalMin: 30, style: "chime" },
+  ambience: { sound: "off", volume: DEFAULT_VOLUME },
 };
 
 const oneOf = <T extends string>(value: unknown, options: readonly T[], fallback: T): T =>
@@ -71,6 +74,7 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
   const blocks = Number(c.blocksPerSet);
   const n = (typeof d.night === "object" && d.night !== null ? d.night : {}) as Record<string, unknown>;
   const intervals: number[] = [...NIGHT_INTERVALS, NIGHT_TEST_INTERVAL];
+  const a = (typeof d.ambience === "object" && d.ambience !== null ? d.ambience : {}) as Record<string, unknown>;
 
   return {
     sessionType: oneOf(d.sessionType, ["study", "notes"], DEFAULT_PREFS.sessionType),
@@ -97,6 +101,10 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
         ? (n.intervalMin as number)
         : DEFAULT_PREFS.night.intervalMin,
       style: oneOf(n.style, ["chime", "vibrate", "pulse"], DEFAULT_PREFS.night.style),
+    },
+    ambience: {
+      sound: oneOf(a.sound, ["off", "waves", "underwater", "calm"], DEFAULT_PREFS.ambience.sound),
+      volume: cleanVolume(a.volume),
     },
   };
 }
