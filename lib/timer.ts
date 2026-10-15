@@ -2,6 +2,8 @@
 // Every function takes the current time as an argument, so tests can fake time
 // and the answer is always computed from timestamps (never from counting ticks).
 
+import { cleanTaskName } from "./task-name.ts";
+
 export const LEAVE_GRACE_MS = 15_000;
 // For the first 10 s a session can be cancelled: it vanishes with no record, no bone.
 export const CANCEL_WINDOW_MS = 10_000;
@@ -17,6 +19,14 @@ export type FocusMode = "deep" | "open";
 export const FOCUS_MODE_LABEL: Record<FocusMode, string> = {
   deep: "Deep Focus",
   open: "Open Focus",
+};
+
+// Study sessions grow fish. Notes sessions don't (they'll grow plants in Phase 7).
+export type SessionType = "study" | "notes";
+
+export const SESSION_TYPE_LABEL: Record<SessionType, string> = {
+  study: "Study",
+  notes: "Notes",
 };
 
 // ms: null means open-ended (the stopwatch runs until you stop it).
@@ -47,6 +57,10 @@ export type Session = {
   startedAt: number;
   phases: Phase[];
   awaySince: number | null; // when the page was last hidden (null = on screen)
+  // Added in Phase 6, so sessions saved before then don't have them (= Study, no task).
+  sessionType?: SessionType;
+  task?: string | null;
+  targetMinutes?: number | null; // notes only: "finish in N minutes"
 };
 
 export type EndReason = "finished" | "stopped" | "left";
@@ -64,6 +78,9 @@ export type Result = {
   lostMs: number; // focus time spent in an unfinished block that doesn't count
   blocksCompleted: number;
   totalBlocks: number;
+  sessionType: SessionType;
+  task: string | null;
+  targetMinutes: number | null;
 };
 
 // What happened to a session. Only "ended" produces a Result (which gets saved);
@@ -74,6 +91,10 @@ export type Check = { status: "running" } | SessionEnd;
 // Sessions saved before focus modes existed have no focusMode: treat them as Deep.
 export function isOpenFocus(session: Session): boolean {
   return session.focusMode === "open";
+}
+
+export function isNotes(session: { sessionType?: SessionType }): boolean {
+  return session.sessionType === "notes";
 }
 
 // ---------- Creating sessions ----------
@@ -105,6 +126,28 @@ export function startCycle(
 
 function newSession(mode: Mode, focusMode: FocusMode, phases: Phase[], now: number): Session {
   return { mode, focusMode, startedAt: now, phases, awaySince: null };
+}
+
+export type SessionDetails = {
+  sessionType: SessionType;
+  task: string; // as typed; blank = no task
+  targetMinutes: number | null;
+};
+
+// Adds what the setup screen chose. A blank task means no task (the session
+// starts exactly as before), and only a notes stopwatch keeps a target.
+export function withDetails(session: Session, details: SessionDetails): Session {
+  const keepsTarget =
+    details.sessionType === "notes" &&
+    session.mode === "stopwatch" &&
+    details.targetMinutes !== null &&
+    isValidMinutes(details.targetMinutes);
+  return {
+    ...session,
+    sessionType: details.sessionType,
+    task: cleanTaskName(details.task),
+    targetMinutes: keepsTarget ? details.targetMinutes : null,
+  };
 }
 
 // ---------- Where are we? ----------
@@ -278,6 +321,9 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
     lostMs: focusSoFar - focusMs,
     blocksCompleted,
     totalBlocks: countFocusBlocks(session),
+    sessionType: isNotes(session) ? "notes" : "study",
+    task: session.task ?? null,
+    targetMinutes: session.targetMinutes ?? null,
   };
 }
 

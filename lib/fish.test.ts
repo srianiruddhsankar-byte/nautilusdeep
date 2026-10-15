@@ -27,6 +27,9 @@ function row(overrides: Partial<SessionFacts> & { minutes?: number; endsAt?: num
     focus_mode: "deep",
     outcome: "completed",
     focus_seconds: minutes * 60,
+    session_type: "study",
+    task_name: null,
+    target_minutes: null,
     ...rest,
   } satisfies SessionFacts;
 }
@@ -98,6 +101,36 @@ describe("bones", () => {
     ]);
     assert.equal(aq.bones, 2);
     assert.equal(aq.fishCount, 2);
+  });
+});
+
+describe("notes sessions never create fish", () => {
+  test("a long completed notes session: no fish, nothing in the tank", () => {
+    const aq = deriveAquarium([row({ session_type: "notes", minutes: 95 })]);
+    assert.equal(aq.fishCount, 0);
+    assert.deepEqual(aq.tanks, [[]]);
+  });
+
+  test("notes in every mode and focus mode: still no fish", () => {
+    const aq = deriveAquarium([
+      row({ session_type: "notes", mode: "stopwatch", minutes: 52, target_minutes: 45 }),
+      row({ session_type: "notes", mode: "cycle", outcome: "partial", minutes: 50 }),
+      row({ session_type: "notes", focus_mode: "open", minutes: 30 }),
+    ]);
+    assert.equal(aq.fishCount, 0);
+  });
+
+  test("a failed notes session leaves no bone (bones = fish lost)", () => {
+    const aq = deriveAquarium([
+      row({ session_type: "notes", outcome: "failed", focus_seconds: 0 }),
+      row({ session_type: "study", outcome: "failed", focus_seconds: 0 }),
+    ]);
+    assert.equal(aq.bones, 1);
+  });
+
+  test("study sessions next to notes ones still get their fish", () => {
+    const aq = deriveAquarium([row({ session_type: "notes", minutes: 30 }), row({ minutes: 30 })]);
+    assert.equal(aq.fishCount, 1);
   });
 });
 

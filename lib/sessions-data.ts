@@ -7,13 +7,15 @@ import {
   subscribePending,
   subscribeSyncStatus,
 } from "./save-queue";
+import { withRowDefaults } from "./session-record";
 import { createClient } from "./supabase/client";
 
 // All of the signed-in user's sessions, loaded once and shared by every
 // component (tank, results, recent list). RLS means the query only ever
 // returns your own rows, so no user filter is needed.
 
-const COLUMNS = "id, started_at, ended_at, mode, focus_mode, outcome, focus_seconds";
+const COLUMNS =
+  "id, started_at, ended_at, mode, focus_mode, outcome, focus_seconds, session_type, task_name, target_minutes";
 const PAGE_SIZE = 1000; // Supabase returns at most 1000 rows per request
 
 type State = { rows: SessionFacts[] | null; error: string | null };
@@ -80,7 +82,7 @@ export function useSessions() {
 
   // Sessions still waiting to upload count straight away (a fish appears offline too).
   const merged = useMemo(
-    () => (rows === null ? null : mergeSessions(rows, pending ?? [])),
+    () => (rows === null ? null : mergeSessions(rows, (pending ?? []).map(withRowDefaults))),
     [rows, pending],
   );
   const pendingIds = useMemo(() => new Set((pending ?? []).map((r) => r.id)), [pending]);

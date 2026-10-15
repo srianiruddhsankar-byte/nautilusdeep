@@ -1,4 +1,7 @@
-import { earnsFish, fishSizeFor, focusMinutes, type FishSize, type SessionFacts } from "./fish.ts";
+import { earnsFish, fishSizeFor, focusMinutes, leavesBone, type FishSize, type SessionFacts } from "./fish.ts";
+import { compareToTarget } from "./notes.ts";
+import { taskKey } from "./task-name.ts";
+import type { SessionType } from "./timer.ts";
 
 // Stats are DERIVED from the sessions table, like the fish. Pure: the clock
 // (`now`) and the user's time zone are arguments, so tests can pin both.
@@ -6,10 +9,14 @@ import { earnsFish, fishSizeFor, focusMinutes, type FishSize, type SessionFacts 
 // Definitions (also in CLAUDE.md):
 // - Focus time counts completed and partial sessions only.
 // - Days are in the user's local time zone; a session counts toward the day it STARTED.
-// - A study day has at least 5 focus minutes.
-// - Current streak = consecutive study days ending today, or yesterday if today
-//   has nothing yet. Longest streak = best run ever.
+// - A study day has at least 5 focus minutes of study OR notes (they add up).
+// - Current streak = study days in a run that reaches today, or yesterday if today
+//   has nothing yet. One missed day per Monday–Sunday week is forgiven (a streak
+//   freeze): it keeps the run going but doesn't add a day. Two missed days in a
+//   row always break it, even across a week boundary. Longest = best run ever.
 // - Weeks start on Monday.
+// - Study and Notes get the same stats, computed separately. The streak, the
+//   heatmap and the home "Today" line use both together.
 
 export const STUDY_DAY_MIN_SECONDS = 5 * 60;
 const HOUR_MS = 3_600_000;
@@ -74,14 +81,108 @@ export function startOfWeek(key: DayKey): DayKey {
   return addDays(key, -weekdayIndex(key));
 }
 
-// ---------- The stats ----------
+// ---------- Shared pieces ----------
+
+// Completed and partial sessions count; failed ones don't (they have 0 focus anyway).
+function counts(row: SessionFacts) {
+  return row.outcome !== "failed";
+}
+
+// Focus seconds per local day (by the day each session started).
+function dailyTotals(rows: SessionFacts[], timeZone: string): Map<DayKey, number> {
+  const byDay = new Map<DayKey, number>();
+  for (const row of rows) {
+    if (!counts(row)) continue;
+    const day = dayKey(Date.parse(row.started_at), timeZone);
+    byDay.set(day, (byDay.get(day) ?? 0) + row.focus_seconds);
+  }
+  return byDay;
+}
+
+export function splitByType(rows: SessionFacts[]): Record<SessionType, SessionFacts[]> {
+  return {
+    study: rows.filter((row) => row.session_type === "study"),
+    notes: rows.filter((row) => row.session_type === "notes"),
+  };
+}
+
+// ---------- Overview: study + notes together ----------
+
+export type HeatDay = { day: DayKey; seconds: number; future: boolean; forgiven: boolean };
+
+export type Overview = {
+  today: DayKey;
+  todaySeconds: number; // study + notes
+  streak: { current: number; longest: number }; // days
+  heatmap: HeatDay[][]; // 12 weeks (Mon→Sun columns)
+};
+
+export function computeOverview(rows: SessionFacts[], now: number, timeZone: string): Overview {
+  const today = dayKey(now, timeZone);
+  const byDay = dailyTotals(rows, timeZone);
+  const { current, longest, forgiven } = streaks(byDay, today);
+  const firstHeatDay = addDays(startOfWeek(today), -7 * 11);
+
+  return {
+    today,
+    todaySeconds: byDay.get(today) ?? 0,
+    streak: { current, longest },
+    heatmap: Array.from({ length: 12 }, (_, w) =>
+      Array.from({ length: 7 }, (_, d) => {
+        const day = addDays(firstHeatDay, w * 7 + d);
+        return { day, seconds: byDay.get(day) ?? 0, future: day > today, forgiven: forgiven.has(day) };
+      }),
+    ),
+  };
+}
+
+// Walks every day from the first study day to today. A missed day inside a run
+// is forgiven if the day before it was a study day and its week (Mon–Sun) hasn't
+// used its free day yet; otherwise the run breaks. Today never counts as missed
+// (it isn't over).
+export function streaks(byDay: Map<DayKey, number>, today: DayKey) {
+  const isStudyDay = (day: DayKey) => (byDay.get(day) ?? 0) >= STUDY_DAY_MIN_SECONDS;
+  const studyDays = [...byDay.keys()].filter(isStudyDay).sort();
+  const forgiven = new Set<DayKey>();
+  if (studyDays.length === 0) return { current: 0, longest: 0, forgiven };
+
+  const usedWeeks = new Set<DayKey>(); // Mondays of weeks whose free day is spent
+  let pending: DayKey[] = []; // a forgiven missed day not yet followed by a study day (at most one)
+  let run = 0;
+  let longest = 0;
+
+  for (let day = studyDays[0]; day <= today; day = addDays(day, 1)) {
+    if (isStudyDay(day)) {
+      run++;
+      longest = Math.max(longest, run);
+      pending.forEach((d) => forgiven.add(d));
+      pending = [];
+    } else if (day === today) {
+      // Today isn't over yet: not a missed day.
+    } else if (run > 0 && pending.length === 0 && !usedWeeks.has(startOfWeek(day))) {
+      // Yesterday was a study day (nothing pending) and this week's free day is unused.
+      usedWeeks.add(startOfWeek(day));
+      pending.push(day);
+    } else {
+      // The run breaks. A free day it was holding saved nothing, so give it back.
+      pending.forEach((d) => usedWeeks.delete(startOfWeek(d)));
+      pending = [];
+      run = 0;
+    }
+  }
+  // A missed yesterday is still holding the current run together.
+  pending.forEach((d) => forgiven.add(d));
+
+  return { current: run, longest, forgiven };
+}
+
+// ---------- Per session type ----------
 
 export type DayTotal = { day: DayKey; seconds: number };
+export type TaskTotal = { name: string; seconds: number; sessions: number };
 
 export type Stats = {
-  today: DayKey;
   focus: { today: number; week: number; month: number; allTime: number }; // seconds
-  streak: { current: number; longest: number }; // days
   sessions: { total: number; longestSeconds: number; averageSeconds: number };
   outcomes: { completed: number; partial: number; failed: number; completionRate: number | null };
   bones: number;
@@ -91,20 +192,23 @@ export type Stats = {
   bestDay: DayTotal | null;
   hours: number[]; // 24 buckets of focus seconds, by local hour of day
   last7: DayTotal[]; // oldest → today
-  heatmap: { day: DayKey; seconds: number; future: boolean }[][]; // 12 weeks (Mon→Sun columns)
+  tasks: TaskTotal[]; // most time first
+  // Sessions that had a target (notes), completed or partial. null = none yet.
+  target: {
+    sessions: number;
+    averageActualSeconds: number;
+    averageTargetSeconds: number;
+    onOrUnder: number; // finished within the target
+  } | null;
 };
 
-// Completed and partial sessions count; failed ones don't (they have 0 focus anyway).
-function counts(row: SessionFacts) {
-  return row.outcome !== "failed";
-}
-
+// The same numbers for any set of sessions; the caller picks Study or Notes.
 export function computeStats(rows: SessionFacts[], now: number, timeZone: string): Stats {
   const today = dayKey(now, timeZone);
   const weekStart = startOfWeek(today);
   const month = today.slice(0, 7);
 
-  const byDay = new Map<DayKey, number>();
+  const byDay = dailyTotals(rows, timeZone);
   const hours = new Array<number>(24).fill(0);
   const outcomes = { completed: 0, partial: 0, failed: 0 };
   const focusMode = { deep: 0, open: 0 };
@@ -114,6 +218,9 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     cycle: { sessions: 0, seconds: 0 },
   };
   const fish: Record<FishSize, number> = { small: 0, medium: 0, large: 0, rare: 0 };
+  // Keyed case-insensitively; shows the spelling of the most recent session.
+  const tasks = new Map<string, TaskTotal & { lastStart: number }>();
+  const target = { sessions: 0, actual: 0, target: 0, onOrUnder: 0 };
   let allTime = 0;
   let countedSessions = 0;
   let longestSeconds = 0;
@@ -126,14 +233,31 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
 
     const seconds = row.focus_seconds;
     const start = Date.parse(row.started_at);
-    const day = dayKey(start, timeZone);
-    byDay.set(day, (byDay.get(day) ?? 0) + seconds);
     allTime += seconds;
     countedSessions++;
     longestSeconds = Math.max(longestSeconds, seconds);
     focusMode[row.focus_mode] += seconds;
     modes[row.mode].seconds += seconds;
     spreadOverHours(hours, start, Date.parse(row.ended_at), seconds, timeZone);
+
+    if (row.task_name) {
+      const key = taskKey(row.task_name);
+      const task = tasks.get(key) ?? { name: row.task_name, seconds: 0, sessions: 0, lastStart: start };
+      task.seconds += seconds;
+      task.sessions++;
+      if (start >= task.lastStart) {
+        task.name = row.task_name;
+        task.lastStart = start;
+      }
+      tasks.set(key, task);
+    }
+
+    if (row.target_minutes !== null) {
+      target.sessions++;
+      target.actual += seconds;
+      target.target += row.target_minutes * 60;
+      if (compareToTarget(seconds, row.target_minutes).diffMinutes <= 0) target.onOrUnder++;
+    }
   }
 
   let week = 0;
@@ -147,12 +271,9 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
 
   const total = rows.length;
   const last7Start = addDays(today, -6);
-  const firstHeatDay = addDays(weekStart, -7 * 11);
 
   return {
-    today,
     focus: { today: byDay.get(today) ?? 0, week, month: monthTotal, allTime },
-    streak: streaks(byDay, today),
     sessions: {
       total,
       longestSeconds,
@@ -160,10 +281,10 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     },
     outcomes: {
       ...outcomes,
-      // Share of sessions that kept their fish (completed or partial).
+      // Share of sessions that weren't failed (for study: kept their fish).
       completionRate: total ? (outcomes.completed + outcomes.partial) / total : null,
     },
-    bones: outcomes.failed,
+    bones: rows.filter(leavesBone).length,
     focusMode,
     modes,
     fish,
@@ -173,38 +294,28 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
       const day = addDays(last7Start, i);
       return { day, seconds: byDay.get(day) ?? 0 };
     }),
-    heatmap: Array.from({ length: 12 }, (_, w) =>
-      Array.from({ length: 7 }, (_, d) => {
-        const day = addDays(firstHeatDay, w * 7 + d);
-        return { day, seconds: byDay.get(day) ?? 0, future: day > today };
-      }),
-    ),
+    tasks: [...tasks.values()]
+      .map(({ name, seconds, sessions }) => ({ name, seconds, sessions }))
+      .sort((a, b) => b.seconds - a.seconds || a.name.localeCompare(b.name)),
+    target: target.sessions
+      ? {
+          sessions: target.sessions,
+          averageActualSeconds: Math.round(target.actual / target.sessions),
+          averageTargetSeconds: Math.round(target.target / target.sessions),
+          onOrUnder: target.onOrUnder,
+        }
+      : null,
   };
 }
 
-export function streaks(byDay: Map<DayKey, number>, today: DayKey) {
-  const studyDays = new Set(
-    [...byDay].filter(([, seconds]) => seconds >= STUDY_DAY_MIN_SECONDS).map(([day]) => day),
-  );
-
-  // Today isn't over: if it has nothing yet, the streak can still end yesterday.
-  let cursor = studyDays.has(today) ? today : addDays(today, -1);
-  let current = 0;
-  while (studyDays.has(cursor)) {
-    current++;
-    cursor = addDays(cursor, -1);
-  }
-
-  let longest = 0;
-  let run = 0;
-  let previous: DayKey | null = null;
-  for (const day of [...studyDays].sort()) {
-    run = previous !== null && addDays(previous, 1) === day ? run + 1 : 1;
-    longest = Math.max(longest, run);
-    previous = day;
-  }
-
-  return { current, longest };
+// Everything the stats page shows.
+export function computeAllStats(rows: SessionFacts[], now: number, timeZone: string) {
+  const { study, notes } = splitByType(rows);
+  return {
+    overview: computeOverview(rows, now, timeZone),
+    study: computeStats(study, now, timeZone),
+    notes: computeStats(notes, now, timeZone),
+  };
 }
 
 // Spreads a session's focus seconds evenly over the wall-clock hours it ran in,

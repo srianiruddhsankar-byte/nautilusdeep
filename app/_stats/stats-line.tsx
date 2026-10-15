@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useSessions } from "@/lib/sessions-data";
-import { computeStats, formatDuration } from "@/lib/stats";
+import { computeOverview, formatDuration } from "@/lib/stats";
 import { useClock } from "@/lib/use-clock";
 
-// "Today 1h 20m · 🔥 4-day streak" — tap for the full stats page.
+// "Today 1h 20m · 🔥 4-day streak" (study + notes) — tap for the full stats page.
 export function StatsLine() {
   const { rows } = useSessions();
   const clock = useClock();
   const stats = useMemo(
-    () => (rows && clock ? computeStats(rows, clock.now, clock.timeZone) : null),
+    () => (rows && clock ? computeOverview(rows, clock.now, clock.timeZone) : null),
     [rows, clock],
   );
 
@@ -23,7 +23,7 @@ export function StatsLine() {
     >
       {stats ? (
         <span>
-          Today <span className="font-semibold">{formatDuration(stats.focus.today)}</span>
+          Today <span className="font-semibold">{formatDuration(stats.todaySeconds)}</span>
           <span className="text-zinc-400"> · </span>
           {streak > 0 ? (
             <>

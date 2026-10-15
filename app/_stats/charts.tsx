@@ -111,7 +111,14 @@ export function ColumnChart({
   );
 }
 
-export type HeatCell = { day: string; seconds: number; future: boolean; label: string; display: string };
+export type HeatCell = {
+  day: string;
+  seconds: number;
+  future: boolean;
+  forgiven: boolean; // a missed day the streak freeze covered
+  label: string;
+  display: string;
+};
 
 // Upper bounds (seconds) of heat levels 1–3; anything above is level 4.
 const HEAT_LEVELS = [25 * 60, 60 * 60, 120 * 60];
@@ -125,6 +132,7 @@ function heatLevel(seconds: number) {
 const levelColor = (level: number) => (level === 0 ? "var(--viz-empty)" : `var(--viz-heat-${level})`);
 
 // GitHub-style: one column per week (Mon at top), darker = more focus.
+// Forgiven days (streak freeze) get a dashed outline and a snowflake.
 export function Heatmap({
   weeks,
   today,
@@ -137,7 +145,7 @@ export function Heatmap({
   const [active, setActive] = useState<HeatCell | null>(null);
   const todayCell = weeks.flat().find((c) => c.day === today)!;
   const shown = active ?? todayCell;
-  const withFocus = weeks.flat().filter((c) => c.seconds > 0 && !c.future);
+  const withFocus = weeks.flat().filter((c) => (c.seconds > 0 || c.forgiven) && !c.future);
 
   return (
     <div className="viz flex flex-col gap-2">
@@ -177,11 +185,19 @@ export function Heatmap({
                       onPointerEnter={() => setActive(cell)}
                       onFocus={() => setActive(cell)}
                       onClick={() => setActive(cell)}
-                      className={`aspect-square w-full rounded-[3px] ${
+                      className={`flex aspect-square w-full items-center justify-center rounded-[3px] text-[9px] leading-none ${
                         cell.day === today ? "ring-1 ring-zinc-500 ring-offset-1 ring-offset-white dark:ring-offset-zinc-950" : ""
-                      } ${shown.day === cell.day && active ? "outline-2 outline-zinc-900 dark:outline-white" : ""}`}
-                      style={{ background: levelColor(heatLevel(cell.seconds)) }}
-                    />
+                      } ${shown.day === cell.day && active ? "outline-2 outline-zinc-900 dark:outline-white" : ""} ${
+                        cell.forgiven ? "border border-dashed" : ""
+                      }`}
+                      style={{
+                        background: levelColor(heatLevel(cell.seconds)),
+                        borderColor: cell.forgiven ? "var(--viz-forgiven)" : undefined,
+                        color: "var(--viz-forgiven)",
+                      }}
+                    >
+                      {cell.forgiven && <span aria-hidden>❄</span>}
+                    </button>
                   ),
                 )}
               </div>
@@ -198,6 +214,15 @@ export function Heatmap({
             {name}
           </span>
         ))}
+        <span className="flex items-center gap-1">
+          <span
+            className="flex h-3 w-3 items-center justify-center rounded-[3px] border border-dashed text-[8px] leading-none"
+            style={{ background: levelColor(0), borderColor: "var(--viz-forgiven)", color: "var(--viz-forgiven)" }}
+          >
+            ❄
+          </span>
+          Forgiven (streak freeze)
+        </span>
       </div>
 
       <TableView>

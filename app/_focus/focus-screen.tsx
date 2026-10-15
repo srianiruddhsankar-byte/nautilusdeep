@@ -4,16 +4,19 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { chime, unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
+import { compareToTarget } from "@/lib/notes";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import { useSessions } from "@/lib/sessions-data";
 import {
   CANCEL_WINDOW_MS,
   FOCUS_MODE_LABEL,
   LEAVE_GRACE_MS,
+  SESSION_TYPE_LABEL,
   cancelWindowRemainingMs,
   checkSession,
   formatClock,
   getStatus,
+  isNotes,
   isOpenFocus,
   pressStop,
   type Result,
@@ -213,8 +216,7 @@ function RunningView({
     finish(pressStop(current, t));
   }
 
-  let label = "Focus";
-  if (session.mode === "stopwatch") label = "Stopwatch";
+  let label = session.mode === "stopwatch" ? "Stopwatch" : "Focus";
   if (isCycle) {
     label =
       status.kind === "focus"
@@ -223,6 +225,12 @@ function RunningView({
           ? "Short break"
           : "Long break";
   }
+
+  // The task name replaces the generic label; a cycle keeps its block line under it.
+  const task = session.task ?? null;
+  const heading = task ?? label;
+  const subheading = task && isCycle ? label : null;
+  const notes = isNotes(session);
 
   // Countdowns round up so "0:01" shows until the very end, then "0:00".
   const time =
@@ -255,16 +263,20 @@ function RunningView({
   return (
     <div className="flex flex-1 flex-col items-center gap-6">
       <div className="flex flex-col items-center gap-1">
-        <p className="text-sm text-zinc-500">{FOCUS_MODE_LABEL[open ? "open" : "deep"]}</p>
-        <p
-          className={`text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
-        >
-          {label}
+        <p className="text-sm text-zinc-500">
+          {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
+          {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
         </p>
+        <p
+          className={`max-w-full truncate px-2 text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
+        >
+          {heading}
+        </p>
+        {subheading && <p className="text-sm text-zinc-500">{subheading}</p>}
         <p className="text-7xl font-semibold tabular-nums sm:text-8xl">{time}</p>
       </div>
 
-      <LiveFish session={session} now={now} />
+      {notes ? <NotesProgress session={session} status={status} /> : <LiveFish session={session} now={now} />}
 
       <p className="max-w-xs text-center text-zinc-500">{hint}</p>
 
@@ -296,18 +308,21 @@ function RunningView({
 function ResultView({ result, aquarium }: { result: Result; aquarium: Aquarium | null }) {
   const { title, detail } = describe(result);
   const failed = result.outcome === "failed";
+  const notes = isNotes(result);
 
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-4 text-center">
       <p className="text-sm text-zinc-500">
         {FOCUS_MODE_LABEL[result.focusMode === "open" ? "open" : "deep"]}
+        {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
+        {result.task && ` · ${result.task}`}
       </p>
       <h2 className={`text-3xl font-semibold ${failed ? "text-red-600" : "text-emerald-600"}`}>
         {title}
       </h2>
       <p className="text-zinc-500">{detail}</p>
 
-      <ResultFish result={result} aquarium={aquarium} />
+      {notes ? <NotesResult result={result} /> : <ResultFish result={result} aquarium={aquarium} />}
 
       <dl className="grid w-full grid-cols-2 gap-3 text-left">
         <Stat label="Focus minutes" value={String(Math.floor(result.focusMs / 60_000))} />
@@ -332,6 +347,43 @@ function ResultView({ result, aquarium }: { result: Result; aquarium: Aquarium |
   );
 }
 
+// Notes sessions grow no fish: show the target instead, while it runs…
+function NotesProgress({ session, status }: { session: Session; status: Status }) {
+  const target = session.targetMinutes ?? null;
+  const minutes = Math.floor(status.elapsedMs / 60_000);
+  let line = "Notes session: no fish for this one. Plants come later.";
+  if (target !== null) {
+    line =
+      minutes < target
+        ? `Target ${target} min · ${target - minutes} min to go`
+        : minutes === target
+          ? `Target ${target} min · right on target`
+          : `Target ${target} min · ${minutes - target} min over`;
+  }
+  return (
+    <p className="w-full rounded-2xl bg-zinc-100 px-4 py-6 text-center font-medium dark:bg-zinc-900">
+      {line}
+    </p>
+  );
+}
+
+// …and target vs actual at the end.
+function NotesResult({ result }: { result: Result }) {
+  const focusSeconds = Math.floor(result.focusMs / 1000);
+  const showTarget = result.targetMinutes !== null && result.outcome !== "failed";
+  return (
+    <div className="flex w-full flex-col gap-1 rounded-2xl bg-zinc-100 px-4 py-6 dark:bg-zinc-900">
+      <p className="text-xl font-semibold">
+        {showTarget
+          ? compareToTarget(focusSeconds, result.targetMinutes!).text
+          : `Took ${Math.floor(focusSeconds / 60)} min`}
+      </p>
+      {showTarget && <p className="text-sm text-zinc-500">Target: {result.targetMinutes} min</p>}
+      <p className="text-sm text-zinc-500">Notes sessions don&apos;t grow fish. Plants are coming later.</p>
+    </div>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-zinc-100 p-4 dark:bg-zinc-900">
@@ -342,6 +394,21 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function describe(r: Result): { title: string; detail: string } {
+  if (isNotes(r)) {
+    if (r.outcome === "failed") {
+      return {
+        title: "Notes session failed",
+        detail:
+          r.endedBy === "left"
+            ? `You left the app for more than ${LEAVE_GRACE_MS / 1000} seconds. Only this session's time is lost.`
+            : "You ended it early. Only this session's time is lost.",
+      };
+    }
+    if (r.mode === "cycle" && r.endedBy !== "finished") {
+      return { title: "Notes session ended", detail: "Your finished blocks still count." };
+    }
+    return { title: "Notes session done", detail: "Nice work getting it down on paper." };
+  }
   if (r.outcome === "failed") {
     if (r.endedBy === "left") {
       return {

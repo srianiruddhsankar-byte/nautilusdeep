@@ -1,15 +1,24 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { FISH_SIZE_LABEL, type FishSize } from "@/lib/fish";
 import { useSessions } from "@/lib/sessions-data";
-import { computeStats, formatDay, formatDuration, formatHour, weekdayIndex } from "@/lib/stats";
+import {
+  computeAllStats,
+  formatDay,
+  formatDuration,
+  formatHour,
+  weekdayIndex,
+  type Stats,
+} from "@/lib/stats";
+import { SESSION_TYPE_LABEL, type SessionType } from "@/lib/timer";
 import { useClock } from "@/lib/use-clock";
 import { BarList, ColumnChart, Heatmap } from "./charts";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" } as const;
 const SIZES: FishSize[] = ["small", "medium", "large", "rare"];
 const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const TYPES: SessionType[] = ["study", "notes"];
 
 const percent = (part: number, whole: number) =>
   whole > 0 ? `${Math.round((part / whole) * 100)}%` : "–";
@@ -17,12 +26,13 @@ const percent = (part: number, whole: number) =>
 export function StatsView() {
   const { rows, error } = useSessions();
   const clock = useClock();
-  const stats = useMemo(
-    () => (rows && clock ? computeStats(rows, clock.now, clock.timeZone) : null),
+  const [type, setType] = useState<SessionType>("study");
+  const all = useMemo(
+    () => (rows && clock ? computeAllStats(rows, clock.now, clock.timeZone) : null),
     [rows, clock],
   );
 
-  if (!stats) {
+  if (!all) {
     return (
       <p className="text-center text-zinc-500">
         {error ? `Couldn't load your sessions: ${error}` : "Loading stats…"}
@@ -30,13 +40,70 @@ export function StatsView() {
     );
   }
 
+  const { overview } = all;
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Study and notes together: both keep the streak alive. */}
+      <Section
+        title="Streak"
+        note="A day counts with 5+ minutes of study or notes. One missed day per week (Mon–Sun) is forgiven, but never two in a row."
+      >
+        <Tiles>
+          <Tile label="Current streak" value={days(overview.streak.current)} />
+          <Tile label="Longest streak" value={days(overview.streak.longest)} />
+        </Tiles>
+        <Heatmap
+          today={overview.today}
+          monthLabel={(day) =>
+            new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: "UTC", month: "short" })
+          }
+          weeks={overview.heatmap.map((week) =>
+            week.map((c) => ({
+              ...c,
+              label: c.day === overview.today ? `Today, ${formatDay(c.day)}` : formatDay(c.day),
+              display: c.forgiven ? `${formatDuration(c.seconds)} · forgiven ❄` : formatDuration(c.seconds),
+            })),
+          )}
+        />
+      </Section>
+
+      <div role="tablist" aria-label="Session type" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
+        {TYPES.map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={type === t}
+            onClick={() => setType(t)}
+            className={`rounded-lg py-3 font-medium ${type === t ? "bg-white shadow dark:bg-zinc-700" : "text-zinc-500"}`}
+          >
+            {SESSION_TYPE_LABEL[t]}
+          </button>
+        ))}
+      </div>
+
+      {/* key: switching tabs resets each chart's selected column. */}
+      <TypeStats key={type} type={type} stats={all[type]} />
+    </div>
+  );
+}
+
+function TypeStats({ type, stats }: { type: SessionType; stats: Stats }) {
+  const study = type === "study";
   const peakHour = stats.hours.reduce((best, s, h) => (s > stats.hours[best] ? h : best), 0);
   const hasHours = stats.hours[peakHour] > 0;
   const focusTotal = stats.focusMode.deep + stats.focusMode.open;
 
+  if (stats.sessions.total === 0) {
+    return (
+      <p className="py-6 text-center text-zinc-500">
+        {study ? "No study sessions yet." : "No notes sessions yet. Pick Notes on the setup screen."}
+      </p>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <Section title="Focus time">
+      <Section title={study ? "Study time" : "Notes time"}>
         <Tiles>
           <Tile label="Today" value={formatDuration(stats.focus.today)} />
           <Tile label="This week" value={formatDuration(stats.focus.week)} sub="Since Monday" />
@@ -59,27 +126,43 @@ export function StatsView() {
         />
       </Section>
 
-      <Section title="Streaks" note="A study day has at least 5 focus minutes.">
-        <Tiles>
-          <Tile label="Current streak" value={days(stats.streak.current)} />
-          <Tile label="Longest streak" value={days(stats.streak.longest)} />
-        </Tiles>
-      </Section>
-
-      <Section title="Last 12 weeks">
-        <Heatmap
-          today={stats.today}
-          monthLabel={(day) =>
-            new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: "UTC", month: "short" })
-          }
-          weeks={stats.heatmap.map((week) =>
-            week.map((c) => ({
-              ...c,
-              label: c.day === stats.today ? `Today, ${formatDay(c.day)}` : formatDay(c.day),
-              display: formatDuration(c.seconds),
-            })),
+      {!study && (
+        <Section title="Target vs actual" note="Notes stopwatch sessions with a target, not failed.">
+          {stats.target ? (
+            <Tiles>
+              <Tile
+                label="Average time"
+                value={formatDuration(stats.target.averageActualSeconds)}
+                sub={`Target ${formatDuration(stats.target.averageTargetSeconds)}`}
+              />
+              <Tile
+                label="Average difference"
+                value={formatDifference(stats.target.averageActualSeconds - stats.target.averageTargetSeconds)}
+              />
+              <Tile
+                label="Within target"
+                value={`${stats.target.onOrUnder} of ${stats.target.sessions}`}
+                sub={percent(stats.target.onOrUnder, stats.target.sessions)}
+              />
+            </Tiles>
+          ) : (
+            <p className="text-sm text-zinc-500">No notes sessions with a target yet.</p>
           )}
-        />
+        </Section>
+      )}
+
+      <Section title="Time per task">
+        {stats.tasks.length > 0 ? (
+          <BarList
+            rows={stats.tasks.map((t) => ({
+              label: t.name,
+              value: t.seconds,
+              display: `${formatDuration(t.seconds)} · ${t.sessions} ${t.sessions === 1 ? "session" : "sessions"}`,
+            }))}
+          />
+        ) : (
+          <p className="text-sm text-zinc-500">No sessions with a task yet.</p>
+        )}
       </Section>
 
       <Section title="Sessions">
@@ -110,9 +193,9 @@ export function StatsView() {
                 ? "–"
                 : `${Math.round(stats.outcomes.completionRate * 100)}%`
             }
-            sub="Kept their fish"
+            sub={study ? "Kept their fish" : "Not failed"}
           />
-          <Tile label="Bones" value={String(stats.bones)} sub="Fish lost" />
+          {study && <Tile label="Bones" value={String(stats.bones)} sub="Fish lost" />}
         </Tiles>
       </Section>
 
@@ -145,15 +228,17 @@ export function StatsView() {
         />
       </Section>
 
-      <Section title="Fish caught">
-        <BarList
-          rows={SIZES.map((size) => ({
-            label: FISH_SIZE_LABEL[size],
-            value: stats.fish[size],
-            display: String(stats.fish[size]),
-          }))}
-        />
-      </Section>
+      {study && (
+        <Section title="Fish caught">
+          <BarList
+            rows={SIZES.map((size) => ({
+              label: FISH_SIZE_LABEL[size],
+              value: stats.fish[size],
+              display: String(stats.fish[size]),
+            }))}
+          />
+        </Section>
+      )}
 
       <Section title="Records">
         <Tiles>
@@ -189,6 +274,12 @@ export function StatsView() {
 }
 
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+
+// 420 → "7m over", -300 → "5m under", 20 → "On target".
+function formatDifference(seconds: number) {
+  if (Math.abs(seconds) < 60) return "On target";
+  return `${formatDuration(Math.abs(seconds))} ${seconds > 0 ? "over" : "under"}`;
+}
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (

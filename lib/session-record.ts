@@ -1,7 +1,7 @@
-import type { EndReason, FocusMode, Mode, Result } from "./timer";
+import type { EndReason, FocusMode, Mode, Result, SessionType } from "./timer";
 
 // The shape of one row in the Supabase `sessions` table
-// (see supabase/migrations/20261014120000_create_sessions.sql).
+// (see supabase/migrations/: create_sessions, then tasks_and_session_types).
 export type Outcome = "completed" | "failed" | "partial";
 
 export type SessionRow = {
@@ -17,6 +17,9 @@ export type SessionRow = {
   blocks_completed: number | null; // cycle only
   blocks_planned: number | null; // cycle only
   planned_minutes: number | null; // null for the stopwatch
+  session_type: SessionType;
+  task_name: string | null;
+  target_minutes: number | null; // notes only
 };
 
 // Pure: no ids or clock reads here, the caller passes them in.
@@ -35,6 +38,22 @@ export function toRow(result: Result, id: string, userId: string | null): Sessio
     blocks_completed: isCycle ? result.blocksCompleted : null,
     blocks_planned: isCycle ? result.totalBlocks : null,
     planned_minutes: result.plannedMs === null ? null : Math.round(result.plannedMs / 60_000),
+    session_type: result.sessionType,
+    task_name: result.task,
+    target_minutes: result.targetMinutes,
+  };
+}
+
+// Rows queued in this browser before Phase 6 don't have the new columns.
+// Fill them in the same way the database does (Study, no task, no target).
+export function withRowDefaults<T extends Partial<Pick<SessionRow, "session_type" | "task_name" | "target_minutes">>>(
+  row: T,
+) {
+  return {
+    ...row,
+    session_type: row.session_type ?? "study",
+    task_name: row.task_name ?? null,
+    target_minutes: row.target_minutes ?? null,
   };
 }
 

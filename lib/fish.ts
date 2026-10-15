@@ -36,10 +36,19 @@ export function nextSize(minutes: number): { size: FishSize; atMinutes: number }
   return step ? { size: step.size, atMinutes: step.from } : null;
 }
 
-// Only the columns fish need.
+// The columns the app reads back (fish, stats, recent list).
 export type SessionFacts = Pick<
   SessionRow,
-  "id" | "started_at" | "ended_at" | "mode" | "focus_mode" | "outcome" | "focus_seconds"
+  | "id"
+  | "started_at"
+  | "ended_at"
+  | "mode"
+  | "focus_mode"
+  | "outcome"
+  | "focus_seconds"
+  | "session_type"
+  | "task_name"
+  | "target_minutes"
 >;
 
 export type Fish = {
@@ -54,7 +63,7 @@ export type Fish = {
 export type Aquarium = {
   tanks: Fish[][]; // always at least one (possibly empty) tank
   fishCount: number;
-  bones: number; // one per failed session
+  bones: number; // one per failed study session
 };
 
 // focus_seconds already holds only the minutes that count: for a partial
@@ -63,9 +72,17 @@ export function focusMinutes(row: SessionFacts): number {
   return Math.floor(row.focus_seconds / 60);
 }
 
-// Completed or partial, with at least 5 focus minutes. Deep and Open Focus alike.
+// A study session, completed or partial, with at least 5 focus minutes. Deep and
+// Open Focus alike. Notes sessions never make fish (they'll grow plants instead).
 export function earnsFish(row: SessionFacts): boolean {
-  return row.outcome !== "failed" && focusMinutes(row) >= FISH_MIN_MINUTES;
+  return (
+    row.session_type === "study" && row.outcome !== "failed" && focusMinutes(row) >= FISH_MIN_MINUTES
+  );
+}
+
+// A bone = a fish lost, so only failed study sessions leave one.
+export function leavesBone(row: SessionFacts): boolean {
+  return row.session_type === "study" && row.outcome === "failed";
 }
 
 export function deriveAquarium(rows: SessionFacts[]): Aquarium {
@@ -93,7 +110,7 @@ export function deriveAquarium(rows: SessionFacts[]): Aquarium {
   return {
     tanks,
     fishCount: fish.length,
-    bones: rows.filter((row) => row.outcome === "failed").length,
+    bones: rows.filter(leavesBone).length,
   };
 }
 

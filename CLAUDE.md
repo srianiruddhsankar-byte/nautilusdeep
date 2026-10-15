@@ -5,6 +5,24 @@
 A Forest-style focus/study app with an ocean theme, for the owner and a few friends.
 The owner is a student learning to code: explain what you do and why, briefly.
 
+## Principles
+- Calm, simple, encouraging personality is the core of the app. Quiet interface, subtle animation, never guilt-driven.
+- The tank rewards real work, never app activity: no rewards for creating tasks, opening the app, or ticking off
+  tasks with no focus time.
+- The tank is not a game: no breeding, feeding, energy, farming, quests or complex economy.
+- Decorating must never take more time than studying.
+- Punish quitting, never absence: fish die only when you quit Deep Focus; nothing dies from time passing,
+  so holidays are safe.
+- The app should never make you feel trapped: Open Focus and the 10-second cancel are the escape hatches.
+- Keep tasks simple: title, optional due date, done.
+- No leaderboards. Any future friends features are about encouragement, not ranking.
+- Web-first: no features that require native iPhone/Android apps.
+- Feature test: a new feature must help organise work, finish work, make progress rewarding, or make progress
+  visible. Otherwise it goes in IDEAS.md.
+- UI/UX every phase: each phase organises and polishes the screens it touches, and new features are designed
+  with the future layout in mind. Phase 9 is still the big polish pass.
+- Ideas rule: any idea that isn't built goes into IDEAS.md with why and when to revisit.
+
 ## Stack
 - Next.js 16 (App Router), TypeScript, Tailwind CSS v4
 - Supabase (Auth + Postgres) via `@supabase/ssr` (cookie-based sessions)
@@ -32,6 +50,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
   column chart, heatmap, bar list), `viz.css` (chart colours, validated with the dataviz palette checker).
   `app/stats/page.tsx` is the protected `/stats` route
+- `lib/task-name.ts` — pure `cleanTaskName` / `taskKey`. `lib/tasks.ts` — `useTasks()` + add / done / delete
+  (`public.tasks`, online only). `app/_tasks/task-list.tsx` + `app/tasks/page.tsx` — the `/tasks` route
+- `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
 
@@ -68,12 +89,20 @@ The owner is a student learning to code: explain what you do and why, briefly.
     (A quick leave or refresh in the window just keeps running.)
   - No confirmation popup before starting.
 
+### Tasks and session types (Phase 6)
+- Optional task per session: type one or tap an open task on the setup screen; blank = no task (starts as before).
+  The running screen shows the task name instead of "Focus"/"Stopwatch" (a cycle keeps its block line under it).
+- Sessions store the task's NAME (`task_name`), not a link to `tasks`: queued sessions can't break when a task is
+  deleted, and deleted tasks keep their stats. Time per task groups names case-insensitively.
+- Study / Notes toggle (Study default). Notes sessions make no fish, and a failed notes session leaves no bone.
+- Optional target time only for Notes + Stopwatch (you stop when done); result shows target vs actual.
+
 ### Fish
 - Fish are DERIVED from `sessions` (never stored): one source of truth, so rule changes apply to past fish too.
 - One completed or partial session with at least 5 focus minutes = one fish; under 5 min = no fish (anti-farming).
   Deep and Open Focus earn fish the same way. It grows live on screen during the session.
 - Size by focus minutes (partial cycles: banked minutes): small < 25, medium 25–49, large 50–89, rare 90+.
-- Every failed session = +1 "bone" (bones = count of fish lost). No coins for failed sessions.
+- Every failed study session = +1 "bone" (bones = count of fish lost). No coins for failed sessions.
 - Leaving during breaks is safe.
 - A fish's look is seeded from its session id (same session → same fish everywhere). Don't change the
   order of random draws in `fishLook()`, or every existing fish changes.
@@ -103,10 +132,13 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Stats are DERIVED from `sessions` in the browser (no table, no SQL). Definitions — use exactly these:
   - Focus time counts completed and partial sessions only (failed sessions have 0 focus seconds anyway).
   - Days are in the user's local time zone (computed in the browser). A session counts toward the day it STARTED on.
-  - A "study day" = at least 5 focus minutes that day (sessions in a day add up).
-  - Current streak = consecutive study days ending today, or yesterday if today has nothing yet (today isn't over).
-    Longest streak = best run ever.
-    (Phase 6 changes this: study or notes minutes count, and one free missed day per week doesn't break it.)
+  - A "study day" = at least 5 focus minutes of study OR notes that day (sessions in a day add up).
+  - Streak freeze: one missed day per Mon–Sun week is forgiven. It keeps the run alive but doesn't add a day.
+    A second miss in the same week breaks it, and so do two missed days in a row, even across a week
+    boundary (e.g. Sunday + Monday).
+    Today is never "missed" (it isn't over). Forgiven days show on the heatmap with a dashed outline and ❄.
+  - Current streak = study days in the run that reaches today. Longest streak = best run ever (same rule).
+  - Study and Notes get the same stats, shown separately (tabs). Streak, heatmap and the home "Today" line use both.
   - Weeks start on Monday.
   - Sessions total = all sessions (incl. failed). Longest / average session = focus time of completed + partial.
   - Completion rate = (completed + partial) ÷ all sessions (sessions that kept their fish).
@@ -131,33 +163,32 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Phase 3 (done): save every finished session to Supabase (`sessions` table, offline queue + retry) and a plain "Recent sessions" list.
 - Phase 4 (done): the tank. Fish/bones derived from sessions, Shallows skin, swimming fish with detail cards,
   live-growing fish while running, dying fish on failure.
-- Phase 5 (done): stats. Home stats line (today + streak) and `/stats` page with tiles, 7-day columns,
+- Phase 5 (in progress): stats. Home stats line (today + streak) and `/stats` page with tiles, 7-day columns,
   12-week heatmap, splits, records and time of day. All derived from sessions.
-- Phase 6: tasks + session types
-  - Optional task name chosen/typed before a session (blank = start as today); the running timer shows the
-    task name; time per task in stats.
-  - Simple built-in task list (add, complete, pick one to start a session).
-  - Study / Notes session type toggle on the setup screen. Notes stats shown separately from study stats.
-    Optional target time for notes sessions, with target vs actual on the result screen.
-  - Streak freeze: one free missed day per week doesn't break the streak
-    (streak = any day with 5+ minutes of study or notes).
-- Phase 7: plants + coins + decorations + skins (rules in "Economy and growth" above)
-  - Study sessions grow fish; notes sessions grow plants (seed → sprout → young → full → flowering).
-  - Coins: 1 focus minute = 1 coin (Open Focus = half, rounded down); spent on decorations.
+- Phase 6: app structure + tasks + session types
+  - Navigation between Home, Tasks, Stats and Help, organised and consistent.
+  - Help / "How it works" page: modes, Deep vs Open Focus, cycles, the 10-second cancel, fish, bones, plants, streaks.
+  - Tasks: title + optional due date; grouped Today / Overdue / Upcoming / Done. States: To do, In progress
+    (automatic, only while a timer runs on that task), Done. Tasks can be ticked off without a timer.
+  - Optionally pick a task before a session (blank = start as today); the running screen shows its name;
+    "Mark done" on the result screen.
+  - Completed-task history: what, when, and total focus time.
+  - Saved cycles, stored as a list of blocks (so a drag-and-drop builder can be added later), plus premade
+    cycles: 25/5 × 4, 50/10 × 2, 90 deep work.
+  - Study / Notes session type; notes have an optional target time (target vs actual on the result).
+  - Stats: study and notes separately, time per task, tasks completed, most-used cycle.
+  - Streak freeze: streak = any day with 5+ minutes of study or notes; one missed day per Monday–Sunday week
+    is forgiven, and never two consecutive missed days.
+- Phase 7: plants, coins, decorations, skins (rules in "Economy and growth" above)
+  - Plants: notes sessions grow plants from cumulative notes minutes; they never die from time passing; a failed
+    Deep Focus notes session loses only that session's growth.
+  - Coins: 1 focus minute = 1 coin; Open Focus = half.
+  - Decorations: mostly bought with coins, some unlocked by milestones.
   - Skins unlocked by total hours.
-- Phase 8: ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files);
-  play/pause and volume on the focus screen.
-- Phase 9: UI polish pass across the whole app (general UI only, not the species redesign).
-- Phase 10: PWA (installable) + push notification reminders for tasks.
-- Phase 11: testing phase with friends — real use, feedback, bug fixes. Ask testers where they keep their
-  to-do lists (Notion, Google Tasks, Apple Reminders, paper...) before deciding on any integration.
-
-## Later (after Phase 11)
-- Real species (extinct or not), different body shapes, fish index with rarity tiers (common → legendary);
-  uncaught species shown as "???" silhouettes.
-- Freshwater vs saltwater tanks: each tank has a water type, chosen when a new tank starts. Freshwater skins
-  (Shallows, pond, river, lake) get freshwater fish and aquatic plants; saltwater skins (coral reef, deep sea)
-  get marine fish and corals instead of plants (index note: coral is an animal). Species pools per water type.
-- Realistic tank/visual redesign (style to be decided).
-- To-do integration (e.g. Notion) only if testers show most use one app.
-- Voice input only if the phone keyboard's built-in mic isn't enough.
+- Phase 8: ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files).
+- Phase 9: UI polish pass across the whole app.
+- Phase 10: PWA (installable) + task reminder notifications.
+- Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
+  looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?
+  If they say "cool" and never return, rethink — don't just add features.
+- Later: see IDEAS.md.
