@@ -1,0 +1,372 @@
+/* Design preview (Phase 9 Stage A, round 2). Paper Tide (C) tokens and
+   components only; the tanks draw themselves (SVG, Canvas, WebGL). */
+
+.dir-c {
+  --font-display: var(--pv-fraunces);
+  --font-body: var(--pv-dmsans);
+  --bg: #f4efe6;
+  --card: #fffcf6;
+  --text: #1e2b38;
+  --muted: #5f6977;
+  --border: #e3dacb;
+  --primary: #23466b;
+  --on-primary: #fffcf6;
+  --soft: #ebe4d7;
+  --accent: #c4523a;
+  --focus: #23466b;
+  --radius-card: 12px;
+  --radius-btn: 10px;
+  --radius-tank: 14px;
+  --shadow-card: 0 0 0 1px var(--border), 0 2px 0 var(--border);
+  --shadow-btn: 0 3px 0 #142c45;
+  --tank-edge: 0 0 0 1px var(--border), 0 4px 0 #ddd2bf;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+}
+
+.pv {
+  font-family: var(--font-body), system-ui, sans-serif;
+  background: #e9e3d8;
+  color: var(--text);
+}
+
+.pv-dir {
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 20px;
+  padding: 20px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0; /* never wider than the screen */
+  scroll-margin-top: 16px;
+}
+.pv-title {
+  font-family: var(--font-display), serif;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.pv-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pv-muted {
+  color: var(--muted);
+}
+.pv-small {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.pv-link {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* tank */
+.pv-tank {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-tank);
+  overflow: hidden;
+  box-shadow: var(--tank-edge);
+  background: #6fb4c2;
+}
+
+/* timer: a big serif time over a hairline progress bar */
+.pv-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+}
+.pv-timer-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+.pv-time {
+  font-family: var(--font-display), serif;
+  font-weight: 400;
+  font-size: 88px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.pv-bar {
+  width: 100%;
+  height: 2px;
+  margin-top: 16px;
+  background: var(--border);
+}
+.pv-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+/* buttons */
+.pv-btn {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-btn);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+.pv-btn:focus-visible,
+.pv-seg button:focus-visible,
+.pv-toggle input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.pv-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.pv-btn-lg {
+  min-height: 60px;
+  font-size: 19px;
+  width: 100%;
+}
+.pv-btn-sm {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.pv-btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: var(--shadow-btn);
+}
+.pv-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+.pv-btn-primary:not(:disabled):active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 #142c45;
+}
+.pv-btn-secondary {
+  background: var(--soft);
+  color: var(--text);
+}
+.pv-btn-quiet {
+  background: transparent;
+  color: var(--muted);
+}
+.pv-btn-quiet:hover {
+  background: var(--soft);
+}
+/* Give up is calm, never red: the confirm tap is where it warms up. */
+.pv-btn-outline {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1.5px var(--border);
+}
+
+/* frame-rate switch + meter */
+.pv-seg {
+  display: inline-flex;
+  border-radius: var(--radius-btn);
+  box-shadow: inset 0 0 0 1.5px var(--border);
+  padding: 2px;
+}
+.pv-seg button {
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background-color var(--dur) var(--ease);
+}
+.pv-seg button[aria-pressed="true"] {
+  background: var(--soft);
+  color: var(--text);
+}
+.pv-meter {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pv-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.pv-toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+/* card */
+.pv-card {
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pv-card-title {
+  font-family: var(--font-display), serif;
+  font-size: 19px;
+  font-weight: 500;
+}
+.pv-statline {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  background: var(--soft);
+  border-radius: calc(var(--radius-card) - 8px);
+  padding: 10px 12px;
+}
+.pv-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* The accent is for the icon only: as text it would be too faint to read. */
+.pv-streak svg {
+  color: var(--accent);
+}
+.pv-list > li + li {
+  border-top: 1px solid var(--border);
+}
+.pv-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 0;
+}
+.pv-row:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.pv-check {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2px var(--border);
+}
+
+/* fish card */
+.pv-fishcard {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.pv-fishframe {
+  width: 96px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: calc(var(--radius-card) - 8px);
+  background: var(--soft);
+  padding: 8px;
+}
+.pv-rarity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.pv-pips {
+  display: inline-flex;
+  gap: 3px;
+}
+.pv-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+.pv-pip-on {
+  background: var(--primary);
+  box-shadow: none;
+}
+
+/* the spec list */
+.pv-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+/* the running screen: portrait = time, tank, controls stacked;
+   landscape = the tank sized to the height, controls beside it */
+.pv-running {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+.pv-running-tank {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pv-tank-fill {
+  width: min(100%, calc((100dvh - 360px) * 4 / 3));
+}
+.pv-running-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.pv-running .pv-time {
+  font-size: 72px;
+}
+@media (orientation: landscape) and (min-width: 640px) {
+  .pv-running {
+    flex-direction: row;
+    padding: 24px;
+  }
+  .pv-tank-fill {
+    width: min(100%, calc((100dvh - 48px) * 4 / 3));
+  }
+  .pv-running-side {
+    width: 280px;
+    flex-shrink: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv * {
+    transition: none !important;
+  }
+}
