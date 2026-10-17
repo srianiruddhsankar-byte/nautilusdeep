@@ -49,10 +49,16 @@
   }
 }
 
-/* A tapped fish holds still so its card stays next to it. */
+/* The still-picture fallback (no WebGL): fish frozen in their lanes. */
 .tank-paused,
 .tank-paused * {
   animation-play-state: paused !important;
+}
+
+/* Tank 4's darker corners: one CSS layer over the canvas (free for the GPU,
+   unlike another full-screen texture). Colour per skin: LOOKS in tank4/scenery.ts. */
+.tank-vignette {
+  background: radial-gradient(ellipse 80% 80% at 50% 45%, transparent 55%, var(--vignette) 100%);
 }
 
 .fish-tail {

@@ -16,6 +16,9 @@ import { PlantSprite } from "./plant-sprite";
 import { AmbienceScene } from "./ambience-scene";
 import { DecorationSprite } from "./decoration-sprite";
 import { DEFAULT_SKIN, type TankSkin } from "./skins";
+import { LOOKS } from "./tank4/scenery";
+import type { TankFish } from "./tank4/engine";
+import { TankCanvas, type TankHandle, type TankStatus } from "./tank4/tank-canvas";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" };
 // Bigger fish cruise a little slower (a lap's length, scaled by width in px).
@@ -83,6 +86,10 @@ export function Tank({
   const [selected, setSelected] = useState<string | null>(null);
   const swipeStartX = useRef<number | null>(null);
   const justSwiped = useRef(false);
+  // Tank 4 draws the water and every fish; until it's ready (or if WebGL is
+  // missing) the skin's picture shows instead, with still fish on top.
+  const [status, setStatus] = useState<TankStatus>("loading");
+  const canvas = useRef<TankHandle | null>(null);
 
   // Plants can overflow into a tank that has no fish yet, so count both.
   // (A session's new fish may be heading for a tank that doesn't exist yet.)
@@ -97,6 +104,11 @@ export function Tank({
   const selectedFish = fish.find((f) => `fish:${f.id}` === selected) ?? null;
   const selectedPlant = plants.find((p) => `plant:${p.id}` === selected) ?? null;
   const empty = aquarium !== null && aquarium.fishCount === 0 && (garden?.matured.length ?? 0) === 0;
+  const swimmers: TankFish[] = [
+    ...fish.map((f) => ({ key: `fish:${f.id}`, id: f.id, species: f.species, rarity: f.rarity })),
+    ...(nautilus ? [{ key: "nautilus", id: "nautilus", species: "nautilus" as const, rarity: null }] : []),
+  ];
+  const fallback = status === "fallback";
 
   function go(delta: number) {
     const next = index + delta;
@@ -176,11 +188,24 @@ export function Tank({
             const spot = sandSpot(e);
             edit.onSandTap(spot.x, spot.y);
           } else {
-            setSelected(null); // tap the water to close the card
+            // a fish under the finger opens its card; the water closes it
+            const hit = tappable && !fallback ? canvas.current?.hitTest(e.clientX, e.clientY) : null;
+            if (hit) tap(hit);
+            else setSelected(null);
           }
         }}
       >
-        <skin.Scene />
+        {status !== "ready" && <skin.Scene />}
+        {!fallback && (
+          <TankCanvas
+            probe={bare ? "running" : edit ? "shop" : "home"}
+            fish={swimmers}
+            skin={skin.id}
+            selected={selected}
+            ref={canvas}
+            onStatus={setStatus}
+          />
+        )}
         <AmbienceScene scene={scene} layer="back" />
 
         {decor.map((d) => (
@@ -209,7 +234,7 @@ export function Tank({
 
         {overlay}
 
-        {nautilus && (
+        {fallback && nautilus && (
           <Swimmer
             look={NAUTILUS_LOOK}
             width={NAUTILUS.width}
@@ -221,7 +246,7 @@ export function Tank({
           </Swimmer>
         )}
 
-        {fish.map((f) => (
+        {fallback && fish.map((f) => (
           <Swimmer
             key={f.id}
             look={fishLook(f.id)}
@@ -235,6 +260,27 @@ export function Tank({
         ))}
 
         <AmbienceScene scene={scene} layer="front" />
+        {!fallback && <div className="tank-vignette pointer-events-none absolute inset-0" style={{ "--vignette": LOOKS[skin.id].vignette } as CSSProperties} />}
+
+        {/* The canvas can't be focused, so keyboard and screen-reader users get
+            a button per fish (visible while focused). */}
+        {tappable && !fallback && swimmers.length > 0 && (
+          <div className="absolute inset-x-2 top-2 flex flex-wrap gap-1">
+            {swimmers.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  tap(f.key);
+                }}
+                className="sr-only rounded-chip bg-[#fffcf6] px-3 text-sm text-[#1e2b38] focus:not-sr-only focus:min-h-11"
+              >
+                {f.species === "nautilus" ? "Nautilus, the namesake" : `${speciesById(f.species).name}, ${RARITY_LABEL[f.rarity!]}`}
+              </button>
+            ))}
+          </div>
+        )}
 
         {(aquarium === null || empty) && !bare && (
           <p
@@ -267,8 +313,8 @@ export function Tank({
   );
 }
 
-// Anything that swims across the tank: a fish or the nautilus. Its motion
-// (speed, lane, bob, starting point) comes from its seeded look.
+// The still-picture fallback (no WebGL): a fish or the nautilus, frozen in its
+// lane (tank-paused). Its place comes from its seeded look.
 function Swimmer({
   look,
   width,
@@ -293,7 +339,7 @@ function Swimmer({
   } as CSSProperties;
 
   return (
-    <div className={`tank-swim ${selected ? "tank-paused" : ""}`} style={style}>
+    <div className="tank-swim tank-paused" style={style}>
       <div className="tank-face">
         <div className="tank-bob">
           <button

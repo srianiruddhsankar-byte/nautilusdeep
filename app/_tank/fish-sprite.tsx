@@ -2,11 +2,13 @@
 
 import { useId, type ReactNode } from "react";
 import { NAUTILUS, speciesById, type SpeciesId } from "@/lib/species";
+import { hasPainting, paintingUrl } from "./tank4/art-files";
 import "./tank.css";
 
-// Simple hand-drawn SVG species, the nautilus, and the bone. Everything faces
-// right; the tank flips them. (Eggs and fry: brood.tsx.) The realistic redesign
-// will replace these drawings; the rest of the app only uses SpeciesSprite.
+// Simple hand-drawn SVG species, the nautilus, and the bone, for the index, the
+// hatching reveal and the tank's still-picture fallback (the tank itself draws
+// with Tank 4: tank4/). Everything faces right. A painting in public/fish/
+// (tank4/art-files.ts) replaces a species' drawing here too. (Eggs and fry: brood.tsx.)
 //
 // Every drawing paints through `c(colour)`, so a silhouette is the same drawing
 // with every colour swapped for `currentColor` (and no eye).
@@ -431,6 +433,25 @@ export function SpeciesSprite({
   const paint: Paint = silhouette ? () => "currentColor" : (colour) => colour;
   const legendary = rarity === "legendary" && !silhouette;
   const glow = legendary ? "fish-legendary" : rarity === "epic" && !silhouette ? "fish-epic" : undefined;
+
+  if (hasPainting(species)) {
+    const url = `url(${paintingUrl(species)})`;
+    const box = { width: w, height: spriteHeight(species, w) };
+    // A silhouette is the painting's shape filled with currentColor.
+    return silhouette ? (
+      <span
+        className="block"
+        style={{ ...box, backgroundColor: "currentColor", maskImage: url, maskSize: "contain", maskRepeat: "no-repeat", maskPosition: "center" }}
+        aria-hidden
+      />
+    ) : (
+      <span
+        className={`block ${glow ?? ""}`}
+        style={{ ...box, backgroundImage: url, backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
+        aria-hidden
+      />
+    );
+  }
 
   return (
     <svg width={w} height={spriteHeight(species, w)} viewBox={`-3 -3 ${vw + 6} ${vh + 6}`} className={glow} aria-hidden>

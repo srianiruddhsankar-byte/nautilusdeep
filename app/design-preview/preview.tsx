@@ -4,7 +4,7 @@ import { type ComponentType, memo, type ReactNode, useEffect, useState } from "r
 import { CLOWN } from "./fish-art";
 import { restingFish } from "./scenery";
 import { Tank3D } from "./tank-3d";
-import { TankPixi } from "./tank-pixi";
+import { TankReal } from "./tank-real";
 import { type LoopStats, useReducedMotion } from "./tank-loop";
 import { StaticFish, TankSvg } from "./tank-svg";
 import "./preview.css";
@@ -50,9 +50,9 @@ const OPTIONS: Option[] = [
   {
     n: 4,
     name: "Game-style (Pixi)",
-    tagline: "Tank 1's art, drawn once into textures and moved on the GPU, like 2D mobile aquarium games.",
-    Tank: memo(TankPixi),
-    tech: "PixiJS (WebGL). All art is rendered from SVG to textures once; per frame only positions and rope points change.",
+    tagline: "The real app's Tank 4 (app/_tank/tank4/) with a demo tank of ten species and the nautilus. Tap a fish.",
+    Tank: memo(TankReal),
+    tech: "PixiJS (WebGL), always 30 fps. All art is drawn once into textures; static layers are one texture.",
     rig: "The side drawing bends along the spine as a rope, always at full length. Every turn is a sideways U-curl.",
   },
 ];
