@@ -4,10 +4,11 @@ import { useSessions } from "@/lib/sessions-data";
 import { FOCUS_MODE_LABEL } from "@/lib/timer";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" };
+// The word says what happened; colour only softens it (never red).
 const OUTCOME_STYLE = {
-  completed: "text-emerald-600",
-  partial: "text-amber-600",
-  failed: "text-red-600",
+  completed: "text-success",
+  partial: "text-ink",
+  failed: "text-muted",
 };
 
 // A plain check that saving works: the last 10 sessions. Collapsed by default;
@@ -19,24 +20,25 @@ export function RecentSessions() {
     : null;
 
   return (
-    <details className="border-t border-zinc-200 pt-4 text-sm dark:border-zinc-800">
-      <summary className="cursor-pointer font-semibold text-zinc-500">
+    <details className="group text-sm">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-muted [&::-webkit-details-marker]:hidden">
+        <span aria-hidden className="transition-transform duration-(--dur) ease-snap group-open:rotate-90">
+          ›
+        </span>
         Recent sessions
-        {pendingIds.size > 0 && (
-          <span className="ml-2 font-normal text-amber-600">({pendingIds.size} waiting to save)</span>
-        )}
+        {pendingIds.size > 0 && <span className="font-normal text-warn">({pendingIds.size} waiting to save)</span>}
       </summary>
 
-      <div className="flex flex-col gap-2 pt-2">
-        {pendingIds.size > 0 && syncError && <p className="text-amber-600">{syncError}</p>}
-        {error && <p className="text-red-600">Couldn&apos;t load: {error}</p>}
-        {recent === null && !error && <p className="text-zinc-500">Loading…</p>}
-        {recent?.length === 0 && <p className="text-zinc-500">No saved sessions yet.</p>}
+      <div className="flex flex-col gap-2 pt-1">
+        {pendingIds.size > 0 && syncError && <p className="text-warn">{syncError}</p>}
+        {error && <p className="text-danger">Couldn&apos;t load: {error}</p>}
+        {recent === null && !error && <p className="text-muted">Loading…</p>}
+        {recent?.length === 0 && <p className="text-muted">No saved sessions yet.</p>}
 
-        <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+        <ul className="flex flex-col divide-y divide-line">
           {recent?.map((r) => (
             <li key={r.id} className="flex items-center justify-between gap-2 py-2">
-              <span className="text-zinc-500">
+              <span className="text-muted">
                 {new Date(r.started_at).toLocaleString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -48,12 +50,10 @@ export function RecentSessions() {
                 {r.task_name ? `${r.task_name} · ` : ""}
                 {r.session_type === "notes" ? "Notes · " : ""}
                 {r.cycle_name ?? MODE_LABEL[r.mode]} · {FOCUS_MODE_LABEL[r.focus_mode]}
-                {pendingIds.has(r.id) && <span className="text-amber-600"> · saving…</span>}
+                {pendingIds.has(r.id) && <span className="text-warn"> · saving…</span>}
               </span>
               <span className={OUTCOME_STYLE[r.outcome]}>{r.outcome}</span>
-              <span className="w-12 text-right tabular-nums">
-                {Math.floor(r.focus_seconds / 60)} min
-              </span>
+              <span className="w-12 text-right tabular-nums">{Math.floor(r.focus_seconds / 60)} min</span>
             </li>
           ))}
         </ul>

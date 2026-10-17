@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
+import { Page } from "../_ui/page";
 import { SeaLifeView } from "../_sea-life/sea-life-view";
 
 export const metadata: Metadata = {
@@ -11,10 +12,10 @@ export const metadata: Metadata = {
 // Part of Stats, so the Stats tab stays highlighted.
 export default function SeaLifePage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
+    <Page>
       <PageHeader title="Sea life index" />
       <SeaLifeView />
       <BottomNav active="stats" />
-    </main>
+    </Page>
   );
 }

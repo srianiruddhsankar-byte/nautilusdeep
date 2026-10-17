@@ -380,7 +380,7 @@ function PlacedDecoration({
       }}
       aria-label={`${decoration.item.replace("-", " ")}${selected ? ", selected" : ""}`}
       aria-pressed={selected}
-      className={`absolute block rounded-lg leading-none ${selected ? "bg-white/50 ring-2 ring-sky-700" : ""}`}
+      className={`absolute block rounded-lg leading-none ${selected ? "bg-white/50 ring-2 ring-[#23466b]" : ""}`}
       style={style}
     >
       {sprite}

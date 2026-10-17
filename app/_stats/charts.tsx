@@ -36,7 +36,7 @@ export function ColumnChart({
       {/* Value leads, label follows. */}
       <p className="text-sm" aria-live="polite">
         <span className="font-semibold">{shown.display}</span>{" "}
-        <span className="text-zinc-500">{shown.label}</span>
+        <span className="text-muted">{shown.label}</span>
       </p>
 
       <div className="pt-5">
@@ -68,7 +68,7 @@ export function ColumnChart({
                 >
                   {/* Label only the tallest column; the readout and table carry the rest. */}
                   {i === peak && (
-                    <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-[11px] whitespace-nowrap text-zinc-500">
+                    <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-[11px] whitespace-nowrap text-muted">
                       {c.display}
                     </span>
                   )}
@@ -81,7 +81,7 @@ export function ColumnChart({
           {columns.map((c) => (
             <span
               key={c.key}
-              className="flex min-w-0 flex-1 justify-center text-[11px] whitespace-nowrap text-zinc-500"
+              className="flex min-w-0 flex-1 justify-center text-[11px] whitespace-nowrap text-muted"
             >
               {c.tick ?? ""}
             </span>
@@ -91,7 +91,7 @@ export function ColumnChart({
 
       <TableView>
         <table className="w-full text-left text-sm">
-          <thead className="text-zinc-500">
+          <thead className="text-muted">
             <tr>
               <th className="py-1 font-normal">{tableHeading}</th>
               <th className="py-1 text-right font-normal">Focus</th>
@@ -99,7 +99,7 @@ export function ColumnChart({
           </thead>
           <tbody>
             {columns.map((c) => (
-              <tr key={c.key} className="border-t border-zinc-100 dark:border-zinc-900">
+              <tr key={c.key} className="border-t border-line">
                 <td className="py-1">{c.label}</td>
                 <td className="py-1 text-right tabular-nums">{c.display}</td>
               </tr>
@@ -151,12 +151,12 @@ export function Heatmap({
     <div className="viz flex flex-col gap-2">
       <p className="text-sm" aria-live="polite">
         <span className="font-semibold">{shown.display}</span>{" "}
-        <span className="text-zinc-500">{shown.label}</span>
+        <span className="text-muted">{shown.label}</span>
       </p>
 
       <div className="flex gap-[2px]" onPointerLeave={() => setActive(null)}>
         {/* Weekday labels: built like a week column so each lines up with its row. */}
-        <div className="flex min-w-0 flex-1 flex-col gap-[2px] text-[10px] text-zinc-500" aria-hidden>
+        <div className="flex min-w-0 flex-1 flex-col gap-[2px] text-[10px] text-muted" aria-hidden>
           <span className="h-4" />
           {["Mon", "", "Wed", "", "Fri", "", ""].map((d, i) => (
             <span key={i} className="flex aspect-square w-full items-center leading-none">
@@ -171,7 +171,7 @@ export function Heatmap({
             const showMonth = w === 0 || month !== monthLabel(weeks[w - 1][0].day);
             return (
               <div key={week[0].day} className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                <span className="h-4 text-[10px] leading-4 whitespace-nowrap text-zinc-500" aria-hidden>
+                <span className="h-4 text-[10px] leading-4 whitespace-nowrap text-muted" aria-hidden>
                   {showMonth ? month : ""}
                 </span>
                 {week.map((cell) =>
@@ -186,8 +186,8 @@ export function Heatmap({
                       onFocus={() => setActive(cell)}
                       onClick={() => setActive(cell)}
                       className={`flex aspect-square w-full items-center justify-center rounded-[3px] text-[9px] leading-none ${
-                        cell.day === today ? "ring-1 ring-zinc-500 ring-offset-1 ring-offset-white dark:ring-offset-zinc-950" : ""
-                      } ${shown.day === cell.day && active ? "outline-2 outline-zinc-900 dark:outline-white" : ""} ${
+                        cell.day === today ? "ring-1 ring-muted ring-offset-1 ring-offset-card" : ""
+                      } ${shown.day === cell.day && active ? "outline-2 outline-ink" : ""} ${
                         cell.forgiven ? "border border-dashed" : ""
                       }`}
                       style={{
@@ -207,7 +207,7 @@ export function Heatmap({
       </div>
 
       {/* Legend: what each shade means. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
         {LEVEL_NAMES.map((name, level) => (
           <span key={name} className="flex items-center gap-1">
             <span className="h-3 w-3 rounded-[3px]" style={{ background: levelColor(level) }} />
@@ -227,10 +227,10 @@ export function Heatmap({
 
       <TableView>
         {withFocus.length === 0 ? (
-          <p className="text-sm text-zinc-500">No focus in the last 12 weeks yet.</p>
+          <p className="text-sm text-muted">No focus in the last 12 weeks yet.</p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="text-zinc-500">
+            <thead className="text-muted">
               <tr>
                 <th className="py-1 font-normal">Day</th>
                 <th className="py-1 text-right font-normal">Focus</th>
@@ -238,7 +238,7 @@ export function Heatmap({
             </thead>
             <tbody>
               {withFocus.map((c) => (
-                <tr key={c.day} className="border-t border-zinc-100 dark:border-zinc-900">
+                <tr key={c.day} className="border-t border-line">
                   <td className="py-1">{c.label}</td>
                   <td className="py-1 text-right tabular-nums">{c.display}</td>
                 </tr>
@@ -258,7 +258,7 @@ export function BarList({ rows }: { rows: { label: string; value: number; displa
     <ul className="viz flex flex-col gap-2">
       {rows.map((r) => (
         <li key={r.label} className="grid grid-cols-[6rem_1fr_auto] items-center gap-3 text-sm">
-          <span className="truncate text-zinc-600 dark:text-zinc-400">{r.label}</span>
+          <span className="truncate text-muted">{r.label}</span>
           <span className="flex h-3 items-center">
             <span
               className="h-3 rounded-r-[4px]"
@@ -279,7 +279,7 @@ export function BarList({ rows }: { rows: { label: string; value: number; displa
 function TableView({ children }: { children: ReactNode }) {
   return (
     <details className="text-sm">
-      <summary className="cursor-pointer text-zinc-500">Show as table</summary>
+      <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold text-primary">Show as table</summary>
       <div className="pt-2">{children}</div>
     </details>
   );

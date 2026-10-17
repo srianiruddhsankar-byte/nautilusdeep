@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { RARITIES, RARITY_LABEL, speciesById } from "@/lib/species";
 import { MATURE_MINUTES, PLANT_STAGE_LABEL, deriveGarden, type Garden } from "@/lib/plants";
@@ -19,6 +18,11 @@ import { taskCompletions } from "@/lib/task-views";
 import { useTasks } from "@/lib/tasks";
 import { SESSION_TYPE_LABEL, type SessionType } from "@/lib/timer";
 import { useClock } from "@/lib/use-clock";
+import { ButtonLink } from "../_ui/button";
+import { Card } from "../_ui/card";
+import { EmptyState, Skeleton } from "../_ui/feedback";
+import { StatGrid, StatTile } from "../_ui/stat";
+import { Tabs } from "../_ui/tabs";
 import { BarList, ColumnChart, Heatmap } from "./charts";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" } as const;
@@ -45,16 +49,19 @@ export function StatsView() {
   );
 
   if (!all) {
+    if (error) return <p role="alert" className="text-sm text-danger">Couldn&apos;t load your sessions: {error}</p>;
     return (
-      <p className="text-center text-zinc-500">
-        {error ? `Couldn't load your sessions: ${error}` : "Loading stats…"}
-      </p>
+      <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading stats">
+        <Skeleton className="h-64 rounded-card" />
+        <Skeleton className="h-28 rounded-card" />
+        <Skeleton className="h-40 rounded-card" />
+      </div>
     );
   }
 
   const { overview } = all;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Study and notes together: both keep the streak alive. */}
       <Section
         title="Streak"
@@ -80,11 +87,11 @@ export function StatsView() {
       </Section>
 
       <Section title="Tasks done">
-        <dl className="grid grid-cols-3 gap-2">
+        <StatGrid cols={3}>
           <Tile label="Today" value={completed ? String(completed.today) : "–"} />
           <Tile label="This week" value={completed ? String(completed.week) : "–"} />
           <Tile label="This month" value={completed ? String(completed.month) : "–"} />
-        </dl>
+        </StatGrid>
       </Section>
 
       <Section title="Coins & tank" note="1 coin per focus minute (Open Focus: half). Study and notes both count.">
@@ -96,22 +103,18 @@ export function StatsView() {
         </Tiles>
       </Section>
 
-      <div role="tablist" aria-label="Session type" className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
-        {TYPES.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={type === t}
-            onClick={() => setType(t)}
-            className={`rounded-lg py-3 font-medium ${type === t ? "bg-white shadow dark:bg-zinc-700" : "text-zinc-500"}`}
-          >
-            {SESSION_TYPE_LABEL[t]}
-          </button>
-        ))}
-      </div>
+      <Tabs<SessionType>
+        label="Session type"
+        idPrefix="stats"
+        value={type}
+        onChange={setType}
+        tabs={TYPES.map((t) => ({ id: t, label: SESSION_TYPE_LABEL[t] }))}
+      />
 
-      {/* key: switching tabs resets each chart's selected column. */}
-      <TypeStats key={type} type={type} stats={all[type]} garden={garden} />
+      <div role="tabpanel" id="stats-panel" aria-labelledby={`stats-tab-${type}`}>
+        {/* key: switching tabs resets each chart's selected column. */}
+        <TypeStats key={type} type={type} stats={all[type]} garden={garden} />
+      </div>
     </div>
   );
 }
@@ -124,14 +127,16 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
 
   if (stats.sessions.total === 0) {
     return (
-      <p className="py-6 text-center text-zinc-500">
-        {study ? "No study sessions yet." : "No notes sessions yet. Pick Notes on the setup screen."}
-      </p>
+      <EmptyState title={study ? "No study sessions yet" : "No notes sessions yet"}>
+        {study
+          ? "Finish a session on Home and your study time shows up here."
+          : "Choose Notes in the session settings on Home. Notes sessions grow plants."}
+      </EmptyState>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <Section title={study ? "Study time" : "Notes time"}>
         <Tiles>
           <Tile label="Today" value={formatDuration(stats.focus.today)} />
@@ -188,7 +193,7 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
               />
             </Tiles>
           ) : (
-            <p className="text-sm text-zinc-500">No notes sessions with a target yet.</p>
+            <p className="text-sm text-muted">No notes sessions with a target yet.</p>
           )}
         </Section>
       )}
@@ -205,19 +210,19 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
             }))}
           />
         ) : (
-          <p className="text-sm text-zinc-500">No sessions with a task yet.</p>
+          <p className="text-sm text-muted">No sessions with a task yet.</p>
         )}
       </Section>
 
       {/* The everyday numbers are above; the rest is one tap away. */}
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-zinc-200 p-4 font-semibold hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900 [&::-webkit-details-marker]:hidden">
-          More stats
-          <span aria-hidden className="text-zinc-500 transition-transform group-open:rotate-90">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between rounded-card bg-card px-4 shadow-card transition-colors duration-(--dur-fast) hover:bg-soft [&::-webkit-details-marker]:hidden">
+          <span className="title-card">More stats</span>
+          <span aria-hidden className="text-muted transition-transform duration-(--dur) ease-snap group-open:rotate-90">
             ›
           </span>
         </summary>
-        <div className="flex flex-col gap-4 pt-4">
+        <div className="flex flex-col gap-5 pt-5">
           <Section title="Sessions">
             <Tiles>
               <Tile label="Total" value={String(stats.sessions.total)} />
@@ -281,9 +286,9 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
             />
             {stats.mostUsedCycle && (
               <p className="text-sm">
-                <span className="text-zinc-500">Most-used cycle: </span>
+                <span className="text-muted">Most-used cycle: </span>
                 <span className="font-semibold">{stats.mostUsedCycle.name}</span>
-                <span className="text-zinc-500">
+                <span className="text-muted">
                   {" "}
                   · {stats.mostUsedCycle.sessions} {stats.mostUsedCycle.sessions === 1 ? "session" : "sessions"}
                 </span>
@@ -348,13 +353,10 @@ function FishCaught({ stats }: { stats: Stats }) {
           sub={rarest ? RARITY_LABEL[rarest.rarity] : undefined}
         />
       </Tiles>
-      <Link
-        href="/sea-life"
-        className="flex items-center justify-between rounded-xl bg-sky-50 px-4 py-3 font-medium text-sky-800 hover:bg-sky-100 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900"
-      >
+      <ButtonLink href="/sea-life" variant="secondary" className="justify-between">
         Sea life index
         <span aria-hidden>›</span>
-      </Link>
+      </ButtonLink>
     </Section>
   );
 }
@@ -379,28 +381,18 @@ function formatDifference(seconds: number) {
   return `${formatDuration(Math.abs(seconds))} ${seconds > 0 ? "over" : "under"}`;
 }
 
+// One card per topic: a serif title, an optional one-line explanation, the content.
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <div>
-        <h2 className="font-semibold">{title}</h2>
-        {note && <p className="text-xs text-zinc-500">{note}</p>}
+    <Card as="section" aria-label={title} className="gap-3">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="title-card">{title}</h2>
+        {note && <p className="text-sm text-muted">{note}</p>}
       </div>
       {children}
-    </section>
+    </Card>
   );
 }
 
-function Tiles({ children }: { children: ReactNode }) {
-  return <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">{children}</dl>;
-}
-
-function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl bg-zinc-100 p-3 dark:bg-zinc-900">
-      <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="text-xl font-semibold">{value}</dd>
-      {sub && <dd className="text-xs text-zinc-500">{sub}</dd>}
-    </div>
-  );
-}
+const Tiles = StatGrid;
+const Tile = StatTile;

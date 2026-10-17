@@ -105,7 +105,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `buttonClass`), `card.tsx` (`Card`, `CardHeader`), `field.tsx` (`Field`, `NumberField`, `inputClass`),
   `segmented.tsx` (`Segmented`, `Chip`), `tabs.tsx`, `switch.tsx`, `sheet.tsx` (native `<dialog>`),
   `toast.tsx` (`toast("…")`, `<Toaster/>` in the root layout), `feedback.tsx` (`Skeleton`, `EmptyState`,
-  `ProgressBar`). Tokens and the few component classes live in `app/globals.css`
+  `ProgressBar`), `page.tsx` (`Page`: every signed-in page's frame), `stat.tsx` (`StatTile`, `StatGrid`). Tokens and the few component classes live in `app/globals.css`
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
@@ -141,6 +141,10 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   card 16 px, related controls 8–12 px. Pages are `max-w-md` and phone-first.
 - **Corners** (small): `rounded-chip` 8, `rounded-control` 10 (buttons, inputs, segments), `rounded-card` 12,
   `rounded-tank` 14. No pill shapes except switches and progress bars.
+- **Pages**: wrap in `Page`, start with `PageHeader`; each topic is a `Card` with a `title-card` heading (and a
+  one-line muted note if needed); lists sit inside a card with `divide-line` rows of ≥ 44 px; group labels above
+  cards use `eyebrow`. Charts use the validated tide-blue palette in `app/_stats/viz.css` (re-run the dataviz
+  checker against `card` in both modes if it changes).
 - **Shadows**: paper edges, never blurry drop shadows: `shadow-card` (hairline + 2 px edge), `shadow-press`
   (primary button's 3 px edge that presses down).
 - **Motion**: controls are snappy and precise: `--dur-fast` 120 ms (press, hover), `--dur` 160 ms (toggles,
@@ -410,8 +414,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   phone-first, E motion. The owner approves each stage before the next.
   - Stage A (done): UI = Paper Tide (C); tank = Tank 4 (PixiJS rope-mesh fish), built in Stage C.
   - Stage B (in progress): design system + Paper Tide on the real app, keeping the current tank art. Batch 1:
-    tokens, `app/_ui/`, login, Home, session settings (a sheet), running and result screens. Batch 2: Tasks,
-    Shop, Stats, Sea life index. Batch 3: Help, Privacy, nav bar, consistency sweep.
+    tokens, `app/_ui/`, login, Home, session settings (a sheet), running and result screens (committed).
+    Batch 2: Tasks, Shop, Stats, Sea life index (written, being tested). Batch 3: Help, Privacy, nav bar, consistency sweep.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?

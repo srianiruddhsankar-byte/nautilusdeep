@@ -102,8 +102,8 @@ export function BottomNav({ active }: { active: NavPage }) {
 // The same title bar on every page except Home.
 export function PageHeader({ title }: { title: string }) {
   return (
-    <header className="flex h-10 items-center">
-      <h1 className="text-xl font-semibold">{title}</h1>
+    <header className="flex min-h-11 items-center">
+      <h1 className="title-page">{title}</h1>
     </header>
   );
 }
