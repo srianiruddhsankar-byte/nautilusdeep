@@ -14,6 +14,10 @@ import { formatDuration } from "@/lib/stats";
 import { CUSTOM, DEFAULT_CHOICE, type CustomFields } from "@/lib/setup-prefs";
 import { CYCLE_NAME_MAX } from "@/lib/task-name";
 import { isValidMinutes } from "@/lib/timer";
+import { Button } from "../_ui/button";
+import { inputClass, NumberField } from "../_ui/field";
+import { Chip } from "../_ui/segmented";
+import { toast } from "../_ui/toast";
 
 // The four Custom fields as blocks, or null while any field is invalid.
 function customBlocks(f: CustomFields): CycleBlock[] | null {
@@ -76,28 +80,23 @@ export function CyclePicker({
     const message = await deleteCycle(cycle.id);
     setBusy(false);
     setActionError(message);
-    if (!message) onChoice(DEFAULT_CHOICE);
+    if (!message) {
+      onChoice(DEFAULT_CHOICE);
+      toast(`Deleted “${cycle.name}”`);
+    }
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2" role="group" aria-label="Cycle">
         {[...cycles, { id: CUSTOM, name: "Custom" }].map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onChoice(c.id)}
-            aria-pressed={current === c.id}
-            className={`max-w-full truncate rounded-full border px-4 py-2 text-sm font-medium ${
-              current === c.id ? "border-sky-700 bg-sky-700 text-white" : "border-zinc-300 dark:border-zinc-700"
-            }`}
-          >
+          <Chip key={c.id} on={current === c.id} onClick={() => onChoice(c.id)}>
             {c.name}
-          </button>
+          </Chip>
         ))}
       </div>
 
-      <p className="text-sm text-zinc-500" aria-live="polite">
+      <p className={`text-sm ${blocks || current === null ? "text-muted" : "text-warn"}`} aria-live="polite">
         {blocks
           ? `${describeBlocks(blocks)} · ${formatDuration(totalMinutes(blocks) * 60)} total`
           : current === null
@@ -134,16 +133,17 @@ export function CyclePicker({
       )}
 
       {chosen && !chosen.premade && (
-        <button
-          type="button"
+        <Button
+          variant="quiet"
+          size="sm"
           disabled={busy}
           onClick={() => remove(chosen)}
-          className="self-start rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-900"
+          className="-ml-3.5 self-start text-danger hover:text-danger"
         >
           Delete “{chosen.name}”
-        </button>
+        </Button>
       )}
-      {(actionError ?? error) && <p className="text-sm text-red-600">{actionError ?? error}</p>}
+      {(actionError ?? error) && <p className="text-sm text-danger">{actionError ?? error}</p>}
     </div>
   );
 }
@@ -161,6 +161,7 @@ function SaveCycle({ blocks, onSaved }: { blocks: CycleBlock[]; onSaved: (id: st
     setBusy(false);
     setError(result.error);
     if (result.id) {
+      toast(`Saved “${name.trim()}”`);
       setName("");
       onSaved(result.id);
     }
@@ -177,44 +178,13 @@ function SaveCycle({ blocks, onSaved }: { blocks: CycleBlock[]; onSaved: (id: st
           placeholder="Save as… e.g. Exam prep"
           aria-label="Name for this cycle"
           enterKeyHint="done"
-          className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-3 py-2.5 dark:border-zinc-700"
+          className={`${inputClass} min-w-0 flex-1`}
         />
-        <button
-          type="submit"
-          disabled={busy || name.trim() === ""}
-          className="rounded-lg border border-sky-700 px-4 font-medium text-sky-700 disabled:opacity-40 dark:text-sky-400"
-        >
+        <Button type="submit" variant="secondary" disabled={busy || name.trim() === ""}>
           Save
-        </button>
+        </Button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </form>
-  );
-}
-
-export function NumberField({
-  label,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm text-zinc-500">
-      {label}
-      <input
-        type="number"
-        inputMode="numeric"
-        min={1}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-zinc-300 bg-transparent px-3 py-3 text-lg text-foreground dark:border-zinc-700"
-      />
-    </label>
   );
 }

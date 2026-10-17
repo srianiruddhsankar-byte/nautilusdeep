@@ -78,6 +78,16 @@
   background: #6fb4c2;
 }
 
+/* a tank that isn't running: just its water colour and a Play button */
+.pv-tank-idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(#8cc6d1, #4f93a6);
+}
+
 /* timer: a big serif time over a hairline progress bar */
 .pv-timer {
   display: flex;

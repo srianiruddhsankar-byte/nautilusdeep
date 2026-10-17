@@ -1,26 +1,242 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Deep Nautilus design system: "Paper Tide" (Phase 9, direction C).
+   Warm paper, deep ink-blue, small corners, hairline borders and a paper-edge
+   shadow. The rules for using these are in CLAUDE.md ("Design system").
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+   Colours are plain CSS variables, swapped for dark mode below, and exposed to
+   Tailwind through @theme, so `bg-paper`, `text-muted`, `border-line`,
+   `shadow-card`, `rounded-card`, `font-display` etc. all exist. */
+
+:root {
+  --paper: #f4efe6; /* page background */
+  --card: #fffcf6; /* cards, sheets, inputs */
+  --ink: #1e2b38; /* body text */
+  --muted: #5f6977; /* secondary text (4.9:1 on paper) */
+  --line: #e3dacb; /* hairline borders and dividers */
+  --soft: #ebe4d7; /* quiet fills: secondary buttons, selected segment, stat tiles */
+  --primary: #23466b; /* the one action colour */
+  --primary-edge: #142c45; /* the paper-edge under a primary button */
+  --on-primary: #fffcf6;
+  --accent: #c4523a; /* icons only (streak flame): too faint for text */
+  --success: #2f6b4f; /* text */
+  --warn: #8a5a12; /* text: "check this number" */
+  --danger: #a33b2b; /* text for real errors only, never for giving up */
+  --coin: #a86a0c;
+  --focus: #23466b;
+  --scrim: rgb(20 28 38 / 0.45);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --paper: #121a22;
+    --card: #19232e;
+    --ink: #ece4d6;
+    --muted: #a2abb6;
+    --line: #2b3744;
+    --soft: #222d39;
+    --primary: #9cc0e6;
+    --primary-edge: #5d84ab;
+    --on-primary: #0f1d2b;
+    --accent: #e48a70;
+    --success: #7fc8a2;
+    --warn: #e0b56a;
+    --danger: #f08f7e;
+    --coin: #e3b04f;
+    --focus: #9cc0e6;
+    --scrim: rgb(0 0 0 / 0.6);
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  /* Older names, still used by pages not yet redesigned. */
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-soft: var(--soft);
+  --color-primary: var(--primary);
+  --color-primary-edge: var(--primary-edge);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-coin: var(--coin);
+  --color-scrim: var(--scrim);
+
+  /* Type: Fraunces for headings and the big numbers, DM Sans for everything else. */
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+
+  /* Small corners. */
+  --radius-chip: 8px;
+  --radius-control: 10px; /* buttons, inputs, segments */
+  --radius-card: 12px;
+  --radius-tank: 14px;
+
+  /* Paper-edge shadows: a hairline plus a solid 2–3 px "edge", no blur. */
+  --shadow-card: 0 0 0 1px var(--line), 0 2px 0 var(--line);
+  --shadow-press: 0 3px 0 var(--primary-edge);
+  --shadow-sheet: 0 0 0 1px var(--line), 0 -2px 0 var(--line), 0 24px 48px -12px rgb(0 0 0 / 0.25);
+
+  /* Motion: controls are snappy and precise. */
+  --ease-snap: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root {
+  --dur-fast: 120ms; /* presses, hovers */
+  --dur: 160ms; /* toggles, segments, chips */
+  --dur-slow: 240ms; /* sheets, toasts coming in */
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Visible keyboard focus everywhere (mouse and touch taps don't show it). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Text styles, used as classes: eyebrow, title-page, title-card. */
+@utility eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+@utility title-page {
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+@utility title-card {
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+/* The big clock and big numbers: Fraunces, even-width digits. */
+@utility numeral {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Sheets (bottom on phones, centred on wide screens): native <dialog>, so focus,
+   Escape and the page behind being inert all come free. */
+.sheet {
+  margin: auto auto 0;
+  width: 100%;
+  max-width: 28rem;
+  max-height: 90dvh;
+  padding: 0;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-sheet);
+  transition:
+    transform var(--dur-slow) var(--ease-snap),
+    opacity var(--dur-slow) var(--ease-snap),
+    overlay var(--dur-slow) allow-discrete,
+    display var(--dur-slow) allow-discrete;
+  transform: translateY(100%);
+  opacity: 0;
+}
+.sheet[open] {
+  transform: none;
+  opacity: 1;
+}
+@starting-style {
+  .sheet[open] {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+.sheet::backdrop {
+  background: var(--scrim);
+  opacity: 0;
+  transition:
+    opacity var(--dur-slow) var(--ease-snap),
+    overlay var(--dur-slow) allow-discrete,
+    display var(--dur-slow) allow-discrete;
+}
+.sheet[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .sheet[open]::backdrop {
+    opacity: 0;
+  }
+}
+@media (min-width: 640px) {
+  .sheet {
+    margin: auto;
+    border-radius: var(--radius-card);
+    transform: translateY(16px);
+  }
+  @starting-style {
+    .sheet[open] {
+      transform: translateY(16px);
+    }
+  }
+}
+
+/* Loading skeletons: a soft block that breathes slowly. */
+.skeleton {
+  background: var(--soft);
+  border-radius: var(--radius-control);
+  animation: skeleton-breathe 1.6s ease-in-out infinite alternate;
+}
+@keyframes skeleton-breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+/* Toasts slide up a little and fade in. */
+.toast-in {
+  animation: toast-in var(--dur-slow) var(--ease-snap);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Reduced motion: no movement anywhere in the UI (the tank has its own rules in tank.css). */
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet::backdrop {
+    transition: none;
+  }
+  .skeleton,
+  .toast-in {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+  }
 }

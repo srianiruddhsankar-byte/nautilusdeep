@@ -1,13 +1,15 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { firstName } from "@/lib/first-name";
 import { createClient } from "@/lib/supabase/server";
 import { FocusScreen } from "./_focus/focus-screen";
+import { Skeleton } from "./_ui/feedback";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 pt-6 pb-8">
       {/* Reads the login cookie, so it streams in per request. */}
-      <Suspense fallback={<p className="h-10 text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<Skeleton className="h-11 w-40" />}>
         <Greeting />
       </Suspense>
       {/* Client-only state (localStorage + clock), so it doesn't need the cookie.
@@ -26,13 +28,12 @@ async function Greeting() {
   // proxy.ts already guards this page; this is a second line of defense.
   if (!user) redirect("/login");
 
-  const name =
-    user.user_metadata.full_name ?? user.user_metadata.name ?? user.email;
+  const name = firstName(user.user_metadata);
 
   // Sign out lives on the Help page (Account), so Home stays about studying.
   return (
-    <header className="flex h-10 items-center">
-      <h1 className="truncate text-xl font-semibold">Hi, {name}</h1>
+    <header className="flex min-h-11 items-center">
+      <h1 className="title-page truncate">{name ? `Hi, ${name}` : "Hi there"}</h1>
     </header>
   );
 }

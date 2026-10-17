@@ -9,21 +9,21 @@ import { PlantSprite } from "./plant-sprite";
 // What this notes session did for the plant, shown on its result screen. The
 // garden already includes this session (it's queued before the result shows).
 export function ResultPlant({ result, garden }: { result: Result; garden: Garden | null }) {
-  if (!garden) return <p className="text-sm text-zinc-500">Checking on your plant…</p>;
+  if (!garden) return <p className="text-sm text-muted">Checking on your plant…</p>;
   const { growing } = garden;
   const growth = result.id ? garden.bySession.get(result.id) : undefined;
 
   if (result.outcome === "failed") {
     return (
       <Shown id={growing.id} stage={growing.stage} wilted>
-        No growth this time, and your plant is a little wilted. Your next notes session perks it up.
+        No growth this time, so your plant looks a little wilted. Your next notes session perks it up.
       </Shown>
     );
   }
 
   if (!growth?.counted) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="max-w-xs text-sm text-muted">
         Under {PLANT_MIN_MINUTES} minutes, so no growth this time. Plants grow from {PLANT_MIN_MINUTES} minutes of notes.
       </p>
     );
@@ -33,7 +33,7 @@ export function ResultPlant({ result, garden }: { result: Result; garden: Garden
   if (matured) {
     return (
       <Shown id={matured.id} stage="mature">
-        <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+        <span className="font-semibold text-success">
           Your plant matured! It&apos;s in Tank {matured.tank + 1}.
         </span>
         {growing.minutes > 0 && <> A new seed has started with {growing.minutes} min.</>}
@@ -46,7 +46,7 @@ export function ResultPlant({ result, garden }: { result: Result; garden: Garden
     <Shown id={growing.id} stage={growing.stage}>
       <span className="font-semibold">+{growth.addedMinutes} min of growth</span>
       {next && <> · {next}</>}
-      <span className="block text-zinc-500">{PLANT_STAGE_LABEL[growing.stage]}</span>
+      <span className="block text-muted">{PLANT_STAGE_LABEL[growing.stage]}</span>
     </Shown>
   );
 }

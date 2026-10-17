@@ -41,6 +41,9 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 
 ## Tank & creatures
 
+- **Species art and the tank/scene redesign**: moved into Phase 9 (Stage C, "Tank and scene art"), so they're
+  no longer parked. Phase 9 redraws every species, the nautilus, plants, decorations, eggs/fry, the bone and all
+  5 skins in the chosen style.
 - **Freshwater species come back with water types**: guppy, neon tetra, zebrafish, goldfish, (freshwater)
   angelfish and discus were in the first species list but were swapped for saltwater ones, because tanks don't
   have water types yet and every species is saltwater for now.
@@ -63,9 +66,6 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 - **Extra creatures** (snails, shrimp, frogs) **and extra plants** (lily pads, reeds, flowers).
   - Why parked: the tank must stay simple, not become a game.
   - Revisit: with real species / water types.
-- **Realistic tank / visual redesign** (style to be decided).
-  - Why parked: the style isn't chosen yet; Phase 9 polishes the general UI only.
-  - Revisit: after Phase 11.
 
 ## Sounds
 

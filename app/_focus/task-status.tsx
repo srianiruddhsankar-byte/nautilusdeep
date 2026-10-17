@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { findTaskByName } from "@/lib/task-views";
 import { setTaskDone, useTasks } from "@/lib/tasks";
+import { Button } from "../_ui/button";
+import { toast } from "../_ui/toast";
 
 // Both match the session's task to the NOT-done task with that name (names are
 // unique among open tasks). A task typed just for one session, or one that's
@@ -12,11 +14,7 @@ import { setTaskDone, useTasks } from "@/lib/tasks";
 export function InProgressBadge({ taskName }: { taskName: string }) {
   const { tasks } = useTasks();
   if (!findTaskByName(tasks ?? [], taskName)) return null;
-  return (
-    <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-300">
-      In progress
-    </span>
-  );
+  return <span className="rounded-chip bg-soft px-2.5 py-0.5 text-xs font-semibold text-muted">In progress</span>;
 }
 
 // On the result screen: tick the task off without going to the Tasks page.
@@ -28,7 +26,9 @@ export function MarkDone({ taskName, onDone }: { taskName: string; onDone: () =>
   const [doneName, setDoneName] = useState<string | null>(null);
   const task = findTaskByName(tasks ?? [], taskName);
 
-  if (doneName) return <p className="py-2.5 font-medium text-emerald-600">✓ “{doneName}” is done</p>;
+  if (doneName) {
+    return <p className="flex min-h-12 items-center font-semibold text-success">✓ “{doneName}” is done</p>;
+  }
   if (!task) return null;
 
   async function markDone() {
@@ -38,21 +38,17 @@ export function MarkDone({ taskName, onDone }: { taskName: string; onDone: () =>
     setError(message);
     if (!message) {
       setDoneName(task!.name);
+      toast("Task done. Nice work.");
       onDone();
     }
   }
 
   return (
     <div className="flex w-full flex-col items-center gap-1">
-      <button
-        type="button"
-        onClick={markDone}
-        disabled={busy}
-        className="max-w-full truncate rounded-xl border border-zinc-300 px-4 py-2.5 font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-      >
-        ✓ Mark “{task.name}” done
-      </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      <Button variant="outline" onClick={markDone} disabled={busy} className="w-full">
+        <span className="truncate">✓ Mark “{task.name}” done</span>
+      </Button>
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }

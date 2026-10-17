@@ -99,6 +99,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): 3 chimes + vibration every 4 s,
   stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
+- `app/design-preview/` — Phase 9 design preview (dev only: 404 in production, not in the nav). One tank runs at
+  a time (the others show a Play button and aren't mounted)
+- `app/_ui/` — the shared design-system components (see "Design system"): `button.tsx` (`Button`, `ButtonLink`,
+  `buttonClass`), `card.tsx` (`Card`, `CardHeader`), `field.tsx` (`Field`, `NumberField`, `inputClass`),
+  `segmented.tsx` (`Segmented`, `Chip`), `tabs.tsx`, `switch.tsx`, `sheet.tsx` (native `<dialog>`),
+  `toast.tsx` (`toast("…")`, `<Toaster/>` in the root layout), `feedback.tsx` (`Skeleton`, `EmptyState`,
+  `ProgressBar`). Tokens and the few component classes live in `app/globals.css`
+- `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
 
@@ -118,6 +126,37 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - State the file path before showing code; show full files when changing them (except one-liners).
 - Before the owner tests something, say exactly what they should see if it works.
 - Never git push or deploy without the owner's confirmation.
+
+## Design system ("Paper Tide", Phase 9)
+Every screen uses these. New UI is built from `app/_ui/` components and the tokens in `app/globals.css`; never
+raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styles.
+- **Colours** (tokens, light + dark, swapped in `globals.css`): `paper` page, `card` cards/sheets/inputs, `ink`
+  text, `muted` secondary text, `line` borders/dividers, `soft` quiet fills, `primary` (+ `on-primary`,
+  `primary-edge`) the one action colour, `success` / `warn` / `danger` as TEXT colours, `coin`, `accent` for icons
+  only (too faint for text). Use as `bg-paper`, `text-muted`, `border-line` etc.
+- **Type**: Fraunces (`font-display`) for headings and big numbers, DM Sans (`font-sans`, the default) for the
+  rest. Classes: `title-page` (28 px, one per page), `title-card` (19 px), `eyebrow` (12 px caps, muted),
+  `numeral` (the clock and big numbers: Fraunces, tabular digits). Body 16 px, secondary `text-sm`. Inputs ≥ 16 px.
+- **Spacing**: Tailwind's 4 px scale. Page gutter 16 px (`px-4`), gap between page sections 20–24 px, inside a
+  card 16 px, related controls 8–12 px. Pages are `max-w-md` and phone-first.
+- **Corners** (small): `rounded-chip` 8, `rounded-control` 10 (buttons, inputs, segments), `rounded-card` 12,
+  `rounded-tank` 14. No pill shapes except switches and progress bars.
+- **Shadows**: paper edges, never blurry drop shadows: `shadow-card` (hairline + 2 px edge), `shadow-press`
+  (primary button's 3 px edge that presses down).
+- **Motion**: controls are snappy and precise: `--dur-fast` 120 ms (press, hover), `--dur` 160 ms (toggles,
+  segments), `--dur-slow` 240 ms (sheets, toasts), easing `ease-snap`. Animate transform/opacity/colour only.
+  `prefers-reduced-motion` removes UI motion (globals.css) and tank motion (tank.css).
+- **Buttons**: exactly ONE `primary` per screen (Start, New session, Resume). `secondary` for normal actions,
+  `outline` for ending a session (Give up / End session / Stop: calm, NEVER red; the confirm tap only darkens
+  the border), `quiet` for small extras. `danger` text only for real deletes and real errors.
+- **Choosing**: `Segmented` for 2–4 side-by-side options, `Chip` for longer lists, `Switch` for on/off rows,
+  `Tabs` for switching views of a page, `Sheet` for settings that would push the main action off screen.
+- **States**: loading = `Skeleton` blocks the size of the content (no layout jump); empty = `EmptyState` with the
+  next step, encouraging; small confirmations = `toast()`; errors stay next to what failed, in `text-danger`.
+- **Tone**: calm and kind. A session that ended early is "Ended early" + what happened + "the next one starts
+  fresh", in ink, never red or guilt-driven. Greet by first name.
+- **Accessibility**: every tap target ≥ 44 px (`min-h-11`); visible keyboard focus everywhere (a 3 px `focus`
+  outline from globals.css: don't remove it); rarity and state never by colour alone; text contrast ≥ 4.5:1.
 
 ## Product design (the eventual app)
 
@@ -171,7 +210,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Limits: the iPhone silent switch mutes Web Audio; browsers may pause audio when the page is hidden (Open Focus in
   another app); phones need a tap before any sound.
 - Home, top to bottom: greeting, stats line, "Today" card (due today + overdue; tap one to pick it for the next
-  session), tank, setup summary card ("Change" opens every option) and Start. The setup is remembered in this
+  session), tank, setup summary card ("Change" opens every option in a sheet, grouped What · How long · Focus · Sound and night) and the one Start button. The setup is remembered in this
   browser (`lib/setup-prefs.ts`, saved on Start; the task isn't remembered).
 - Result screen: big focus minutes, the hatching reveal (or notes result), then one main button (New session);
   Mark done is quieter.
@@ -323,6 +362,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Use the Screen Wake Lock API for the whole running session, breaks included (Deep Focus only).
 - Leaving (Deep Focus only) = Page Visibility "hidden" for more than 15 s of focus time. The web can't tell a phone
   lock from an app switch, so locking during focus counts as leaving (revisit the grace period after real use).
+- Animated tanks (any canvas / WebGL / requestAnimationFrame scene) default to 30 fps, cap the pixel ratio at 2,
+  and pause when the tab is hidden, the window loses focus or the tank is off screen. Only one animated tank
+  runs per page.
 - Installable PWA + push reminders come in Phase 10. Friends and Google Calendar features are not planned yet.
 
 ## Roadmap
@@ -362,7 +404,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
   plus Shop as a bottom-bar tab.
   - Pulled forward from "later": fish species with a rarity roulette, the Sea life index and the nautilus
     (simple drawings; the realistic redesign and water types are still later).
-- Phase 9: UI polish pass across the whole app.
+- Phase 9 (in progress): professional UI/UX redesign, visual only (no new features). Includes the tank/scene
+  redesign (moved here from IDEAS.md). Stages: A design direction (3 options on `/design-preview`), B design
+  system (tokens + shared components, rules written here), C tank and scene art, D every page rebuilt
+  phone-first, E motion. The owner approves each stage before the next.
+  - Stage A (done): UI = Paper Tide (C); tank = Tank 4 (PixiJS rope-mesh fish), built in Stage C.
+  - Stage B (in progress): design system + Paper Tide on the real app, keeping the current tank art. Batch 1:
+    tokens, `app/_ui/`, login, Home, session settings (a sheet), running and result screens. Batch 2: Tasks,
+    Shop, Stats, Sea life index. Batch 3: Help, Privacy, nav bar, consistency sweep.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?

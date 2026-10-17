@@ -58,6 +58,8 @@ import { ResultPlant } from "../_tank/result-plant";
 import { RunningTank } from "../_tank/running-tank";
 import { SKINS } from "../_tank/skins";
 import { Coin, Tank } from "../_tank/tank";
+import { Button, buttonClass } from "../_ui/button";
+import { ProgressBar, Skeleton } from "../_ui/feedback";
 import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
 import { VolumeSlider } from "./setup-form";
@@ -156,7 +158,7 @@ export function FocusScreen() {
   // On for breaks too: a locked phone can't ring the "Break's over" alarm.
   useWakeLock(session !== null && !isOpenFocus(session) && status !== null && !status.finished);
 
-  if (saved === null) return <p className="text-center text-zinc-500">Loading…</p>;
+  if (saved === null) return <HomeSkeleton />;
   // Running: just the timer. No navigation, nothing else to tap.
   if (session && status) {
     return (
@@ -185,9 +187,10 @@ export function FocusScreen() {
       <AlarmOverlay />
       <StatsLine />
       <TodayTasks
+        picked={task}
         onPick={(name) => {
           setTask(name);
-          scrollToStart();
+          if (name) scrollToStart();
         }}
       />
       <Tank
@@ -211,6 +214,19 @@ export function FocusScreen() {
       />
       <BottomNav active="home" />
     </>
+  );
+}
+
+// Home's shape while localStorage is read, so nothing jumps when it arrives.
+function HomeSkeleton() {
+  return (
+    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading">
+      <Skeleton className="h-12" />
+      <Skeleton className="h-28 rounded-card" />
+      <Skeleton className="aspect-[4/3] rounded-tank" />
+      <Skeleton className="h-24 rounded-card" />
+      <Skeleton className="h-15" />
+    </div>
   );
 }
 
@@ -333,6 +349,27 @@ type RunningTankData = {
   scene: AmbienceSound | null;
 };
 
+// How far along the session is, for the bar under the time. A timer fills once;
+// a cycle has one segment per focus block (a break counts its block as done); a
+// notes stopwatch with a target fills toward the target. A plain stopwatch has
+// no end, so it has no bar.
+function progressOf(session: Session, status: Status): { value: number; steps: number; index: number; label: string } | null {
+  const phaseMs = session.phases[status.phaseIndex]?.ms ?? null;
+  if (session.mode === "cycle") {
+    const value = status.kind === "focus" && phaseMs ? status.elapsedMs / phaseMs : 1;
+    return {
+      value,
+      steps: status.totalBlocks,
+      index: status.focusBlock - 1,
+      label: `Block ${status.focusBlock} of ${status.totalBlocks}`,
+    };
+  }
+  if (phaseMs) return { value: status.elapsedMs / phaseMs, steps: 1, index: 0, label: "Session progress" };
+  const target = session.targetMinutes ?? null;
+  if (target) return { value: status.elapsedMs / (target * 60_000), steps: 1, index: 0, label: "Progress to target" };
+  return null;
+}
+
 function RunningView({
   session,
   status,
@@ -402,6 +439,7 @@ function RunningView({
 
   const losesWholeSession = !isCycle || status.focusBlock === 1;
   const paused = isPaused(session, now);
+  const progress = progressOf(session, status);
   const hint = paused
     ? "Paused. You can leave the app; the timer is stopped and nothing counts until you resume."
     : finalBreak
@@ -410,7 +448,7 @@ function RunningView({
       ? `Break. It's safe to leave the app. Next: Focus ${status.focusBlock + 1} of ${status.totalBlocks}.`
       : open
         ? "Open Focus: you can use other apps on this device."
-        : `Stay on this screen. Leaving for more than ${LEAVE_GRACE_MS / 1000} s fails ${
+        : `Stay on this screen. Leaving for more than ${LEAVE_GRACE_MS / 1000} s ends ${
             losesWholeSession ? "the session" : "this block"
           }.`;
 
@@ -421,9 +459,17 @@ function RunningView({
     stopLabel = !isFocus
       ? "Tap again to end"
       : losesWholeSession
-        ? "Tap again: session fails"
-        : "Tap again: this block is lost";
+        ? "Tap again to end the session"
+        : "Tap again: this block won't count";
   }
+  // Calm in every state: never red. The confirm step only darkens the border.
+  const stopClass = finalBreak
+    ? buttonClass("primary", "lg")
+    : cancellable
+      ? buttonClass("secondary", "lg")
+      : confirming
+        ? buttonClass("outline", "lg", "shadow-[inset_0_0_0_2px_var(--ink)]")
+        : buttonClass("outline", "lg");
 
   const checkIn = checkInState(session, now);
 
@@ -433,8 +479,8 @@ function RunningView({
     // - portrait (phones): time, then a compact tank, then the controls.
     // - landscape (laptops, phones turned sideways): the tank takes most of the
     //   screen, with the time and controls in a column beside it.
-    <div className="fixed inset-0 z-30 overflow-y-auto bg-background">
-      <div className="mx-auto grid min-h-full w-full max-w-md grid-rows-[auto_auto_1fr] gap-4 p-4 landscape:max-w-7xl landscape:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] landscape:grid-rows-[1fr_1fr] landscape:gap-x-8">
+    <div className="fixed inset-0 z-30 overflow-y-auto bg-paper">
+      <div className="mx-auto grid min-h-full w-full max-w-md grid-rows-[auto_auto_1fr] gap-5 p-4 landscape:max-w-7xl landscape:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] landscape:grid-rows-[1fr_1fr] landscape:gap-x-8">
         {/* What's running, and the time. */}
         <div className="flex flex-col items-center gap-3 landscape:col-start-2 landscape:row-start-1 landscape:self-end">
           {checkIn.status === "due" && (
@@ -443,24 +489,28 @@ function RunningView({
               pulse={session.checkIn?.style === "pulse"}
             />
           )}
-          <div className="flex flex-col items-center gap-1">
-            <p className="flex items-center gap-1 text-sm text-zinc-500">
-              {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
-              {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
+          <div className="flex w-full flex-col items-center gap-1">
+            <p className="flex items-center gap-1">
+              <span className="eyebrow">
+                {FOCUS_MODE_LABEL[open ? "open" : "deep"]}
+                {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
+              </span>
               {session.ambience && <SoundControl ambience={session.ambience} />}
             </p>
-            <p
-              className={`max-w-full truncate px-2 text-lg font-medium ${isFocus ? "text-sky-700 dark:text-sky-400" : "text-emerald-600 dark:text-emerald-400"}`}
-            >
-              {heading}
-            </p>
-            {subheading && <p className="text-sm text-zinc-500">{subheading}</p>}
+            <p className={`title-card max-w-full truncate px-2 ${isFocus ? "text-ink" : "text-success"}`}>{heading}</p>
+            {subheading && <p className="text-sm text-muted">{subheading}</p>}
             {task && <InProgressBadge taskName={task} />}
             <p
-              className={`text-6xl font-semibold tabular-nums sm:text-7xl lg:text-8xl ${paused ? "text-zinc-400" : ""}`}
+              className={`numeral pt-2 text-[76px] sm:text-[88px] lg:text-[104px] ${paused ? "text-muted" : ""}`}
+              aria-live="off"
             >
               {time}
             </p>
+            {progress && (
+              <div className="w-full max-w-xs pt-3">
+                <ProgressBar {...progress} muted={paused} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -471,9 +521,9 @@ function RunningView({
 
         {/* Hint and buttons: at the bottom in portrait, easy to reach one-handed. */}
         <div className="flex w-full flex-col items-center gap-2 self-end landscape:col-start-2 landscape:row-start-2 landscape:self-start">
-          <p className="max-w-xs text-center text-sm text-zinc-500">{hint}</p>
+          <p className="max-w-xs text-center text-sm text-muted">{hint}</p>
           {session.checkIn && !paused && (
-            <p className="text-center text-sm text-zinc-500">
+            <p className="text-center text-sm text-muted">
               Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
             </p>
           )}
@@ -481,33 +531,26 @@ function RunningView({
             <PausePanel msLeft={pauseRemainingMs(session, now)} />
           ) : (
             canPause(session, now) && (
-              <button
-                type="button"
+              <Button
+                variant="quiet"
+                size="sm"
                 onClick={() => {
                   const current = getSnapshot().session;
                   if (current) save({ session: startPause(current, Date.now()), result: null });
                 }}
-                className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
               >
                 Pause · once, up to {MAX_PAUSE_MS / 60_000} min
-              </button>
+              </Button>
             )
           )}
           {cancellable && (
-            <p className="text-center text-sm text-zinc-500">Started by accident? Cancel now and nothing is saved.</p>
+            <p className="text-center text-sm text-muted">Started by accident? Cancel now and nothing is saved.</p>
           )}
           <button
+            type="button"
             onClick={stop}
             aria-label={cancellable ? `Cancel session, ${cancelSeconds} seconds left` : undefined}
-            className={`w-full rounded-2xl py-5 text-xl font-semibold tabular-nums ${
-              confirming
-                ? "bg-red-600 text-white"
-                : cancellable
-                  ? "bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-                  : finalBreak
-                    ? "bg-sky-700 text-white hover:bg-sky-800"
-                    : "border-2 border-zinc-300 dark:border-zinc-700"
-            }`}
+            className={`${stopClass} tabular-nums`}
           >
             {stopLabel}
           </button>
@@ -529,25 +572,24 @@ function ResultView({
   onTaskDone: () => void;
 }) {
   const { title, detail } = describe(result);
-  const failed = result.outcome === "failed";
   const notes = isNotes(result);
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-6 pt-4 text-center">
-      <p className="text-sm text-zinc-500">
-        {FOCUS_MODE_LABEL[result.focusMode === "open" ? "open" : "deep"]}
-        {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
-        {result.task && ` · ${result.task}`}
-      </p>
-      <h2 className={`text-3xl font-semibold ${failed ? "text-red-600" : "text-emerald-600"}`}>
-        {title}
-      </h2>
-      <p className="text-zinc-500">{detail}</p>
+    <div className="flex flex-1 flex-col items-center gap-6 pt-2 text-center">
+      <div className="flex flex-col items-center gap-2">
+        <p className="eyebrow">
+          {FOCUS_MODE_LABEL[result.focusMode === "open" ? "open" : "deep"]}
+          {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
+        </p>
+        {result.task && <p className="max-w-full truncate text-sm text-muted">{result.task}</p>}
+        <h2 className="title-page">{title}</h2>
+        <p className="max-w-xs text-muted">{detail}</p>
+      </div>
 
       {/* The number that matters most, big. */}
-      <p className="flex flex-col items-center">
-        <span className="text-6xl font-semibold tabular-nums">{Math.floor(result.focusMs / 60_000)}</span>
-        <span className="text-zinc-500">focus minutes</span>
+      <p className="flex flex-col items-center gap-1">
+        <span className="numeral text-[72px]">{Math.floor(result.focusMs / 60_000)}</span>
+        <span className="eyebrow">focus minutes</span>
       </p>
       <EarnedCoins result={result} />
 
@@ -558,43 +600,38 @@ function ResultView({
           {result.mode === "cycle" && (
             <Stat label="Blocks completed" value={`${result.blocksCompleted} of ${result.totalBlocks}`} />
           )}
-          {result.lostMs >= 1000 && <Stat label="Unfinished, not counted" value={formatClock(result.lostMs)} />}
+          {result.lostMs >= 1000 && <Stat label="Not counted" value={formatClock(result.lostMs)} />}
         </dl>
       )}
 
       {/* One main action. Mark done is there, but quieter. */}
       <div className="mt-auto flex w-full flex-col items-center gap-3">
         {result.task && <MarkDone taskName={result.task} onDone={onTaskDone} />}
-        <button
-          onClick={() => save({ session: null, result: null })}
-          className="w-full rounded-2xl bg-sky-700 py-5 text-xl font-semibold text-white hover:bg-sky-800"
-        >
+        <Button variant="primary" size="lg" onClick={() => save({ session: null, result: null })}>
           New session
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-// Notes sessions grow no fish: show the target instead, while it runs…
 // While paused: how long is left, and Resume. Calm, never a takeover.
 function PausePanel({ msLeft }: { msLeft: number }) {
   return (
-    <div className="flex w-full items-center justify-between gap-3 rounded-2xl bg-zinc-100 px-4 py-3 dark:bg-zinc-900">
-      <span className="flex flex-col">
+    <div className="flex w-full items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-card">
+      <span className="flex flex-col text-left">
         <span className="font-semibold">Paused</span>
-        <span className="text-sm text-zinc-500 tabular-nums">{formatClock(msLeft)} left, then it carries on</span>
+        <span className="text-sm text-muted tabular-nums">{formatClock(msLeft)} left, then it carries on</span>
       </span>
-      <button
-        type="button"
+      <Button
+        variant="primary"
         onClick={() => {
           const current = getSnapshot().session;
           if (current) save({ session: endPause(current, Date.now()), result: null });
         }}
-        className="rounded-xl bg-sky-700 px-5 py-3 font-semibold text-white hover:bg-sky-800"
       >
         Resume
-      </button>
+      </Button>
     </div>
   );
 }
@@ -620,26 +657,22 @@ function SoundControl({ ambience }: { ambience: SessionAmbience }) {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label={`Sound: ${AMBIENCE_LABEL[ambience.sound]}${ambience.paused ? ", paused" : ""}`}
-        className="-my-1 flex h-8 w-8 items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900"
+        className="-my-3 flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-soft hover:text-ink"
       >
         <SpeakerIcon off={ambience.paused} />
       </button>
       {open && (
-        <span className="absolute top-full left-1/2 z-20 mt-2 flex w-64 -translate-x-1/2 flex-col gap-3 rounded-2xl border border-zinc-200 bg-background p-4 text-left shadow-lg dark:border-zinc-800">
+        <span className="absolute top-full left-1/2 z-20 mt-1 flex w-64 -translate-x-1/2 flex-col gap-2 rounded-card bg-card p-4 text-left shadow-card">
           <span className="flex items-center justify-between gap-2">
-            <span className="font-medium text-foreground">{AMBIENCE_LABEL[ambience.sound]}</span>
-            <button
-              type="button"
-              onClick={() => update({ paused: !ambience.paused })}
-              className="rounded-lg bg-zinc-100 px-3 py-1.5 font-medium text-foreground hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-            >
+            <span className="font-semibold">{AMBIENCE_LABEL[ambience.sound]}</span>
+            <Button variant="secondary" size="sm" onClick={() => update({ paused: !ambience.paused })}>
               {ambience.paused ? "Play" : "Pause"}
-            </button>
+            </Button>
           </span>
           <VolumeSlider value={ambience.volume} onChange={(volume) => update({ volume })} />
-          <button type="button" onClick={() => setOpen(false)} className="self-end text-sky-700 dark:text-sky-400">
+          <Button variant="quiet" size="sm" onClick={() => setOpen(false)} className="self-end text-primary">
             Done
-          </button>
+          </Button>
         </span>
       )}
     </span>
@@ -648,7 +681,7 @@ function SoundControl({ ambience }: { ambience: SessionAmbience }) {
 
 function SpeakerIcon({ off }: { off: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" />
       {off ? <path d="m16 9.5 5 5m0-5-5 5" /> : <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />}
     </svg>
@@ -661,12 +694,12 @@ function CheckInBanner({ secondsLeft, pulse }: { secondsLeft: number; pulse: boo
     <button
       type="button"
       onClick={confirmNow}
-      className={`flex w-full flex-col items-center gap-0.5 rounded-2xl px-4 py-3 text-center ${
-        pulse ? "alarm-flash" : "bg-sky-100 dark:bg-sky-950"
+      className={`flex w-full flex-col items-center gap-0.5 rounded-card px-4 py-3 text-center shadow-[inset_0_0_0_2px_var(--primary)] ${
+        pulse ? "alarm-flash" : "bg-card"
       }`}
     >
-      <span className="text-lg font-semibold">Still studying? Tap to continue</span>
-      <span className="text-sm text-zinc-600 dark:text-zinc-300">
+      <span className="title-card">Still studying? Tap to continue</span>
+      <span className="text-sm text-muted">
         No tap in {formatClock(secondsLeft * 1000)} and it ends at your last check-in.
       </span>
     </button>
@@ -685,16 +718,16 @@ function targetLine(session: Session, status: Status): string | null {
       : `Target ${target} min · ${minutes - target} min over`;
 }
 
-// …and target vs actual at the end.
+// Notes sessions grow no fish: target vs actual at the end, and the plant.
 function NotesResult({ result, garden }: { result: Result; garden: Garden | null }) {
   const focusSeconds = Math.floor(result.focusMs / 1000);
   const showTarget = result.targetMinutes !== null && result.outcome !== "failed";
   return (
     <div className="flex w-full flex-col items-center gap-4">
       {showTarget && (
-        <div className="flex w-full flex-col gap-1 rounded-2xl bg-zinc-100 px-4 py-4 dark:bg-zinc-900">
-          <p className="text-xl font-semibold">{compareToTarget(focusSeconds, result.targetMinutes!).text}</p>
-          <p className="text-sm text-zinc-500">Target: {result.targetMinutes} min</p>
+        <div className="flex w-full flex-col gap-1 rounded-card bg-card px-4 py-4 shadow-card">
+          <p className="title-card">{compareToTarget(focusSeconds, result.targetMinutes!).text}</p>
+          <p className="text-sm text-muted">Target: {result.targetMinutes} min</p>
         </div>
       )}
       <ResultPlant result={result} garden={garden} />
@@ -707,22 +740,24 @@ function EarnedCoins({ result }: { result: Result }) {
   const coins = coinsFor(toRow(result, result.id ?? "legacy", null));
   if (coins === 0) return null;
   return (
-    <p className="-mt-4 flex items-center gap-1.5 text-lg font-semibold text-amber-600 dark:text-amber-400">
+    <p className="-mt-3 flex items-center gap-1.5 text-lg font-semibold text-coin">
       <Coin size={18} />+{coins} coins
-      {result.focusMode === "open" && <span className="text-sm font-normal text-zinc-500">(Open Focus: half)</span>}
+      {result.focusMode === "open" && <span className="text-sm font-normal text-muted">(Open Focus: half)</span>}
     </p>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-zinc-100 p-4 dark:bg-zinc-900">
-      <dt className="text-sm text-zinc-500">{label}</dt>
-      <dd className="text-2xl font-semibold tabular-nums">{value}</dd>
+    <div className="flex flex-col gap-1 rounded-card bg-soft p-4">
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="numeral text-[28px]">{value}</dd>
     </div>
   );
 }
 
+// The words on the result screen. A session that ended early is described
+// plainly and kindly: what happened, and that the next one starts fresh.
 function describe(r: Result): { title: string; detail: string } {
   // Night mode: not a failure, just an honest record of the time that counted.
   if (r.endedBy === "checkin") {
@@ -731,14 +766,15 @@ function describe(r: Result): { title: string; detail: string } {
       detail: `Ended at your last check-in — looks like you fell asleep. Credited: ${Math.floor(r.focusMs / 60_000)} min.`,
     };
   }
+  const away = `You were away for more than ${LEAVE_GRACE_MS / 1000} seconds`;
   if (isNotes(r)) {
     if (r.outcome === "failed") {
       return {
-        title: "Notes session failed",
+        title: "Ended early",
         detail:
           r.endedBy === "left"
-            ? `You left the app for more than ${LEAVE_GRACE_MS / 1000} seconds. Only this session's time is lost.`
-            : "You ended it early. Only this session's time is lost.",
+            ? `${away}, so this session's time doesn't count. Your plant keeps everything it had.`
+            : "This session's time doesn't count. Your plant keeps everything it had.",
       };
     }
     if (r.mode === "cycle" && r.endedBy !== "finished") {
@@ -748,17 +784,14 @@ function describe(r: Result): { title: string; detail: string } {
   }
   if (r.outcome === "failed") {
     if (r.endedBy === "left") {
-      return {
-        title: "Session failed",
-        detail: `You left the app for more than ${LEAVE_GRACE_MS / 1000} seconds during focus.`,
-      };
+      return { title: "Ended early", detail: `${away} during focus. The next session starts fresh.` };
     }
     return {
-      title: "Session failed",
+      title: "Ended early",
       detail:
         r.mode === "cycle"
-          ? "You ended it during the first focus block."
-          : "You gave up before the timer finished.",
+          ? "It ended during the first focus block. The next session starts fresh."
+          : "It ended before the timer finished. The next session starts fresh.",
     };
   }
   if (r.endedBy === "finished") {
@@ -774,9 +807,9 @@ function describe(r: Result): { title: string; detail: string } {
     title: "Session ended",
     detail:
       r.endedBy === "left"
-        ? "You left during a focus block, so only that block was lost."
+        ? "You left during a focus block, so only that block doesn't count."
         : r.lostMs > 0
-          ? "You ended it mid-block, so only that block was lost."
-          : "You ended it during a break, so nothing was lost.",
+          ? "You ended it mid-block, so only that block doesn't count."
+          : "You ended it during a break, so every block counts.",
   };
 }

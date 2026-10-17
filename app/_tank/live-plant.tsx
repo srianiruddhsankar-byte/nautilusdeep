@@ -10,7 +10,7 @@ export function SeedlingCard({ garden }: { garden: Garden | null }) {
   const { growing } = garden;
   const next = toNextStage(growing.minutes);
   return (
-    <p className="flex h-10 items-center gap-2 rounded-xl bg-zinc-100 px-3 text-sm dark:bg-zinc-900">
+    <p className="flex min-h-11 items-center gap-2 rounded-control bg-soft px-3 text-sm">
       <span className="flex h-8 w-6 shrink-0 items-end justify-center overflow-visible">
         <PlantSprite
           look={plantLook(growing.id ?? "fresh-seed")}
@@ -20,10 +20,10 @@ export function SeedlingCard({ garden }: { garden: Garden | null }) {
         />
       </span>
       <span className="min-w-0 truncate">
-        <span className="text-zinc-500">Growing: </span>
-        <span className="font-medium">{PLANT_STAGE_LABEL[growing.stage].toLowerCase()}</span>
-        {next && <span className="text-zinc-500"> · {next}</span>}
-        {growing.wilted && <span className="text-zinc-500"> · a little wilted</span>}
+        <span className="text-muted">Growing: </span>
+        <span className="font-semibold">{PLANT_STAGE_LABEL[growing.stage].toLowerCase()}</span>
+        {next && <span className="text-muted"> · {next}</span>}
+        {growing.wilted && <span className="text-muted"> · a little wilted</span>}
       </span>
     </p>
   );

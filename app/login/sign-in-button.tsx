@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "../_ui/button";
 
 export function SignInButton() {
   const [loading, setLoading] = useState(false);
@@ -18,12 +19,8 @@ export function SignInButton() {
   }
 
   return (
-    <button
-      onClick={signIn}
-      disabled={loading}
-      className="rounded-lg bg-sky-700 px-5 py-3 font-medium text-white hover:bg-sky-800 disabled:opacity-60"
-    >
-      {loading ? "Redirecting…" : "Sign in with Google"}
-    </button>
+    <Button variant="primary" size="lg" onClick={signIn} disabled={loading}>
+      {loading ? "Opening Google…" : "Sign in with Google"}
+    </Button>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { stopAlarm, useAlarm } from "@/lib/alarm";
+import { Button } from "../_ui/button";
 import "./alarm.css";
 
 // Full screen while the alarm rings. Tapping anywhere (or "Got it", or Escape)
@@ -36,24 +37,25 @@ export function AlarmOverlay({ onDismiss }: { onDismiss?: () => void }) {
       onClick={dismiss}
       className="alarm-flash fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center gap-4 p-8 text-center"
     >
-      <p id="alarm-title" className="text-4xl font-semibold">
+      <p id="alarm-title" className="font-display text-4xl font-medium">
         {alarm.title}
       </p>
-      <p id="alarm-detail" className="max-w-xs text-lg text-zinc-600 dark:text-zinc-300">
+      <p id="alarm-detail" className="max-w-xs text-lg text-muted">
         {alarm.detail}
       </p>
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        size="lg"
         autoFocus
         onClick={(e) => {
           e.stopPropagation(); // the overlay's own click would count it twice
           dismiss();
         }}
-        className="mt-6 w-full max-w-xs rounded-2xl bg-sky-700 py-5 text-xl font-semibold text-white hover:bg-sky-800"
+        className="mt-6 max-w-xs"
       >
         Got it
-      </button>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">Tap anywhere to stop</p>
+      </Button>
+      <p className="text-sm text-muted">Tap anywhere to stop</p>
     </div>
   );
 }

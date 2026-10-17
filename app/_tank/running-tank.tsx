@@ -91,8 +91,8 @@ export function RunningTank({
           overlay={overlay}
         />
       </div>
-      <p className="text-center text-sm text-zinc-500">{caption}</p>
-      {note && <p className="text-center text-sm font-medium">{note}</p>}
+      <p className="text-center text-sm text-muted">{caption}</p>
+      {note && <p className="text-center text-sm font-semibold">{note}</p>}
     </div>
   );
 }

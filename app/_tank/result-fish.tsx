@@ -28,13 +28,9 @@ export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aqu
             <Bone width={48} />
           </div>
         </div>
-        <p className="text-sm text-zinc-500">
-          {stage === "fry" ? "Your fry didn't make it." : "Your egg didn't hatch."}{" "}
-          {aquarium && (
-            <span className="bone-appear inline-block font-semibold text-zinc-700 dark:text-zinc-300">
-              Bones: {aquarium.bones} (+1)
-            </span>
-          )}
+        <p className="max-w-xs text-sm text-muted">
+          {stage === "fry" ? "This fry drifted away." : "This egg drifted away."} It leaves a bone in your tank.{" "}
+          {aquarium && <span className="bone-appear inline-block tabular-nums">Bones: {aquarium.bones}</span>}
         </p>
       </div>
     );
@@ -44,7 +40,7 @@ export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aqu
   const row = toRow(result, id, null);
   if (!earnsFish(row)) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="max-w-xs text-sm text-muted">
         Under {FISH_MIN_MINUTES} focus minutes, so no fish this time. Fish hatch at {FISH_MIN_MINUTES}{" "}
         minutes.
       </p>
@@ -99,7 +95,7 @@ function HatchReveal({ id, species, tank }: { id: string; species: SpeciesId; ta
         onClick={() => setStep(last)}
         disabled={done}
         aria-label={done ? undefined : "Skip the hatching"}
-        className="flex h-28 w-48 items-center justify-center text-sky-900/35 dark:text-sky-200/30"
+        className="flex h-28 w-48 items-center justify-center text-ink/30"
       >
         {done ? (
           <div className="tank-bob">
@@ -115,20 +111,18 @@ function HatchReveal({ id, species, tank }: { id: string; species: SpeciesId; ta
       </button>
       {done ? (
         <div className="flex flex-col items-center gap-1" aria-live="polite">
-          <p>
-            <span className="font-semibold">{info.name}</span>
-            <span className="text-zinc-500"> · {RARITY_LABEL[info.rarity]}</span>
-          </p>
-          <p className="max-w-xs text-sm text-zinc-600 dark:text-zinc-400">{info.fact}</p>
-          <p className="text-sm text-zinc-500">
+          <p className="title-card">{info.name}</p>
+          <p className="eyebrow">{RARITY_LABEL[info.rarity]}</p>
+          <p className="max-w-xs text-sm">{info.fact}</p>
+          <p className="text-sm text-muted">
             Joined {tank > 0 ? `Tank ${tank}` : "your tank"} ·{" "}
-            <Link href="/sea-life" className="font-medium text-sky-700 dark:text-sky-400">
+            <Link href="/sea-life" className="-my-3 inline-flex min-h-11 items-center font-semibold text-primary">
               Sea life index
             </Link>
           </p>
         </div>
       ) : (
-        <p className="text-sm text-zinc-500">Your fry is hatching… (tap to skip)</p>
+        <p className="text-sm text-muted">Your fry is hatching… (tap to skip)</p>
       )}
     </div>
   );

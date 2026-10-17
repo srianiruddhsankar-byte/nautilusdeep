@@ -1,17 +1,17 @@
-/* The alarm overlay: a slow, soft pulse between two calm blues, so a phone on
-   silent is still noticeable without being harsh. No flashing faster than ~1 per
-   second (well under the 3-per-second photosensitivity limit). */
+/* The alarm overlay: a slow, soft pulse between paper and a pale tide blue, so a
+   phone on silent is still noticeable without being harsh. No flashing faster
+   than ~1 per second (well under the 3-per-second photosensitivity limit). */
 .alarm-flash {
-  --alarm-a: #f0f9ff;
-  --alarm-b: #bae6fd;
+  --alarm-a: #f4efe6;
+  --alarm-b: #d6e3ee;
   background: var(--alarm-a);
   animation: alarm-pulse 1.4s ease-in-out infinite alternate;
 }
 
 @media (prefers-color-scheme: dark) {
   .alarm-flash {
-    --alarm-a: #0a0a0a;
-    --alarm-b: #0c4a6e;
+    --alarm-a: #121a22;
+    --alarm-b: #1f3a55;
   }
 }
 

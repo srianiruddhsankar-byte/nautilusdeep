@@ -4,8 +4,9 @@ import { type RefObject, useEffect, useRef, useSyncExternalStore } from "react";
 
 // One animation loop for every tank preview.
 // - Runs on requestAnimationFrame, optionally capped (30 fps saves battery).
-// - STOPS when the tab is hidden or the tank is off screen, and starts again
-//   when it's back (time while stopped is skipped, not fast-forwarded).
+// - STOPS when the tab is hidden, the window loses focus (you're in another
+//   app) or the tank is off screen, and starts again when it's back (time while
+//   stopped is skipped, not fast-forwarded).
 // - Reduced motion: never runs; draws one still frame instead.
 // - Measures itself: frames per second and the script time per frame.
 
@@ -51,6 +52,7 @@ export function useTankLoop(host: RefObject<HTMLElement | null>, options: Option
     let raf = 0;
     let last = 0;
     let onScreen = true;
+    let focused = document.hasFocus();
     let winFrames = 0;
     let winWork = 0;
     let winStart = performance.now();
@@ -76,7 +78,7 @@ export function useTankLoop(host: RefObject<HTMLElement | null>, options: Option
       }
     };
     const start = () => {
-      if (raf || document.hidden || !onScreen) return;
+      if (raf || document.hidden || !onScreen || !focused) return;
       last = performance.now();
       winStart = last;
       winFrames = 0;
@@ -102,14 +104,26 @@ export function useTankLoop(host: RefObject<HTMLElement | null>, options: Option
       if (onScreen) start();
       else stop();
     });
+    const onFocus = () => {
+      focused = true;
+      start();
+    };
+    const onBlur = () => {
+      focused = false;
+      stop();
+    };
     io.observe(el);
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
     latest.current.onFrame(0, performance.now() / 1000);
     start();
     return () => {
       stop();
       io.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
     };
   }, [host, id, still, maxFps]);
 }

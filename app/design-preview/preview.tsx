@@ -13,6 +13,11 @@ import "./preview.css";
 // build a realistic tank (Tank 2, Canvas, was dropped in round 2's review). Everything except the tank is identical.
 // All three tanks share one swim simulation (swim.ts) and one set of species
 // art (fish-art.ts), so only the rendering differs.
+// Only ONE tank runs at a time (the others aren't mounted, so they cost
+// nothing), each at 30 fps unless switched to 60, and the loop pauses when the
+// tab is hidden or the window loses focus (tank-loop.ts).
+
+const DEFAULT_FPS = 30;
 
 type TankProps = { id: string; still: boolean; maxFps: number; onStats: (s: LoopStats) => void };
 
@@ -56,6 +61,8 @@ export function DesignPreview({ fontClasses }: { fontClasses: string }) {
   const osReduced = useReducedMotion();
   const [forceStill, setForceStill] = useState(false);
   const [full, setFull] = useState<Option | null>(null);
+  // The one tank that's running; Tank 4 (the chosen one) to begin with.
+  const [playing, setPlaying] = useState<Option["n"] | null>(4);
   const still = osReduced || forceStill;
 
   return (
@@ -85,7 +92,14 @@ export function DesignPreview({ fontClasses }: { fontClasses: string }) {
 
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-3">
         {OPTIONS.map((o) => (
-          <Panel key={o.n} o={o} still={still} live={!full} onFull={() => setFull(o)} />
+          <Panel
+            key={o.n}
+            o={o}
+            still={still}
+            live={!full && playing === o.n}
+            onPlay={() => setPlaying(o.n)}
+            onFull={() => setFull(o)}
+          />
         ))}
       </div>
 
@@ -94,8 +108,20 @@ export function DesignPreview({ fontClasses }: { fontClasses: string }) {
   );
 }
 
-function Panel({ o, still, live, onFull }: { o: Option; still: boolean; live: boolean; onFull: () => void }) {
-  const [maxFps, setMaxFps] = useState(60);
+function Panel({
+  o,
+  still,
+  live,
+  onPlay,
+  onFull,
+}: {
+  o: Option;
+  still: boolean;
+  live: boolean;
+  onPlay: () => void;
+  onFull: () => void;
+}) {
+  const [maxFps, setMaxFps] = useState(DEFAULT_FPS);
   const [stats, setStats] = useState<LoopStats>({ fps: 0, ms: 0, running: false });
   const { Tank } = o;
   return (
@@ -109,9 +135,19 @@ function Panel({ o, still, live, onFull }: { o: Option; still: boolean; live: bo
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="pv-tank">{live ? <Tank id={`t${o.n}`} still={still} maxFps={maxFps} onStats={setStats} /> : null}</div>
+        <div className="pv-tank">
+          {live ? (
+            <Tank id={`t${o.n}`} still={still} maxFps={maxFps} onStats={setStats} />
+          ) : (
+            <div className="pv-tank-idle">
+              <button type="button" className="pv-btn pv-btn-primary" onClick={onPlay}>
+                <PlayIcon /> Play Tank {o.n}
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Meter stats={stats} still={still} />
+          {live ? <Meter stats={stats} still={still} /> : <p className="pv-meter">Not running</p>}
           <div className="flex items-center gap-2">
             <Segmented value={maxFps} onChange={setMaxFps} />
             <button type="button" className="pv-btn pv-btn-secondary pv-btn-sm" onClick={onFull}>
@@ -165,7 +201,7 @@ function Panel({ o, still, live, onFull }: { o: Option; still: boolean; live: bo
 // The running screen at real size, with only this tank animating (the panels'
 // tanks are unmounted), so its cost can be judged on its own.
 function RunningScreen({ o, still, onClose }: { o: Option; still: boolean; onClose: () => void }) {
-  const [maxFps, setMaxFps] = useState(60);
+  const [maxFps, setMaxFps] = useState(DEFAULT_FPS);
   const [stats, setStats] = useState<LoopStats>({ fps: 0, ms: 0, running: false });
   const { Tank } = o;
   useEffect(() => {
@@ -206,7 +242,11 @@ function RunningScreen({ o, still, onClose }: { o: Option; still: boolean; onClo
 function Meter({ stats, still }: { stats: LoopStats; still: boolean }) {
   return (
     <p className="pv-meter" aria-live="off">
-      {still ? "Resting (reduced motion): 0 fps" : stats.running ? `${Math.round(stats.fps)} fps · ${stats.ms.toFixed(1)} ms script / frame` : "Paused (off screen or tab hidden)"}
+      {still
+        ? "Resting (reduced motion): 0 fps"
+        : stats.running
+          ? `${Math.round(stats.fps)} fps · ${stats.ms.toFixed(1)} ms script / frame`
+          : "Paused (off screen, tab hidden or window not focused)"}
     </p>
   );
 }

@@ -126,12 +126,12 @@ export function Tank({
           <NavButton label="Previous tank" disabled={index === 0} onClick={() => go(-1)}>
             ‹
           </NavButton>
-          <h2 className="min-w-16 text-center font-semibold">Tank {index + 1}</h2>
+          <h2 className="title-card min-w-16 text-center">Tank {index + 1}</h2>
           <NavButton label="Next tank" disabled={index === tankCount - 1} onClick={() => go(1)}>
             ›
           </NavButton>
         </div>
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm text-muted">
           {fish.length}/{TANK_CAPACITY} fish
           {plants.length > 0 && ` · ${plants.length} ${plants.length === 1 ? "plant" : "plants"}`}
         </span>
@@ -144,7 +144,7 @@ export function Tank({
           {coins !== null && (
             <Link
               href="/decorate"
-              className="-my-1 flex items-center gap-1 rounded-full px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              className="-my-1 flex min-h-11 items-center gap-1 rounded-control px-2 font-semibold text-coin hover:bg-soft"
               aria-label={`${coins} coins. Decorate your tank`}
             >
               <Coin />
@@ -156,7 +156,7 @@ export function Tank({
       )}
 
       <div
-        className={`relative aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-2xl select-none ${skin.frame}`}
+        className={`relative aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-tank shadow-[0_0_0_1px_var(--line),0_4px_0_var(--line)] select-none ${skin.frame}`}
         onPointerDown={(e) => {
           swipeStartX.current = e.clientX;
           justSwiped.current = false;
@@ -258,7 +258,7 @@ export function Tank({
           {Array.from({ length: tankCount }, (_, i) => (
             <span
               key={i}
-              className={`h-1.5 w-1.5 rounded-full ${i === index ? "bg-sky-700" : "bg-zinc-300 dark:bg-zinc-700"}`}
+              className={`h-1.5 w-1.5 rounded-full ${i === index ? "bg-primary" : "bg-line"}`}
             />
           ))}
         </div>
@@ -405,7 +405,7 @@ function PlantCard({ plant, onClose }: { plant: MaturePlant; onClose: () => void
   return (
     <TankCard onClose={onClose}>
       <p className="font-semibold">Mature plant</p>
-      <p className="text-zinc-600">Matured {shortDate(plant.maturedAt)}</p>
+      <p className="text-[#5f6977]">Matured {shortDate(plant.maturedAt)}</p>
       <p>
         {formatDuration(MATURE_MINUTES * 60)} of notes · {plant.sessions}{" "}
         {plant.sessions === 1 ? "session" : "sessions"} since {shortDate(plant.startedAt)}
@@ -427,13 +427,13 @@ function FishCard({ fish, onClose }: { fish: Fish; onClose: () => void }) {
     <TankCard onClose={onClose}>
       <p>
         <span className="font-semibold">{species.name}</span>
-        <span className="text-zinc-600"> · {RARITY_LABEL[fish.rarity]}</span>
+        <span className="text-[#5f6977]"> · {RARITY_LABEL[fish.rarity]}</span>
       </p>
-      <p className="text-zinc-700">{species.fact}</p>
-      <p className="text-zinc-600">
+      <p>{species.fact}</p>
+      <p className="text-[#5f6977]">
         Caught {date} · {fish.minutes} focus min · {MODE_LABEL[fish.mode]} · {FOCUS_MODE_LABEL[fish.focusMode]}
       </p>
-      <Link href="/sea-life" className="font-medium text-sky-700">
+      <Link href="/sea-life" className="inline-flex min-h-11 items-center font-semibold text-[#23466b]">
         Sea life index ›
       </Link>
     </TankCard>
@@ -445,10 +445,10 @@ function NautilusCard({ onClose }: { onClose: () => void }) {
     <TankCard onClose={onClose}>
       <p>
         <span className="font-semibold">{NAUTILUS.name}</span>
-        <span className="text-zinc-600"> · The namesake</span>
+        <span className="text-[#5f6977]"> · The namesake</span>
       </p>
-      <p className="text-zinc-700">{NAUTILUS.fact}</p>
-      <p className="text-zinc-600">Joined at {NAUTILUS.hours} hours of focus.</p>
+      <p>{NAUTILUS.fact}</p>
+      <p className="text-[#5f6977]">Joined at {NAUTILUS.hours} hours of focus.</p>
     </TankCard>
   );
 }
@@ -457,7 +457,7 @@ function NautilusCard({ onClose }: { onClose: () => void }) {
 function TankCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
     <div
-      className="absolute inset-x-2 bottom-2 flex items-start justify-between gap-3 rounded-xl bg-white/95 p-3 text-sm text-zinc-900 shadow-lg"
+      className="absolute inset-x-2 bottom-2 flex items-start justify-between gap-3 rounded-card bg-[#fffcf6]/95 p-3 text-sm text-[#1e2b38] shadow-[0_0_0_1px_#e3dacb,0_2px_0_#e3dacb]"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col gap-0.5">{children}</div>
@@ -465,7 +465,7 @@ function TankCard({ onClose, children }: { onClose: () => void; children: ReactN
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="-m-1 rounded-full px-2 text-lg leading-none text-zinc-500"
+        className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-xl leading-none text-[#5f6977]"
       >
         ×
       </button>
@@ -490,7 +490,7 @@ function NavButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="h-9 w-9 rounded-full text-2xl leading-none hover:bg-zinc-100 disabled:opacity-25 dark:hover:bg-zinc-900"
+      className="h-11 w-11 rounded-control text-2xl leading-none hover:bg-soft disabled:opacity-25"
     >
       {children}
     </button>
