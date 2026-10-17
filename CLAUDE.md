@@ -46,23 +46,31 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/session-record.ts` — pure `Result` → `sessions` row mapping (tested). `lib/save-queue.ts` — localStorage outbox that uploads finished sessions and retries
 - `app/_focus/` — focus screen UI (private folder, not a route); `recent-sessions.tsx` is the Phase 3 "is saving
   working?" list, shown at the bottom of `/stats`
-- `lib/fish.ts` — pure fish derivation: sessions → tanks, fish sizes, bones (tested in `lib/fish.test.ts`).
-  `lib/fish-look.ts` — a fish's colours/pattern/swim seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
+- `lib/species.ts` — the species catalogue (18 saltwater species, 5 rarities, facts), the `ODDS` table per time
+  band (the one place to tune), `hatch(id, minutes)` (the deterministic pick) and the nautilus (`NAUTILUS`);
+  tested in `lib/species.test.ts`
+- `lib/fish.ts` — pure fish derivation: sessions → tanks, each fish's species (`speciesOf`: saved value first),
+  bones, the nautilus flag, `catchLog` for the index, `creditedHours` (tested in `lib/fish.test.ts`).
+  `lib/fish-look.ts` — a fish's swim (speed, lane, bob) seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
   all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
 - `lib/plants.ts` — pure plant derivation (`deriveGarden`): notes sessions → growing plant, mature plants with
   tank + slot, per-session growth; stage thresholds in `PLANT_STAGES` (tested in `lib/plants.test.ts`).
   `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
-- `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor), `fish-sprite.tsx` (SVG fish/bone),
+- `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor, the nautilus, tap cards), `fish-sprite.tsx`
+  (`SpeciesSprite`: one simple SVG per species, also as a "???" silhouette; `NautilusSprite`; bone),
   `brood.tsx` (eggs → eyed eggs → fry, and their gentle drift on failure), `plant-sprite.tsx` (SVG underwater
   plants: stem / fern / grass × 5 stages, no flowers), `running-tank.tsx` (the running screen's real tank with
   the session's eggs / fry / fish or growing plant), `ambience-scene.tsx` + `.css` (the tank scene for each
-  ambience: all scene effects live here), `live-plant.tsx` (Home `SeedlingCard`), `result-fish.tsx`,
+  ambience: all scene effects live here), `live-plant.tsx` (Home `SeedlingCard`), `result-fish.tsx` (the
+  hatching reveal),
   `result-plant.tsx`, `decoration-sprite.tsx` (SVG decorations), `skins.tsx` (the 5 tank looks built on one
   `WaterScene`; `SHALLOWS` is the default), `tank.css` (animation + reduced-motion rules). `Tank` takes `skinOf`,
   `decorations`, `coins`, `edit` (decorate mode), and for the running screen `bare`, `fixedIndex`, `scene`,
-  `overlay`, `liveFish`
-- `lib/brood.ts` — pure egg stages (`broodStage`, `broodCaption`): eggs 0–2 min, eyed 2–5, fry 5–10, then fish
-  sizes; tested in `lib/brood.test.ts`
+  `overlay`
+- `app/_sea-life/sea-life-view.tsx` + `app/sea-life/page.tsx` — the `/sea-life` "Sea life index" route (linked
+  from Stats "Fish caught", the result screen and a fish's tank card; the Stats tab stays highlighted)
+- `lib/brood.ts` — pure egg stages (`broodStage`, `broodCaption`): eggs 0–2 min, eyed 2–5, fry from 5 until the
+  session ends; tested in `lib/brood.test.ts`
 - `lib/decorations.ts` — the shop catalogue: prices and milestone items (tune here). `lib/economy.ts` — pure coins
   (`coinsFor`, balance), milestones, `canGet`, placement helpers, skin unlock thresholds (`SKIN_UNLOCKS`), tested in
   `lib/economy.test.ts`. `lib/owned.ts` — `useOwned()`: your decorations + per-tank skins, buy / place / put away /
@@ -165,9 +173,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Home, top to bottom: greeting, stats line, "Today" card (due today + overdue; tap one to pick it for the next
   session), tank, setup summary card ("Change" opens every option) and Start. The setup is remembered in this
   browser (`lib/setup-prefs.ts`, saved on Start; the task isn't remembered).
-- Result screen: big focus minutes, fish / notes result, then one main button (New session); Mark done is quieter.
-- Stats: Streak, Tasks done, then per type: time, last 7 days, target (notes), time per task; the rest under
-  "More stats". Sign out is on the Help page (Account section with your email), not on Home.
+- Result screen: big focus minutes, the hatching reveal (or notes result), then one main button (New session);
+  Mark done is quieter.
+- Stats: Streak, Tasks done, then per type: time, last 7 days, plants (notes) / fish caught by rarity + rarest
+  catch + the Sea life index link (study), target (notes), time per task; the rest under "More stats". Sign out is on the Help page (Account section with your email), not on Home.
 
 ### Night mode ("Still studying?" check-ins)
 - Optional, off by default, in Session settings: interval 20 / 30 / 45 / 60 min or Custom (any whole 10–120,
@@ -202,23 +211,46 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Optional target time only for Notes + Stopwatch (you stop when done); result shows target vs actual.
 
 ### Fish
-- Fish are DERIVED from `sessions` (never stored): one source of truth, so rule changes apply to past fish too.
+- Fish are DERIVED from `sessions` (never stored as their own rows): one source of truth. The one exception is
+  the species, saved on the session (`sessions.species`) when it hatches, so tuning the odds never changes a fish
+  already caught.
 - The running screen shows your real tank. A study session's fish starts as ONE big translucent egg on a rock
   (0–2 min; bright outline + soft glow so it's visible on every skin), then an eyed egg (2–5), hatches into a
-  see-through fry with a yolk sac at 5, and from 10 min swims among the other fish as it grows. A notes
-  session's plant grows in the tank's next free plant spot. A failed session's egg / fry fades and drifts away.
-- One completed or partial session with at least 5 focus minutes = one fish; under 5 min = no fish (anti-farming).
-  Deep and Open Focus earn fish the same way. It grows live on screen during the session.
-- Size by focus minutes (partial cycles: banked minutes): small < 25, medium 25–49, large 50–89, rare 90+.
+  see-through fry with a yolk sac at 5, and stays a fry until the session ends (no growing through sizes). The
+  caption says when the odds improve next ("rarer fish get likelier at 25 min"). A notes session's plant grows
+  in the tank's next free plant spot. A failed session's egg / fry fades and drifts away.
+- One completed or partial session with at least 5 credited focus minutes = one fish; under 5 min = no fish
+  (anti-farming). Deep and Open Focus earn fish the same way (same odds, full minutes). Night mode: credited
+  minutes only. Partial cycles: banked minutes.
+- **Species and rarity** (`lib/species.ts`): when the session ends the fry hatches into one of 18 real saltwater
+  species in 5 tiers (Common, Uncommon, Rare, Epic, Legendary). Credited minutes set the ODDS of each tier, never a
+  guarantee (`ODDS`: 5–24 min 80/18/2/0/0, 25–49 50/35/13/2/0, 50–89 25/35/28/10/2, 90+ 10/25/35/22/8), then a
+  species is picked from that tier's list.
+  - The pick is deterministic from the session id (`hatch`): the first 8 hex digits roll the tier
+    (`roll × 100 < running total % × 2³²`, whole numbers), the last 8 pick the species (`mod` list length). The
+    migration `20261019120000_fish_species.sql` backfilled old sessions with the same maths in SQL.
+  - Saved on the row in `toRow` (so it's in the offline queue too); rows queued before species get theirs on
+    upload. `speciesOf` reads the saved value and only falls back to `hatch` if it's missing.
+  - Species ids are stored: never rename or reorder within a tier (the pick is by position); add new ones at the
+    end of their tier AND to the `sessions_species_check` constraint in a new migration.
+- Result screen: a calm ~2.5 s reveal (silhouettes flicking past and slowing, then the fish in colour with name,
+  rarity and fact). Tap to skip; reduced motion shows it straight away.
+- Legendary fish glow gold with sparkles; Epic fish have a soft white glow. Drawings are simple for now (the
+  realistic redesign comes later, see IDEAS.md).
+- **The nautilus** (the namesake) is NOT in the roulette: at 100 total credited hours (study + notes, same total
+  as skins) it lives in your newest tank, tappable, with its own "The namesake" section at the top of the index.
+- **Sea life index** (`/sea-life`): the namesake, then every species grouped by rarity. Caught: colour, name, fact,
+  how many, first-caught date. Uncaught: dark "???" silhouette. Tapping a fish in the tank shows species, rarity
+  and fact.
 - Every failed study session = +1 "bone" (bones = count of fish lost). No coins for failed sessions.
 - Leaving during breaks is safe.
-- A fish's look is seeded from its session id (same session → same fish everywhere). Don't change the
-  order of random draws in `fishLook()`, or every existing fish changes.
+- A fish's swim is seeded from its session id. Don't change the order of random draws in `fishLook()`, or every
+  existing fish moves differently.
 
 ### Cycle mode
 - One fish for the whole cycle set, with checkpoints.
 - Each completed focus block banks its minutes and coins.
-- Leaving mid-block loses only that unfinished block; the fish survives at its last checkpoint size.
+- Leaving mid-block loses only that unfinished block; the fish survives and hatches with its banked minutes.
 - Leaving during the first block kills the fish.
 - During the final long break, "Finish" ends the set as completed with no penalty (every block is banked).
 - **Rule across the app: you only ever lose minutes you haven't finished.**
@@ -247,7 +279,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   (rounded down). Failed: 0. Night mode: credited minutes only (focus_seconds already is). Balance = earned − sum of
   `price` on your decorations. Coins are computed in the browser, so the database can't stop a determined cheat
   (fine for a personal app).
-- Decorations: catalogue in `lib/decorations.ts` (8 bought, 30–600 coins; 4 milestone items: first rare fish,
+- Decorations: catalogue in `lib/decorations.ts` (8 bought, 30–600 coins; 4 milestone items: first Rare-or-better catch,
   10 hours, 7-day longest streak, first mature plant; free, once each). `public.decorations`: one row per owned
   item with `price` paid and placement (`tank`, `x` 0–100 %, `y` 0 front … 1 back of the sand), or all null = in
   your inventory. Owned forever: no delete; "put away" clears the placement, no refund. Only the placement columns
@@ -328,6 +360,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - Skins unlocked by total hours.
 - Phase 8 (in progress): ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files),
   plus Shop as a bottom-bar tab.
+  - Pulled forward from "later": fish species with a rarity roulette, the Sea life index and the nautilus
+    (simple drawings; the realistic redesign and water types are still later).
 - Phase 9: UI polish pass across the whole app.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it

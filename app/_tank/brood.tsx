@@ -72,9 +72,8 @@ export function Fry({ width = 26 }: { width?: number }) {
 }
 
 // The egg or fry in the tank while a study session runs (a tank overlay).
-// From "small" on, the fish swims with the others instead (Tank's liveFish).
+// The fry stays a fry until the session ends; then it hatches into a species.
 export function LiveBrood({ stage }: { stage: BroodStage }) {
-  if (stage !== "eggs" && stage !== "eyed" && stage !== "fry") return null;
   return (
     <>
       <div className="pointer-events-none absolute bottom-[3%] left-[14%] -translate-x-1/2">
@@ -95,7 +94,7 @@ export function LiveBrood({ stage }: { stage: BroodStage }) {
 }
 
 // After a failed session: the egg (or fry) fades and drifts gently away.
-export function DriftingBrood({ stage }: { stage: "eggs" | "eyed" | "fry" }) {
+export function DriftingBrood({ stage }: { stage: BroodStage }) {
   return (
     <div className="brood-drift">{stage === "fry" ? <Fry width={44} /> : <Egg eyed={stage === "eyed"} width={70} />}</div>
   );

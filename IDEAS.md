@@ -41,21 +41,25 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 
 ## Tank & creatures
 
-- **Real species** (extinct or not), different body shapes, a fish index with rarity tiers
-  (common → legendary), and "???" silhouettes for uncaught species.
-  - Why parked: large art and design job.
-  - Revisit: after Phase 11.
+- **Freshwater species come back with water types**: guppy, neon tetra, zebrafish, goldfish, (freshwater)
+  angelfish and discus were in the first species list but were swapped for saltwater ones, because tanks don't
+  have water types yet and every species is saltwater for now.
+  - Why parked: depends on freshwater vs saltwater tanks (below).
+  - Revisit: with water types.
 - **Freshwater vs saltwater tanks**: each tank gets a water type, chosen when a new tank starts.
   - Freshwater skins (Shallows, pond, river, lake) get freshwater fish and aquatic plants.
   - Saltwater skins (coral reef, deep sea) get marine fish, and corals instead of plants.
     Index note: coral is an animal.
-  - Each water type has its own species pool.
-  - Why parked: depends on real species and plants (Phase 7).
-  - Revisit: after Phase 11, with real species.
+  - Each water type has its own species pool (today's 18 species all go in the saltwater pool).
+  - Why parked: a big change to how tanks work; species exist now, but the tank stays simple for now.
+  - Revisit: after Phase 11.
 - **Real underwater flowering behaviour** for plants, once plants become real species: seagrass and hornwort
   flower and pollinate fully underwater (small, inconspicuous flowers); water lilies flower at the surface.
   - Why parked: today's plants are simple shapes that show maturity through size and colour, not flowers.
-  - Revisit: with the species redesign (real species, after Phase 11).
+  - Revisit: with real species and water types (after Phase 11). Phase 9 restyles today's plants only.
+- **More special creatures like the nautilus** (unlocked by long-term milestones, not in the roulette).
+  - Why parked: one namesake is enough to see if it feels special; more would dilute it.
+  - Revisit: after Phase 11, if testers care about the index.
 - **Extra creatures** (snails, shrimp, frogs) **and extra plants** (lily pads, reeds, flowers).
   - Why parked: the tank must stay simple, not become a game.
   - Revisit: with real species / water types.
@@ -93,6 +97,14 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 - **Voice input**.
   - Why parked: the phone keyboard's built-in mic may already be enough.
   - Revisit: only if it isn't.
+
+## Fairness
+
+- **Move fish roll and coin calc server-side if the app goes public or gets leaderboards.** Today the browser
+  makes the session id (the fish roll's dice) and computes coins, so a determined user could pick a rare fish or
+  fake coins with devtools.
+  - Why parked: it's a personal app for a few friends, with nothing to compete over, so cheating only fools yourself.
+  - Revisit: if the app goes public, or if any shared or comparing features are ever added.
 
 ## Deliberately rejected (and why)
 

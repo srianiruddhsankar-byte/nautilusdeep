@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { deriveAquarium, leavesBone } from "./fish.ts";
 import { deriveGarden } from "./plants.ts";
 import { toRow } from "./session-record.ts";
+import { hatch } from "./species.ts";
 import {
   CHECK_IN_GRACE_MS,
   DEFAULT_CYCLE,
@@ -149,14 +150,15 @@ describe("hidden page or refresh", () => {
 });
 
 describe("no bones, and only credited time grows things", () => {
-  test("a missed check-in never leaves a bone; the fish is sized by credited time", () => {
+  test("a missed check-in never leaves a bone; the fish hatches by credited time", () => {
     const s = confirmCheckIn(night(startStopwatch(T0, "open")), T0 + 30 * MIN);
     const row = toRow(ended(checkSession(s, T0 + 180 * MIN)), ID, null);
     assert.equal(row.ended_by, "checkin");
     const aq = deriveAquarium([row]);
     assert.equal(aq.bones, 0);
     assert.equal(aq.tanks[0][0].minutes, 30);
-    assert.equal(aq.tanks[0][0].size, "medium");
+    // Hatched with the 25–49 min odds (30 credited), not the 180 minutes that passed.
+    assert.equal(row.species, hatch(ID, 30));
   });
 
   test("notes: the plant grows only by the credited minutes", () => {

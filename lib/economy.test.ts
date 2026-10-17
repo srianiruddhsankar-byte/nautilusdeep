@@ -131,8 +131,12 @@ describe("milestones", () => {
     assert.equal(reachedMilestones([row(20)], NOW, IST).size, 0);
   });
 
-  test("first rare fish = a 90+ minute study session", () => {
-    assert.ok(reachedMilestones([row(90)], NOW, IST).has("first-rare"));
+  test("first rare fish = your first Rare-or-better catch, however long the session", () => {
+    assert.ok(reachedMilestones([row(30, { species: "lionfish" })], NOW, IST).has("first-rare")); // Rare
+    assert.ok(reachedMilestones([row(30, { species: "oarfish" })], NOW, IST).has("first-rare")); // Epic
+    assert.ok(reachedMilestones([row(30, { species: "megalodon" })], NOW, IST).has("first-rare")); // Legendary
+    // A long session that hatched an Uncommon fish doesn't count, and notes make no fish.
+    assert.ok(!reachedMilestones([row(120, { species: "seahorse" })], NOW, IST).has("first-rare"));
     assert.ok(!reachedMilestones([row(90, { session_type: "notes" })], NOW, IST).has("first-rare"));
   });
 

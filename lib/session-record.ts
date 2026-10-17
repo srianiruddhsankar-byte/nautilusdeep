@@ -1,7 +1,9 @@
+import { earnsFish, focusMinutes } from "./fish.ts";
+import { hatch } from "./species.ts";
 import type { EndReason, FocusMode, Mode, Result, SessionType } from "./timer";
 
 // The shape of one row in the Supabase `sessions` table
-// (see supabase/migrations/: create_sessions, then tasks_and_session_types).
+// (see supabase/migrations/: create_sessions, tasks_and_session_types, fish_species).
 export type Outcome = "completed" | "failed" | "partial";
 
 export type SessionRow = {
@@ -21,12 +23,13 @@ export type SessionRow = {
   task_name: string | null;
   target_minutes: number | null; // notes only
   cycle_name: string | null; // cycles only; null = Custom
+  species: string | null; // the fish it hatched (lib/species.ts); null = no fish
 };
 
 // Pure: no ids or clock reads here, the caller passes them in.
 export function toRow(result: Result, id: string, userId: string | null): SessionRow {
   const isCycle = result.mode === "cycle";
-  return {
+  const row: SessionRow = {
     id,
     user_id: userId,
     mode: result.mode,
@@ -43,7 +46,12 @@ export function toRow(result: Result, id: string, userId: string | null): Sessio
     task_name: result.task,
     target_minutes: result.targetMinutes,
     cycle_name: isCycle ? (result.cycleName ?? null) : null,
+    species: null,
   };
+  // The fry hatches now, with today's odds, and the species is saved with the
+  // row: changing the odds later never changes this fish.
+  if (earnsFish(row)) row.species = hatch(id, focusMinutes(row));
+  return row;
 }
 
 // Rows queued in this browser before Phase 6 don't have the new columns.

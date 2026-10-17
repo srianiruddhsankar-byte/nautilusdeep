@@ -1,3 +1,4 @@
+import { earnsFish, speciesOf } from "./fish";
 import { createLocalStore } from "./local-store";
 import { toRow, type SessionRow } from "./session-record";
 import { createClient } from "./supabase/client";
@@ -96,11 +97,14 @@ async function uploadOnce() {
     if (!row) break;
     tried.add(row.id);
 
+    // Rows queued before species existed get theirs now (the same pick the app shows).
+    const species = row.species ?? (earnsFish(row) ? speciesOf(row) : null);
+
     let message: string | null = null;
     try {
       const { error } = await supabase
         .from("sessions")
-        .upsert({ ...row, user_id: uid }, { onConflict: "id", ignoreDuplicates: true });
+        .upsert({ ...row, species, user_id: uid }, { onConflict: "id", ignoreDuplicates: true });
       message = error?.message ?? null;
     } catch (e) {
       message = e instanceof Error ? e.message : "Network error";

@@ -4,7 +4,7 @@
 export type MilestoneId = "first-rare" | "ten-hours" | "week-streak" | "first-mature";
 
 export const MILESTONE_LABEL: Record<MilestoneId, string> = {
-  "first-rare": "Catch your first rare fish",
+  "first-rare": "Catch your first Rare fish (or rarer)",
   "ten-hours": "Reach 10 hours of focus",
   "week-streak": "Reach a 7-day streak",
   "first-mature": "Grow your first mature plant",

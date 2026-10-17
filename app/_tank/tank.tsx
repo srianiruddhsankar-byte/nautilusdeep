@@ -4,21 +4,33 @@ import Link from "next/link";
 import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import type { AmbienceSound } from "@/lib/ambience-logic";
 import { inTank, type Owned } from "@/lib/economy";
-import { FISH_SIZE_LABEL, TANK_CAPACITY, type Aquarium, type Fish, type FishSize } from "@/lib/fish";
-import { fishLook } from "@/lib/fish-look";
+import { TANK_CAPACITY, type Aquarium, type Fish } from "@/lib/fish";
+import { fishLook, type FishLook } from "@/lib/fish-look";
 import { plantLook } from "@/lib/plant-look";
 import { MATURE_MINUTES, type MaturePlant, type Garden } from "@/lib/plants";
+import { NAUTILUS, RARITY_LABEL, speciesById } from "@/lib/species";
 import { formatDuration } from "@/lib/stats";
 import { FOCUS_MODE_LABEL } from "@/lib/timer";
-import { Bone, FISH_WIDTH, FishSprite } from "./fish-sprite";
+import { Bone, NautilusSprite, SpeciesSprite } from "./fish-sprite";
 import { PlantSprite } from "./plant-sprite";
 import { AmbienceScene } from "./ambience-scene";
 import { DecorationSprite } from "./decoration-sprite";
 import { DEFAULT_SKIN, type TankSkin } from "./skins";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" };
-// Bigger fish cruise a little slower.
-const SPEED: Record<FishSize, number> = { small: 0.85, medium: 1, large: 1.15, rare: 1.3 };
+// Bigger fish cruise a little slower (a lap's length, scaled by width in px).
+const speedFor = (width: number) => 0.75 + width / 120;
+// The nautilus drifts slowly through the middle of the tank, the same on every visit.
+const NAUTILUS_LOOK: FishLook = {
+  hue: 0,
+  accentHue: 0,
+  pattern: "plain",
+  tail: "round",
+  swimSeconds: 34,
+  bobSeconds: 4.2,
+  lane: 0.45,
+  phase: 0.3,
+};
 const SWIPE_PX = 50;
 // Plant spots along the sand (% from the left), one per slot. Low in the tank,
 // below the fish lanes, so plants never crowd the fish.
@@ -50,7 +62,6 @@ export function Tank({
   fixedIndex,
   scene = null,
   overlay = null,
-  liveFish = null,
 }: {
   aquarium: Aquarium | null; // null while loading
   garden: Garden | null;
@@ -60,17 +71,15 @@ export function Tank({
   coins?: number | null; // shown in the header (a link to Decorate) when given
   edit?: TankEdit;
   // The running screen: just the tank (no header, swiping, tapping or cards),
-  // showing `fixedIndex`, with the session's eggs / plant (`overlay`) and, once
-  // grown past a fry, its fish (`liveFish`) swimming with the rest.
+  // showing `fixedIndex`, with the session's egg / fry / plant (`overlay`).
   bare?: boolean;
   fixedIndex?: number;
   scene?: AmbienceSound | null; // the ambience scene (rain, waves…), or none
   overlay?: ReactNode;
-  liveFish?: Fish | null;
 }) {
   const [ownPick, setOwnPick] = useState<number | null>(null); // null = newest tank
   const picked = fixedIndex ?? (edit ? edit.index : ownPick);
-  // "fish:<id>" or "plant:<id>": what's tapped (its card is open).
+  // "fish:<id>", "plant:<id>" or "nautilus": what's tapped (its card is open).
   const [selected, setSelected] = useState<string | null>(null);
   const swipeStartX = useRef<number | null>(null);
   const justSwiped = useRef(false);
@@ -81,7 +90,9 @@ export function Tank({
   const index = Math.min(picked ?? tankCount - 1, tankCount - 1);
   const skin = skinOf(index);
   const decor = decorations ? inTank(decorations, index) : [];
-  const fish = [...(aquarium?.tanks[index] ?? []), ...(liveFish ? [liveFish] : [])];
+  const fish = aquarium?.tanks[index] ?? [];
+  // The namesake lives in the newest tank once you reach 100 credited hours.
+  const nautilus = (aquarium?.nautilus ?? false) && index === tankCount - 1;
   const plants = garden?.matured.filter((p) => p.tank === index) ?? [];
   const selectedFish = fish.find((f) => `fish:${f.id}` === selected) ?? null;
   const selectedPlant = plants.find((p) => `plant:${p.id}` === selected) ?? null;
@@ -198,15 +209,29 @@ export function Tank({
 
         {overlay}
 
+        {nautilus && (
+          <Swimmer
+            look={NAUTILUS_LOOK}
+            width={NAUTILUS.width}
+            label="Nautilus, the namesake"
+            selected={selected === "nautilus"}
+            onTap={tappable ? () => tap("nautilus") : undefined}
+          >
+            <NautilusSprite />
+          </Swimmer>
+        )}
+
         {fish.map((f) => (
-          <SwimmingFish
-            // The live fish remounts on each new size, which replays the "pop".
-            key={f === liveFish ? `${f.id}-${f.size}` : f.id}
-            fish={f}
+          <Swimmer
+            key={f.id}
+            look={fishLook(f.id)}
+            width={speciesById(f.species).width}
+            label={`${speciesById(f.species).name}, ${RARITY_LABEL[f.rarity]}`}
             selected={`fish:${f.id}` === selected}
             onTap={tappable ? () => tap(`fish:${f.id}`) : undefined}
-            grows={f === liveFish}
-          />
+          >
+            <SpeciesSprite species={f.species} />
+          </Swimmer>
         ))}
 
         <AmbienceScene scene={scene} layer="front" />
@@ -224,6 +249,7 @@ export function Tank({
         )}
 
         {selectedFish && <FishCard fish={selectedFish} onClose={() => setSelected(null)} />}
+        {selected === "nautilus" && nautilus && <NautilusCard onClose={() => setSelected(null)} />}
         {selectedPlant && <PlantCard plant={selectedPlant} onClose={() => setSelected(null)} />}
       </div>
 
@@ -241,22 +267,26 @@ export function Tank({
   );
 }
 
-function SwimmingFish({
-  fish,
+// Anything that swims across the tank: a fish or the nautilus. Its motion
+// (speed, lane, bob, starting point) comes from its seeded look.
+function Swimmer({
+  look,
+  width,
+  label,
   selected,
   onTap,
-  grows = false,
+  children,
 }: {
-  fish: Fish;
+  look: FishLook;
+  width: number;
+  label: string;
   selected: boolean;
   onTap?: () => void; // none in decorate mode or on the running screen
-  grows?: boolean; // the session's own fish: pops in at each new size
+  children: ReactNode;
 }) {
-  const look = fishLook(fish.id);
-  const width = FISH_WIDTH[fish.size];
   const style = {
     "--fish-w": `${width}px`,
-    "--swim": `${(look.swimSeconds * SPEED[fish.size]).toFixed(1)}s`,
+    "--swim": `${(look.swimSeconds * speedFor(width)).toFixed(1)}s`,
     "--bob": `${look.bobSeconds.toFixed(1)}s`,
     "--phase": look.phase.toFixed(3),
     "--lane": `${(6 + look.lane * 56).toFixed(1)}%`, // stays above the sand
@@ -272,19 +302,13 @@ function SwimmingFish({
               e.stopPropagation();
               onTap?.();
             }}
-            aria-label={`${FISH_SIZE_LABEL[fish.size]} fish, ${fish.minutes} focus minutes`}
+            aria-label={label}
             tabIndex={onTap ? undefined : -1}
             className={`${onTap ? "pointer-events-auto" : "pointer-events-none"} -m-2 block rounded-full p-2 ${
               selected ? "bg-white/40 ring-2 ring-white" : ""
             }`}
           >
-            {grows ? (
-              <div className="fish-grow">
-                <FishSprite look={look} size={fish.size} />
-              </div>
-            ) : (
-              <FishSprite look={look} size={fish.size} />
-            )}
+            {children}
           </button>
         </div>
       </div>
@@ -379,32 +403,20 @@ const shortDate = (iso: string) =>
 
 function PlantCard({ plant, onClose }: { plant: MaturePlant; onClose: () => void }) {
   return (
-    <div
-      className="absolute inset-x-2 bottom-2 flex items-start justify-between gap-3 rounded-xl bg-white/95 p-3 text-sm text-zinc-900 shadow-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex flex-col gap-0.5">
-        <p className="font-semibold">Mature plant</p>
-        <p className="text-zinc-600">Matured {shortDate(plant.maturedAt)}</p>
-        <p>
-          {formatDuration(MATURE_MINUTES * 60)} of notes · {plant.sessions}{" "}
-          {plant.sessions === 1 ? "session" : "sessions"} since {shortDate(plant.startedAt)}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="-m-1 rounded-full px-2 text-lg leading-none text-zinc-500"
-      >
-        ×
-      </button>
-    </div>
+    <TankCard onClose={onClose}>
+      <p className="font-semibold">Mature plant</p>
+      <p className="text-zinc-600">Matured {shortDate(plant.maturedAt)}</p>
+      <p>
+        {formatDuration(MATURE_MINUTES * 60)} of notes · {plant.sessions}{" "}
+        {plant.sessions === 1 ? "session" : "sessions"} since {shortDate(plant.startedAt)}
+      </p>
+    </TankCard>
   );
 }
 
 function FishCard({ fish, onClose }: { fish: Fish; onClose: () => void }) {
-  const date = new Date(fish.startedAt).toLocaleString(undefined, {
+  const species = speciesById(fish.species);
+  const date = new Date(fish.caughtAt).toLocaleString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -412,19 +424,43 @@ function FishCard({ fish, onClose }: { fish: Fish; onClose: () => void }) {
     minute: "2-digit",
   });
   return (
+    <TankCard onClose={onClose}>
+      <p>
+        <span className="font-semibold">{species.name}</span>
+        <span className="text-zinc-600"> · {RARITY_LABEL[fish.rarity]}</span>
+      </p>
+      <p className="text-zinc-700">{species.fact}</p>
+      <p className="text-zinc-600">
+        Caught {date} · {fish.minutes} focus min · {MODE_LABEL[fish.mode]} · {FOCUS_MODE_LABEL[fish.focusMode]}
+      </p>
+      <Link href="/sea-life" className="font-medium text-sky-700">
+        Sea life index ›
+      </Link>
+    </TankCard>
+  );
+}
+
+function NautilusCard({ onClose }: { onClose: () => void }) {
+  return (
+    <TankCard onClose={onClose}>
+      <p>
+        <span className="font-semibold">{NAUTILUS.name}</span>
+        <span className="text-zinc-600"> · The namesake</span>
+      </p>
+      <p className="text-zinc-700">{NAUTILUS.fact}</p>
+      <p className="text-zinc-600">Joined at {NAUTILUS.hours} hours of focus.</p>
+    </TankCard>
+  );
+}
+
+// The card at the bottom of the tank for a tapped fish, plant or the nautilus.
+function TankCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  return (
     <div
       className="absolute inset-x-2 bottom-2 flex items-start justify-between gap-3 rounded-xl bg-white/95 p-3 text-sm text-zinc-900 shadow-lg"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex flex-col gap-0.5">
-        <p className="font-semibold">
-          {FISH_SIZE_LABEL[fish.size]} fish{fish.size === "rare" ? " ✦" : ""}
-        </p>
-        <p className="text-zinc-600">{date}</p>
-        <p>
-          {fish.minutes} focus minutes · {MODE_LABEL[fish.mode]} · {FOCUS_MODE_LABEL[fish.focusMode]}
-        </p>
-      </div>
+      <div className="flex flex-col gap-0.5">{children}</div>
       <button
         type="button"
         onClick={onClose}

@@ -190,9 +190,9 @@ describe("weeks start on Monday", () => {
 
 describe("totals and records", () => {
   const rows = [
-    session("2026-10-14 09:00", 25), // today
-    session("2026-10-12 09:00", 50, { focus_mode: "open" }), // this week (Mon)
-    session("2026-10-02 09:00", 95, { mode: "stopwatch" }), // this month
+    session("2026-10-14 09:00", 25, { species: "oarfish" }), // today
+    session("2026-10-12 09:00", 50, { focus_mode: "open", species: "clownfish" }), // this week (Mon)
+    session("2026-10-02 09:00", 95, { mode: "stopwatch", species: "manta_ray" }), // this month
     session("2026-09-20 09:00", 10, { outcome: "failed", focus_seconds: 0 }),
   ];
   const stats = computeStats(rows, NOW, IST);
@@ -214,7 +214,13 @@ describe("totals and records", () => {
     assert.deepEqual(stats.focusMode, { deep: 120 * 60, open: 50 * 60 });
     assert.equal(stats.modes.stopwatch.sessions, 1);
     assert.equal(stats.outcomes.completionRate, 3 / 4);
-    assert.deepEqual(stats.fish, { small: 0, medium: 1, large: 1, rare: 1 });
+    assert.deepEqual(stats.fish, { common: 0, uncommon: 1, rare: 0, epic: 2, legendary: 0 });
+  });
+
+  test("rarest catch: the highest rarity; on a tie, the first one caught", () => {
+    // Oarfish and manta ray are both Epic; the manta ray (2 Oct) came first.
+    assert.equal(stats.rarest?.species, "manta_ray");
+    assert.equal(computeStats([], NOW, IST).rarest, null);
   });
 
   test("last 7 days ends today", () => {
@@ -353,8 +359,9 @@ describe("study and notes", () => {
     assert.equal(n.sessions.total, 2);
     assert.equal(study.bones, 1);
     assert.equal(n.bones, 0); // a failed notes session loses no fish
-    assert.deepEqual(n.fish, { small: 0, medium: 0, large: 0, rare: 0 });
-    assert.equal(study.fish.medium, 1);
+    assert.deepEqual(n.fish, { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 });
+    assert.equal(n.rarest, null);
+    assert.equal(study.fish.common, 1); // its id rolls 0: always common
   });
 
   test("time per task: grouped ignoring case, most time first, failed and untasked left out", () => {

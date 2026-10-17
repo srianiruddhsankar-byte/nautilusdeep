@@ -5,7 +5,8 @@ import { COIN_MIN_MINUTES, SKIN_UNLOCKS } from "@/lib/economy";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
 import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
-import { EYED_AT, FRY_UNTIL, HATCH_AT } from "@/lib/brood";
+import { EYED_AT, HATCH_AT } from "@/lib/brood";
+import { NAUTILUS, ODDS, RARITIES, RARITY_LABEL, SPECIES } from "@/lib/species";
 import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, LEAVE_GRACE_MS, MAX_PAUSE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
 import { Account } from "./account";
@@ -137,19 +138,38 @@ export default function HelpPage() {
         <Points>
           <li>
             While you focus, your tank shows a fish egg on a rock. At {EYED_AT} minutes its eyes show; at{" "}
-            {HATCH_AT} minutes it hatches into a tiny fry, and from {FRY_UNTIL} minutes it&apos;s a small fish
-            swimming with the others.
+            {HATCH_AT} minutes it hatches into a tiny fry, and it stays a fry until the session ends.
           </li>
-          <li>Every session with at least {FISH_MIN_MINUTES} minutes of focus hatches a fish. Shorter ones don&apos;t.</li>
-          <li>The longer you focus, the bigger it grows:</li>
+          <li>
+            Every session with at least {FISH_MIN_MINUTES} minutes of focus ends with the fry hatching into one of{" "}
+            {SPECIES.length} real species. Shorter ones don&apos;t hatch.
+          </li>
+          <li>
+            Species come in five rarities ({RARITIES.map((r) => RARITY_LABEL[r]).join(", ")}). Longer sessions
+            don&apos;t guarantee a rare fish, but they make one more likely:
+          </li>
         </Points>
         <dl className="grid grid-cols-2 gap-2 text-sm">
-          <Size label="Small" range={`${FISH_MIN_MINUTES}–24 min`} />
-          <Size label="Medium" range="25–49 min" />
-          <Size label="Large" range="50–89 min" />
-          <Size label="Rare" range="90+ min" />
+          {ODDS.map((band, i) => (
+            <Size
+              key={band.from}
+              label={ODDS[i + 1] ? `${band.from}–${ODDS[i + 1].from - 1} min` : `${band.from}+ min`}
+              range={RARITIES.filter((r) => band.odds[r] > 0)
+                .map((r) => `${band.odds[r]}% ${RARITY_LABEL[r].toLowerCase()}`)
+                .join(" · ")}
+            />
+          ))}
         </dl>
         <Points>
+          <li>Once a fish has hatched, it stays that species forever.</li>
+          <li>
+            Tap a fish in your tank to see what it is. The Sea life index (from Stats) shows every species: the ones
+            you&apos;ve caught, and &ldquo;???&rdquo; for the rest.
+          </li>
+          <li>
+            At {NAUTILUS.hours} hours of focus, a special guest joins your newest tank: the {NAUTILUS.name.toLowerCase()},
+            this app&apos;s namesake.
+          </li>
           <li>
             Each tank holds {TANK_CAPACITY} fish. The next one starts a new tank; swipe to see older tanks.
           </li>
@@ -158,7 +178,7 @@ export default function HelpPage() {
 
       <Card title="Bones">
         <p>
-          A bone means a fish was lost: you gave up a timer, ended a cycle in its first block, or left Deep Focus. Nothing
+          A bone means a fry or egg was lost: you gave up a timer, ended a cycle in its first block, or left Deep Focus. Nothing
           ever dies from time passing. Holidays are safe.
         </p>
       </Card>

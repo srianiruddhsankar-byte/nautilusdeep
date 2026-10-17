@@ -15,7 +15,7 @@ import { createClient } from "./supabase/client";
 // returns your own rows, so no user filter is needed.
 
 const COLUMNS =
-  "id, started_at, ended_at, mode, focus_mode, outcome, focus_seconds, session_type, task_name, target_minutes, cycle_name";
+  "id, started_at, ended_at, mode, focus_mode, outcome, focus_seconds, session_type, task_name, target_minutes, cycle_name, species";
 const PAGE_SIZE = 1000; // Supabase returns at most 1000 rows per request
 
 type State = { rows: SessionFacts[] | null; error: string | null };

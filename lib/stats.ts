@@ -1,4 +1,5 @@
-import { earnsFish, fishSizeFor, focusMinutes, leavesBone, type FishSize, type SessionFacts } from "./fish.ts";
+import { earnsFish, leavesBone, speciesOf, type SessionFacts } from "./fish.ts";
+import { rarityRank, speciesById, type Rarity, type SpeciesId } from "./species.ts";
 import { compareToTarget } from "./notes.ts";
 import { taskKey } from "./task-name.ts";
 import type { SessionType } from "./timer.ts";
@@ -189,7 +190,9 @@ export type Stats = {
   bones: number;
   focusMode: { deep: number; open: number }; // seconds
   modes: Record<SessionFacts["mode"], { sessions: number; seconds: number }>;
-  fish: Record<FishSize, number>;
+  fish: Record<Rarity, number>; // fish caught per rarity tier
+  // Your rarest species (the first one caught, if there's a tie). null = no fish yet.
+  rarest: { species: SpeciesId; caughtAt: string } | null;
   bestDay: DayTotal | null;
   hours: number[]; // 24 buckets of focus seconds, by local hour of day
   last7: DayTotal[]; // oldest → today
@@ -220,7 +223,8 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     stopwatch: { sessions: 0, seconds: 0 },
     cycle: { sessions: 0, seconds: 0 },
   };
-  const fish: Record<FishSize, number> = { small: 0, medium: 0, large: 0, rare: 0 };
+  const fish: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 };
+  let rarest: Stats["rarest"] = null;
   // Keyed case-insensitively; shows the spelling of the most recent session.
   const tasks = new Map<string, TaskTotal & { lastStart: number }>();
   const target = { sessions: 0, actual: 0, target: 0, onOrUnder: 0 };
@@ -236,7 +240,15 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
       const name = row.cycle_name ?? CUSTOM_CYCLE;
       cycles.set(name, (cycles.get(name) ?? 0) + 1);
     }
-    if (earnsFish(row)) fish[fishSizeFor(focusMinutes(row))]++;
+    if (earnsFish(row)) {
+      const species = speciesOf(row);
+      const rank = rarityRank(speciesById(species).rarity);
+      fish[speciesById(species).rarity]++;
+      const best = rarest ? rarityRank(speciesById(rarest.species).rarity) : -1;
+      if (rank > best || (rank === best && Date.parse(row.ended_at) < Date.parse(rarest!.caughtAt))) {
+        rarest = { species, caughtAt: row.ended_at };
+      }
+    }
     if (!counts(row)) continue;
 
     const seconds = row.focus_seconds;
@@ -296,6 +308,7 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     focusMode,
     modes,
     fish,
+    rarest,
     bestDay,
     hours,
     last7: Array.from({ length: 7 }, (_, i) => {

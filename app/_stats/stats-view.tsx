@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-import { FISH_SIZE_LABEL, type FishSize } from "@/lib/fish";
+import { RARITIES, RARITY_LABEL, speciesById } from "@/lib/species";
 import { MATURE_MINUTES, PLANT_STAGE_LABEL, deriveGarden, type Garden } from "@/lib/plants";
 import { SKIN_UNLOCKS, formatHours, nextSkin, skinUnlocked } from "@/lib/economy";
 import { useSessions } from "@/lib/sessions-data";
@@ -21,7 +22,6 @@ import { useClock } from "@/lib/use-clock";
 import { BarList, ColumnChart, Heatmap } from "./charts";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" } as const;
-const SIZES: FishSize[] = ["small", "medium", "large", "rare"];
 const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TYPES: SessionType[] = ["study", "notes"];
 
@@ -193,6 +193,8 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
         </Section>
       )}
 
+      {study && <FishCaught stats={stats} />}
+
       <Section title="Time per task">
         {stats.tasks.length > 0 ? (
           <BarList
@@ -289,18 +291,6 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
             )}
           </Section>
 
-          {study && (
-            <Section title="Fish caught">
-              <BarList
-                rows={SIZES.map((size) => ({
-                  label: FISH_SIZE_LABEL[size],
-                  value: stats.fish[size],
-                  display: String(stats.fish[size]),
-                }))}
-              />
-            </Section>
-          )}
-
           <Section title="Records">
             <Tiles>
               <Tile
@@ -333,6 +323,39 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
         </div>
       </details>
     </div>
+  );
+}
+
+// Study's counterpart to the Plants section: catches by rarity, the rarest one,
+// and the way into the Sea life index.
+function FishCaught({ stats }: { stats: Stats }) {
+  const total = RARITIES.reduce((sum, r) => sum + stats.fish[r], 0);
+  const rarest = stats.rarest ? speciesById(stats.rarest.species) : null;
+  return (
+    <Section title="Fish caught" note="Longer sessions make rarer fish more likely.">
+      <BarList
+        rows={RARITIES.map((rarity) => ({
+          label: RARITY_LABEL[rarity],
+          value: stats.fish[rarity],
+          display: String(stats.fish[rarity]),
+        }))}
+      />
+      <Tiles>
+        <Tile label="Fish" value={String(total)} sub="All time" />
+        <Tile
+          label="Rarest catch"
+          value={rarest ? rarest.name : "–"}
+          sub={rarest ? RARITY_LABEL[rarest.rarity] : undefined}
+        />
+      </Tiles>
+      <Link
+        href="/sea-life"
+        className="flex items-center justify-between rounded-xl bg-sky-50 px-4 py-3 font-medium text-sky-800 hover:bg-sky-100 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900"
+      >
+        Sea life index
+        <span aria-hidden>›</span>
+      </Link>
+    </Section>
   );
 }
 

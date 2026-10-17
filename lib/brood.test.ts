@@ -10,11 +10,8 @@ describe("egg stages", () => {
     [4, "eyed"],
     [5, "fry"], // hatches at 5 min: the same moment it starts counting as a fish
     [9, "fry"],
-    [10, "small"],
-    [24, "small"],
-    [25, "medium"],
-    [50, "large"],
-    [90, "rare"],
+    [50, "fry"], // stays a fry until the session ends, however long
+    [240, "fry"],
   ];
   for (const [minutes, stage] of cases) {
     test(`${minutes} min → ${stage}`, () => assert.equal(broodStage(minutes), stage));
@@ -23,8 +20,8 @@ describe("egg stages", () => {
   test("captions say what's next", () => {
     assert.equal(broodCaption(0), "A fish egg · its eyes appear at 2 min");
     assert.equal(broodCaption(3), "An eyed egg · it hatches at 5 min");
-    assert.equal(broodCaption(6), "It hatched! A fry · it grows into a small fish at 10 min");
-    assert.equal(broodCaption(12), "Small fish · grows to Medium at 25 min");
-    assert.equal(broodCaption(95), "Rare fish!");
+    assert.equal(broodCaption(6), "A fry · rarer fish get likelier at 25 min");
+    assert.equal(broodCaption(60), "A fry · rarer fish get likelier at 90 min");
+    assert.equal(broodCaption(95), "A fry · the best odds for a rare fish");
   });
 });

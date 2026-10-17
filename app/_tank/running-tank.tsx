@@ -2,7 +2,7 @@
 
 import type { AmbienceSound } from "@/lib/ambience-logic";
 import { broodCaption, broodStage } from "@/lib/brood";
-import { TANK_CAPACITY, type Aquarium, type Fish } from "@/lib/fish";
+import { TANK_CAPACITY, type Aquarium } from "@/lib/fish";
 import { plantLook } from "@/lib/plant-look";
 import {
   PLANT_MIN_MINUTES,
@@ -23,8 +23,8 @@ import { PLANT_SLOTS_X, Tank } from "./tank";
 const FRESH_SEED: GrowingPlant = { id: null, minutes: 0, stage: "seed", wilted: false };
 
 // The running screen's picture: your real tank (fish, plants, decorations, skin
-// and the ambience scene), with this session's eggs → fry → fish (study) or its
-// growing plant (notes) in it. Kept in one place for the realistic redesign.
+// and the ambience scene), with this session's egg → fry (study; it becomes a
+// species when the session ends) or its growing plant (notes) in it. Kept in one place for the realistic redesign.
 export function RunningTank({
   session,
   now,
@@ -49,7 +49,6 @@ export function RunningTank({
 
   let index: number;
   let overlay = null;
-  let liveFish: Fish | null = null;
   let caption: string;
 
   if (isNotes(session)) {
@@ -74,18 +73,7 @@ export function RunningTank({
   } else {
     // The new fish joins the tank that has room: the newest, or a new one if it's full.
     index = Math.floor(fishCount / TANK_CAPACITY);
-    const stage = broodStage(minutes);
-    overlay = <LiveBrood stage={stage} />;
-    if (stage !== "eggs" && stage !== "eyed" && stage !== "fry") {
-      liveFish = {
-        id: session.id ?? "legacy",
-        size: stage,
-        minutes,
-        startedAt: new Date(session.startedAt).toISOString(),
-        mode: session.mode,
-        focusMode: session.focusMode === "open" ? "open" : "deep",
-      };
-    }
+    overlay = <LiveBrood stage={broodStage(minutes)} />;
     caption = broodCaption(minutes);
   }
 
@@ -101,7 +89,6 @@ export function RunningTank({
           decorations={decorations}
           scene={scene}
           overlay={overlay}
-          liveFish={liveFish}
         />
       </div>
       <p className="text-center text-sm text-zinc-500">{caption}</p>

@@ -17,6 +17,23 @@ const MIN = 60 * SEC;
 const T0 = Date.UTC(2026, 9, 14, 9, 0, 0); // 2026-10-14 09:00 UTC
 const ID = "00000000-0000-4000-8000-000000000001";
 
+describe("toRow: the species is saved when the fry hatches", () => {
+  test("only sessions that earn a fish get one", () => {
+    const failed = endSession({ ...startTimer(25, T0), id: ID }, "stopped", T0 + 12 * MIN);
+    assert.equal(toRow(failed, ID, null).species, null);
+    const short = endSession({ ...startStopwatch(T0), id: ID }, "stopped", T0 + 4 * MIN + 59 * SEC);
+    assert.equal(toRow(short, ID, null).species, null);
+    const five = endSession({ ...startStopwatch(T0), id: ID }, "stopped", T0 + 5 * MIN);
+    assert.equal(toRow(five, ID, null).species, "blue_damselfish");
+  });
+
+  test("a partial cycle hatches by its banked minutes", () => {
+    const id = "cd000000-0000-4000-8000-000000000001"; // an 80.1% roll: rare from 50 min
+    const r = endSession({ ...startCycle(DEFAULT_CYCLE, T0), id }, "left", T0 + 70 * MIN); // 50 banked
+    assert.equal(toRow(r, id, null).species, "mandarinfish");
+  });
+});
+
 describe("toRow", () => {
   test("completed timer", () => {
     const r = endSession({ ...startTimer(25, T0), id: ID }, "finished", T0 + 25 * MIN);
@@ -37,6 +54,7 @@ describe("toRow", () => {
       task_name: null,
       target_minutes: null,
       cycle_name: null,
+      species: "blue_damselfish", // hatched at the end: tier roll 0 (common), pick 1
     });
   });
 

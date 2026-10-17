@@ -2,14 +2,16 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   TANK_CAPACITY,
+  catchLog,
+  creditedHours,
   deriveAquarium,
-  fishSizeFor,
   mergeSessions,
-  nextSize,
+  speciesOf,
   tankIndexOf,
   type SessionFacts,
 } from "./fish.ts";
 import { fishLook } from "./fish-look.ts";
+import { hatch } from "./species.ts";
 
 const T0 = Date.UTC(2026, 9, 14, 9, 0, 0);
 let nextId = 0;
@@ -45,50 +47,87 @@ describe("5-minute minimum", () => {
     assert.equal(aq.tanks[0][0].minutes, 5);
   });
 
-  test("Open Focus earns fish exactly like Deep Focus", () => {
-    const aq = deriveAquarium([row({ focus_mode: "open", minutes: 30 })]);
-    assert.equal(aq.tanks[0][0].size, "medium");
-    assert.equal(aq.tanks[0][0].focusMode, "open");
+  test("Open Focus earns fish exactly like Deep Focus (same odds, full minutes)", () => {
+    const deep = row({ minutes: 60 });
+    const open = { ...deep, focus_mode: "open" as const };
+    assert.equal(deriveAquarium([open]).tanks[0][0].species, deriveAquarium([deep]).tanks[0][0].species);
+    assert.equal(deriveAquarium([open]).tanks[0][0].focusMode, "open");
   });
 });
 
-describe("size thresholds", () => {
-  const cases: [number, string][] = [
-    [5, "small"],
-    [24, "small"],
-    [25, "medium"],
-    [49, "medium"],
-    [50, "large"],
-    [89, "large"],
-    [90, "rare"],
-    [240, "rare"],
-  ];
-  for (const [minutes, size] of cases) {
-    test(`${minutes} min → ${size}`, () => assert.equal(fishSizeFor(minutes), size));
-  }
+// An id whose tier roll is 80.1%: uncommon under 50 min, rare from 50, epic
+// from 90 (see lib/species.test.ts).
+const ROLL_80 = "cd000000-0000-4000-8000-000000000001";
 
-  test("24 min 59 s is still small (minutes round down)", () => {
-    const aq = deriveAquarium([row({ focus_seconds: 25 * 60 - 1 })]);
-    assert.equal(aq.tanks[0][0].size, "small");
+describe("species", () => {
+  test("a saved species is used as it is, whatever the odds say", () => {
+    // 10 minutes with this roll would hatch an uncommon fish; the saved one wins.
+    const aq = deriveAquarium([row({ id: ROLL_80, minutes: 10, species: "megalodon" })]);
+    assert.equal(aq.tanks[0][0].species, "megalodon");
+    assert.equal(aq.tanks[0][0].rarity, "legendary");
   });
 
-  test("next size hint", () => {
-    assert.deepEqual(nextSize(10), { size: "medium", atMinutes: 25 });
-    assert.deepEqual(nextSize(89), { size: "rare", atMinutes: 90 });
-    assert.equal(nextSize(90), null);
+  test("saved species never change when the odds change", () => {
+    const saved = row({ id: ROLL_80, minutes: 10, species: hatch(ROLL_80, 10) });
+    const generous = [{ from: 5, odds: { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 100 } }];
+    assert.notEqual(hatch(ROLL_80, 10, generous), saved.species); // new odds would pick differently…
+    assert.equal(speciesOf(saved), "pufferfish"); // …but the saved fish stays
+  });
+
+  test("a row without a species (queued before species existed) gets the deterministic pick", () => {
+    const old = row({ id: ROLL_80, minutes: 30 });
+    assert.equal(speciesOf(old), hatch(ROLL_80, 30));
+    assert.equal(speciesOf(old), "pufferfish"); // 80.1% at 30 min: uncommon
+  });
+
+  test("an unknown saved value falls back to the pick", () => {
+    assert.equal(speciesOf(row({ id: ROLL_80, minutes: 30, species: "kraken" })), "pufferfish");
+  });
+
+  test("partial cycles hatch by banked minutes, not time spent", () => {
+    // 2 blocks of 25 banked (50 min): this roll is rare from 50 min.
+    const aq = deriveAquarium([row({ id: ROLL_80, mode: "cycle", outcome: "partial", minutes: 50 })]);
+    assert.equal(aq.tanks[0][0].rarity, "rare");
+  });
+
+  test("Night mode: only credited minutes count (focus_seconds stops at the last check-in)", () => {
+    // Ran 2 hours, but the last confirmed check-in was at 45 min: odds of 25–49 min.
+    const aq = deriveAquarium([row({ id: ROLL_80, minutes: 120, focus_seconds: 45 * 60 })]);
+    assert.equal(aq.tanks[0][0].minutes, 45);
+    assert.equal(aq.tanks[0][0].rarity, "uncommon");
   });
 });
 
-describe("partial cycles", () => {
-  test("sized by banked minutes, not time spent", () => {
-    // 2 blocks of 25 banked (50 min) → large, even though more time passed.
-    const aq = deriveAquarium([row({ mode: "cycle", outcome: "partial", minutes: 50 })]);
-    assert.equal(aq.tanks[0][0].size, "large");
+describe("Sea life index", () => {
+  test("counts per species and the first-caught date", () => {
+    const aq = deriveAquarium([
+      row({ endsAt: 30, species: "clownfish" }),
+      row({ endsAt: 10, species: "clownfish" }),
+      row({ endsAt: 20, species: "oarfish" }),
+      row({ endsAt: 40, outcome: "failed", focus_seconds: 0 }), // no fish
+      row({ endsAt: 50, session_type: "notes", species: null }), // no fish
+    ]);
+    const log = catchLog(aq);
+    assert.equal(log.size, 2);
+    assert.equal(log.get("clownfish")!.count, 2);
+    assert.equal(log.get("clownfish")!.firstCaughtAt, new Date(T0 + 10 * 60_000).toISOString());
+    assert.equal(log.get("oarfish")!.count, 1);
+    assert.equal(log.has("megalodon"), false);
   });
 
-  test("a partial cycle under 5 banked minutes earns no fish", () => {
-    const aq = deriveAquarium([row({ mode: "cycle", outcome: "partial", minutes: 4 })]);
-    assert.equal(aq.fishCount, 0);
+  test("counts across every tank", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => row({ endsAt: 2000 + i, species: "seahorse" }));
+    assert.equal(catchLog(deriveAquarium(rows)).get("seahorse")!.count, 12);
+  });
+});
+
+describe("the nautilus", () => {
+  test("joins at 100 credited hours of study + notes; failed time doesn't count", () => {
+    const hour = (n: number, extra: Partial<SessionFacts> = {}) =>
+      Array.from({ length: n }, () => row({ minutes: 60, ...extra }));
+    assert.equal(deriveAquarium(hour(99)).nautilus, false);
+    assert.equal(deriveAquarium([...hour(60), ...hour(40, { session_type: "notes" })]).nautilus, true);
+    assert.equal(creditedHours(hour(5, { outcome: "failed" })), 0);
   });
 });
 

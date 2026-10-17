@@ -1,6 +1,7 @@
 import { decorationById, type DecorationItem, type MilestoneId } from "./decorations.ts";
-import { deriveAquarium, focusMinutes, type SessionFacts } from "./fish.ts";
+import { creditedHours, deriveAquarium, focusMinutes, type SessionFacts } from "./fish.ts";
 import { deriveGarden } from "./plants.ts";
+import { rarityRank } from "./species.ts";
 import { computeOverview } from "./stats.ts";
 
 // Coins, milestones, skins and decoration placement. Coins earned are DERIVED
@@ -31,17 +32,16 @@ export function coinBalance(rows: SessionFacts[], owned: { price: number }[]): n
   return earnedCoins(rows) - spentCoins(owned);
 }
 
-// Total credited focus (completed + partial, study + notes), in hours.
-export function creditedHours(rows: SessionFacts[]): number {
-  const seconds = rows.reduce((sum, row) => sum + (row.outcome === "failed" ? 0 : row.focus_seconds), 0);
-  return seconds / 3600;
-}
+// Total credited focus hours lives in fish.ts (the nautilus needs it too).
+export { creditedHours };
 
 // ---------- Milestones ----------
 
 export function reachedMilestones(rows: SessionFacts[], now: number, timeZone: string): Set<MilestoneId> {
   const reached = new Set<MilestoneId>();
-  if (deriveAquarium(rows).tanks.some((tank) => tank.some((f) => f.size === "rare"))) reached.add("first-rare");
+  // "first-rare" = your first Rare-or-better catch (Rare, Epic or Legendary).
+  const fish = deriveAquarium(rows).tanks.flat();
+  if (fish.some((f) => rarityRank(f.rarity) >= rarityRank("rare"))) reached.add("first-rare");
   if (creditedHours(rows) >= 10) reached.add("ten-hours");
   if (computeOverview(rows, now, timeZone).streak.longest >= 7) reached.add("week-streak");
   if (deriveGarden(rows).matured.length > 0) reached.add("first-mature");
