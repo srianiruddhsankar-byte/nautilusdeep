@@ -335,7 +335,7 @@ function PlantInTank({
         onTap?.();
       }}
       aria-label={`Mature plant, matured ${shortDate(plant.maturedAt)}`}
-      className={`absolute bottom-[3%] -translate-x-1/2 rounded-xl px-1 ${selected ? "bg-white/40 ring-2 ring-white" : ""} ${
+      className={`absolute bottom-[3%] -translate-x-1/2 rounded-control px-1 ${selected ? "bg-white/40 ring-2 ring-white" : ""} ${
         onTap ? "" : "pointer-events-none"
       }`}
       style={{ left: `${PLANT_SLOTS_X[plant.slot % PLANT_SLOTS_X.length]}%` }}
@@ -380,7 +380,7 @@ function PlacedDecoration({
       }}
       aria-label={`${decoration.item.replace("-", " ")}${selected ? ", selected" : ""}`}
       aria-pressed={selected}
-      className={`absolute block rounded-lg leading-none ${selected ? "bg-white/50 ring-2 ring-[#23466b]" : ""}`}
+      className={`absolute block rounded-chip leading-none ${selected ? "bg-white/50 ring-2 ring-[#23466b]" : ""}`}
       style={style}
     >
       {sprite}
@@ -454,6 +454,8 @@ function NautilusCard({ onClose }: { onClose: () => void }) {
 }
 
 // The card at the bottom of the tank for a tapped fish, plant or the nautilus.
+// It floats on the water, which looks the same in light and dark mode, so it uses
+// fixed light Paper Tide colours (card / ink / muted / primary) instead of tokens.
 function TankCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
     <div

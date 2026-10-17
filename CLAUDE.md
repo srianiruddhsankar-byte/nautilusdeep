@@ -106,6 +106,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `segmented.tsx` (`Segmented`, `Chip`), `tabs.tsx`, `switch.tsx`, `sheet.tsx` (native `<dialog>`),
   `toast.tsx` (`toast("…")`, `<Toaster/>` in the root layout), `feedback.tsx` (`Skeleton`, `EmptyState`,
   `ProgressBar`), `page.tsx` (`Page`: every signed-in page's frame), `stat.tsx` (`StatTile`, `StatGrid`). Tokens and the few component classes live in `app/globals.css`
+- `app/not-found.tsx` — the 404 page (signed-in only: signed out, proxy.ts sends unknown paths to /login)
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
@@ -145,6 +146,9 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   one-line muted note if needed); lists sit inside a card with `divide-line` rows of ≥ 44 px; group labels above
   cards use `eyebrow`. Charts use the validated tide-blue palette in `app/_stats/viz.css` (re-run the dataviz
   checker against `card` in both modes if it changes).
+- **Navigation**: the bottom bar is paper with a hairline top; the current tab is primary colour + bold label +
+  a short bar on top (never colour alone). Long reading pages (Help) get a contents row of anchor chips and
+  `eyebrow` group headings. Public pages (login, privacy) have no nav bar.
 - **Shadows**: paper edges, never blurry drop shadows: `shadow-card` (hairline + 2 px edge), `shadow-press`
   (primary button's 3 px edge that presses down).
 - **Motion**: controls are snappy and precise: `--dur-fast` 120 ms (press, hover), `--dur` 160 ms (toggles,
@@ -415,7 +419,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   - Stage A (done): UI = Paper Tide (C); tank = Tank 4 (PixiJS rope-mesh fish), built in Stage C.
   - Stage B (in progress): design system + Paper Tide on the real app, keeping the current tank art. Batch 1:
     tokens, `app/_ui/`, login, Home, session settings (a sheet), running and result screens (committed).
-    Batch 2: Tasks, Shop, Stats, Sea life index (written, being tested). Batch 3: Help, Privacy, nav bar, consistency sweep.
+    Batch 2: Tasks, Shop, Stats, Sea life index (committed). Batch 3: Help, Privacy, nav bar, 404, consistency
+    sweep (committed). Stage B is done. Stage C (tank and scene art: Tank 4) is next once Stage B is approved.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?

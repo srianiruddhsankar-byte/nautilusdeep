@@ -103,6 +103,13 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* In-page links (Help's contents) glide, unless reduced motion is on. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Visible keyboard focus everywhere (mouse and touch taps don't show it). */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 3px solid var(--focus);

@@ -9,6 +9,9 @@ import { EYED_AT, HATCH_AT } from "@/lib/brood";
 import { NAUTILUS, ODDS, RARITIES, RARITY_LABEL, SPECIES } from "@/lib/species";
 import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, LEAVE_GRACE_MS, MAX_PAUSE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
+import { Card as PaperCard } from "../_ui/card";
+import { Skeleton } from "../_ui/feedback";
+import { Page } from "../_ui/page";
 import { Account } from "./account";
 
 export const metadata: Metadata = {
@@ -18,14 +21,35 @@ export const metadata: Metadata = {
 const GRACE = LEAVE_GRACE_MS / 1000;
 const CANCEL = CANCEL_WINDOW_MS / 1000;
 
+// The page's groups, for the contents row at the top.
+const GROUPS = [
+  { id: "sessions", title: "Sessions" },
+  { id: "tank", title: "Your tank" },
+  { id: "rewards", title: "Rewards" },
+  { id: "planning", title: "Planning" },
+  { id: "account", title: "Account" },
+] as const;
+
 // Plain-language rules. Numbers come from the same constants the app uses.
 export default function HelpPage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 p-4">
+    <Page>
       <PageHeader title="How it works" />
-      <p className="text-zinc-600 dark:text-zinc-400">
-        Focus, and a fish grows in your tank. That&apos;s the whole idea. Here are the details.
-      </p>
+      <p className="text-muted">Focus, and a fish grows in your tank. That&apos;s the whole idea. Here are the details.</p>
+
+      <nav aria-label="On this page" className="flex flex-wrap gap-2">
+        {GROUPS.map((g) => (
+          <a
+            key={g.id}
+            href={`#${g.id}`}
+            className="inline-flex min-h-11 items-center rounded-chip bg-card px-4 text-sm font-semibold shadow-[inset_0_0_0_1.5px_var(--line)] transition-colors duration-(--dur-fast) hover:bg-soft"
+          >
+            {g.title}
+          </a>
+        ))}
+      </nav>
+
+      <GroupHeading id="sessions" />
 
       <Card title="Three ways to focus">
         <Points>
@@ -43,7 +67,7 @@ export default function HelpPage() {
 
       <Card title="How cycles work">
         <p>A cycle is a list of blocks. Pomodoro looks like this:</p>
-        <ol className="flex flex-col gap-1 rounded-xl bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
+        <ol className="flex flex-col gap-1 rounded-control bg-soft p-3 text-sm tabular-nums">
           <li>Focus 25 → Break 5</li>
           <li>Focus 25 → Break 5</li>
           <li>Focus 25 → Break 5</li>
@@ -134,6 +158,8 @@ export default function HelpPage() {
         </Points>
       </Card>
 
+      <GroupHeading id="tank" />
+
       <Card title="Fish">
         <Points>
           <li>
@@ -220,6 +246,8 @@ export default function HelpPage() {
         </Points>
       </Card>
 
+      <GroupHeading id="rewards" />
+
       <Card title="Coins">
         <Points>
           <li>Every focus minute earns a coin, from study and notes alike. Open Focus earns half.</li>
@@ -255,6 +283,8 @@ export default function HelpPage() {
         </dl>
       </Card>
 
+      <GroupHeading id="planning" />
+
       <Card title="Tasks">
         <Points>
           <li>Add tasks with an optional due date. Pick one before you start, or start without one.</li>
@@ -275,34 +305,44 @@ export default function HelpPage() {
         </Points>
       </Card>
 
+      <GroupHeading id="account" />
       {/* Reads the login cookie, so it streams in per request. */}
-      <Suspense fallback={<div className="h-36 rounded-2xl border border-zinc-200 dark:border-zinc-800" />}>
+      <Suspense fallback={<Skeleton className="h-40 rounded-card" />}>
         <Account />
       </Suspense>
 
       <BottomNav active="help" />
-    </main>
+    </Page>
+  );
+}
+
+// An eyebrow over each group of cards; the contents row jumps here.
+function GroupHeading({ id }: { id: (typeof GROUPS)[number]["id"] }) {
+  return (
+    <h2 id={id} className="eyebrow scroll-mt-6 pt-3">
+      {GROUPS.find((g) => g.id === id)!.title}
+    </h2>
   );
 }
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 leading-relaxed dark:border-zinc-800">
-      <h2 className="font-semibold">{title}</h2>
+    <PaperCard as="section" aria-label={title} className="gap-3 leading-relaxed">
+      <h3 className="title-card">{title}</h3>
       {children}
-    </section>
+    </PaperCard>
   );
 }
 
 function Points({ children }: { children: ReactNode }) {
-  return <ul className="flex list-disc flex-col gap-1.5 pl-5 marker:text-zinc-400">{children}</ul>;
+  return <ul className="flex list-disc flex-col gap-1.5 pl-5 marker:text-muted">{children}</ul>;
 }
 
 function Size({ label, range }: { label: string; range: string }) {
   return (
-    <div className="rounded-xl bg-zinc-100 p-3 dark:bg-zinc-900">
+    <div className="rounded-control bg-soft p-3">
       <dt className="font-semibold">{label}</dt>
-      <dd className="text-zinc-500">{range}</dd>
+      <dd className="text-muted">{range}</dd>
     </div>
   );
 }

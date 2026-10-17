@@ -62,7 +62,7 @@ export function BottomNav({ active }: { active: NavPage }) {
       <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-zinc-800"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
         <ul className="mx-auto grid max-w-md grid-cols-5">
           {ITEMS.map((item) => {
@@ -72,17 +72,24 @@ export function BottomNav({ active }: { active: NavPage }) {
                 <Link
                   href={item.href}
                   aria-current={current ? "page" : undefined}
-                  className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
-                    current ? "text-sky-700 dark:text-sky-400" : "text-zinc-500 hover:text-foreground"
+                  className={`relative flex h-16 flex-col items-center justify-center gap-1 text-xs transition-colors duration-(--dur-fast) ${
+                    current ? "font-bold text-primary" : "font-semibold text-muted hover:text-ink"
                   }`}
                 >
+                  {/* The current tab: colour, bold label AND a short bar, never colour alone. */}
+                  <span
+                    aria-hidden
+                    className={`absolute top-0 h-0.5 w-8 rounded-b-full bg-primary transition-opacity duration-(--dur) ${
+                      current ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
                   <svg
                     aria-hidden
                     viewBox="0 0 24 24"
                     className="h-6 w-6"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth={1.8}
+                    strokeWidth={current ? 2.1 : 1.8}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
