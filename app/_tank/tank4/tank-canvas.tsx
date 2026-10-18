@@ -1,12 +1,13 @@
 "use client";
 
 import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { BroodStage } from "@/lib/brood";
 import type { SkinId } from "@/lib/economy";
-import { NautilusSprite, SpeciesSprite } from "../fish-sprite";
-import type { Engine, Markup, RigidName, TankFish } from "./engine";
+import type { Engine, TankFish } from "./engine";
 import { useReducedMotion, useTankLoop } from "./tank-loop";
 
-// The Tank 4 canvas: water, scenery and every fish, drawn by engine.ts.
+// The Tank 4 canvas: water, scenery, every fish and the session's egg / fry,
+// drawn by engine.ts.
 // - Pixi is loaded only when a tank is on screen (its own chunk).
 // - 30 fps, paused when the tab is hidden, the window loses focus or the tank
 //   is off screen (tank-loop.ts). Reduced motion: the fish rest, nothing moves.
@@ -20,11 +21,11 @@ export type TankHandle = { hitTest: (clientX: number, clientY: number) => string
 const FPS = 30;
 const REBUILD_AFTER_MS = 3000;
 const MAX_REBUILDS = 3;
-const RIGID: RigidName[] = ["seahorse", "manta_ray", "nautilus"];
 
 export function TankCanvas({
   probe,
   fish,
+  brood = null,
   skin,
   selected,
   ref,
@@ -32,6 +33,7 @@ export function TankCanvas({
 }: {
   probe: string; // the loop's name in window.__tanks (for measuring)
   fish: TankFish[];
+  brood?: BroodStage | null; // the running screen's egg → fry
   skin: SkinId;
   selected: string | null;
   ref: Ref<TankHandle>; // for hit testing taps
@@ -39,16 +41,15 @@ export function TankCanvas({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const art = useRef<HTMLDivElement>(null);
   const engine = useRef<Engine | null>(null);
   const [generation, setGeneration] = useState(0);
   const [lost, setLost] = useState(false); // the GPU dropped the canvas; the skin's picture shows meanwhile
   const still = useReducedMotion();
 
   // The newest props, for the async build and the effects below.
-  const latest = useRef({ fish, skin, selected, still, onStatus });
+  const latest = useRef({ fish, brood, skin, selected, still, onStatus });
   useEffect(() => {
-    latest.current = { fish, skin, selected, still, onStatus };
+    latest.current = { fish, brood, skin, selected, still, onStatus };
   });
 
   // Build (and rebuild after a lost context).
@@ -61,30 +62,12 @@ export function TankCanvas({
     let built: Engine | null = null;
     let rebuild: ReturnType<typeof setTimeout> | undefined;
 
-    // The rigid drawings come from the hidden sprites rendered below.
-    const markup: Markup = (name) => {
-      const svg = art.current?.querySelector<SVGSVGElement>(`[data-art="${name}"] svg`);
-      if (!svg) return null;
-      const vb = svg.viewBox.baseVal;
-      return {
-        aspect: vb.width / (vb.height || 1),
-        svg: (w, h) => {
-          const copy = svg.cloneNode(true) as SVGSVGElement;
-          copy.setAttribute("width", String(w));
-          copy.setAttribute("height", String(h));
-          copy.removeAttribute("class");
-          return new XMLSerializer().serializeToString(copy);
-        },
-      };
-    };
-
     (async () => {
       const [P, { createEngine }] = await Promise.all([import("pixi.js"), import("./engine")]);
       if (gone || !canvas.current || !host.current) return;
       try {
         built = await createEngine(P, canvas.current, host.current, {
           skin: latest.current.skin,
-          markup,
           onContextLost: () => {
             setLost(true);
             latest.current.onStatus("loading");
@@ -99,6 +82,7 @@ export function TankCanvas({
         });
         if (gone) return built.dispose();
         await built.setFish(latest.current.fish);
+        await built.setBrood(latest.current.brood);
         if (gone) return;
         built.setSelected(latest.current.selected);
         if (latest.current.still) built.still();
@@ -128,6 +112,9 @@ export function TankCanvas({
     void engine.current?.setFish(latest.current.fish);
   }, [fishKey]);
   useEffect(() => {
+    void engine.current?.setBrood(brood);
+  }, [brood]);
+  useEffect(() => {
     void engine.current?.setLook(skin);
   }, [skin]);
   useEffect(() => {
@@ -147,13 +134,6 @@ export function TankCanvas({
   return (
     <div ref={host} className="pointer-events-none absolute inset-0" aria-hidden>
       <canvas key={generation} ref={canvas} className={`block h-full w-full ${lost ? "invisible" : ""}`} />
-      <div ref={art} hidden>
-        {RIGID.map((name) => (
-          <div key={name} data-art={name}>
-            {name === "nautilus" ? <NautilusSprite width={60} /> : <SpeciesSprite species={name} width={60} />}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

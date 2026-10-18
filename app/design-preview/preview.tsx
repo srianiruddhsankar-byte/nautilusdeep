@@ -4,7 +4,7 @@ import { type ComponentType, memo, type ReactNode, useEffect, useState } from "r
 import { CLOWN } from "./fish-art";
 import { restingFish } from "./scenery";
 import { Tank3D } from "./tank-3d";
-import { TankReal } from "./tank-real";
+import { RevealDemo, TankReal } from "./tank-real";
 import { type LoopStats, useReducedMotion } from "./tank-loop";
 import { StaticFish, TankSvg } from "./tank-svg";
 import "./preview.css";
@@ -102,6 +102,11 @@ export function DesignPreview({ fontClasses }: { fontClasses: string }) {
           />
         ))}
       </div>
+
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-2" aria-label="Result screen stage">
+        <p className="pv-eyebrow">Tank 4 · result screen</p>
+        <RevealDemo />
+      </section>
 
       {full && <RunningScreen o={full} still={still} onClose={() => setFull(null)} />}
     </main>

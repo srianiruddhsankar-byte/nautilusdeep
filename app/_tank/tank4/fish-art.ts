@@ -5,9 +5,10 @@
 // side drawing per species; the engine bends that drawing along the swimming
 // spine. A PNG in public/fish/ replaces the drawing (art-files.ts).
 //
-// Species that aren't side-on fish (seahorse, manta ray) are "rigid" for now:
-// their existing drawing moves as one piece. Batch C2 gives them (and the other
-// odd shapes) their own rigs.
+// Most species are ROPES: the side drawing bends along the spine. The odd
+// shapes are PUPPETS (puppets.ts): pieces that move on their own. The
+// pufferfish, lionfish and sunfish are puppets cut from their art here; the
+// manta ray, seahorse and nautilus are drawn by hand in puppets.ts.
 
 import type { SpeciesId } from "@/lib/species";
 import type { SwimSpec } from "@/lib/swim";
@@ -53,12 +54,19 @@ export type Art = {
 // How a species swims; the body length comes from its size (lengthOf). Big
 // fish need quick, tight turns: the tank is shallower than they are long, and
 // a slow turn spends seconds pointing into the glass (drawn nose-down).
-export type Temperament = Omit<SwimSpec, "length" | "girth" | "home" | "homeRange"> & {
+export type Temperament = Omit<SwimSpec, "length" | "girth" | "home" | "homeRange" | "roam"> & {
   schools?: boolean; // follows another of its kind
   home?: "anemone" | "low"; // stays near the anemone / near the sand
 };
 
-export type SpeciesArt = { kind: "rope"; art: Art; swim: Temperament } | { kind: "rigid"; swim: Temperament };
+// A rope's swimming wave: most fish beat their tail (the default); the oarfish
+// ripples its whole length.
+export type Wave = { amp: number; waves: number };
+
+export type PuppetId = "pufferfish" | "lionfish" | "sunfish" | "manta_ray" | "seahorse" | "nautilus";
+export type SpeciesArt =
+  | { kind: "rope"; art: Art; swim: Temperament; wave?: Wave }
+  | { kind: "puppet"; id: PuppetId; art: Art | null; swim: Temperament };
 
 // A smooth curve through (s, value) points.
 export function curve(pts: [number, number][]) {
@@ -113,7 +121,7 @@ const INK = "#1b1a1f";
 
 const CLOWN_BAND = (a: number, b: number, bulge: number) => bar(a, b, 0, bulge);
 
-const ROPE: Record<Exclude<SpeciesId, "seahorse" | "manta_ray">, { art: Art; swim: Temperament }> = {
+const ART: Record<Exclude<SpeciesId, "seahorse" | "manta_ray">, { art: Art; swim: Temperament; wave?: Wave }> = {
   // ---- Common ----
   green_chromis: {
     art: {
@@ -751,6 +759,7 @@ const ROPE: Record<Exclude<SpeciesId, "seahorse" | "manta_ray">, { art: Art; swi
       eye: { s: 0.02, f: 0.2, r: 0.016, iris: "#e2e8f0" },
     },
     swim: { cruise: 14, burst: 24, turn: 0.9, minRadius: 0.35, hover: 0.15, tailHz: [0.45, 0.02] },
+    wave: { amp: 0.035, waves: 1.6 },
   },
   sunfish: {
     art: {
@@ -979,18 +988,23 @@ const ROPE: Record<Exclude<SpeciesId, "seahorse" | "manta_ray">, { art: Art; swi
   },
 };
 
-const RIGID: Record<"seahorse" | "manta_ray", Temperament> = {
+const HAND: Record<"seahorse" | "manta_ray", Temperament> = {
   seahorse: { cruise: 6, burst: 10, turn: 1.2, minRadius: 0.3, hover: 0.7, tailHz: [1.5, 0.05] },
   manta_ray: { cruise: 18, burst: 28, turn: 0.9, minRadius: 0.4, hover: 0, tailHz: [0.4, 0.02] },
 };
 
-export function speciesArt(id: SpeciesId): SpeciesArt {
-  if (id === "seahorse" || id === "manta_ray") return { kind: "rigid", swim: RIGID[id] };
-  return { kind: "rope", ...ROPE[id] };
-}
+// The nautilus drifts shell-first in slow jets.
+export const NAUTILUS_SWIM: Temperament = { cruise: 8, burst: 16, turn: 0.9, minRadius: 0.3, hover: 0.3, tailHz: [0.6, 0.02], pulse: 3.2 };
 
-// The nautilus drifts slowly through the middle of the tank (a rigid sprite until C2).
-export const NAUTILUS_SWIM: Temperament = { cruise: 8, burst: 14, turn: 0.9, minRadius: 0.3, hover: 0.4, tailHz: [0.6, 0.02] };
+const CUT: Partial<Record<SpeciesId, PuppetId>> = { pufferfish: "pufferfish", lionfish: "lionfish", sunfish: "sunfish" };
+
+export function speciesArt(id: SpeciesId | "nautilus"): SpeciesArt {
+  if (id === "nautilus") return { kind: "puppet", id, art: null, swim: NAUTILUS_SWIM };
+  if (id === "seahorse" || id === "manta_ray") return { kind: "puppet", id, art: null, swim: HAND[id] };
+  const cut = CUT[id];
+  if (cut) return { kind: "puppet", id: cut, art: ART[id].art, swim: ART[id].swim };
+  return { kind: "rope", ...ART[id] };
+}
 
 // The body length in the tank (world units; the tank is 400 wide) from a
 // species' size, and half its tallest height (for keeping fish apart).

@@ -78,3 +78,29 @@ test("a resting fish is straight, side-on and still", () => {
   for (const n of f.spine) assert.equal(n.y, 150);
   assert.ok(f.spine[NODES - 1].x > f.spine[0].x); // facing left: the tail is to the right
 });
+
+test("a fish with a roaming stretch mostly stays in it", () => {
+  const zones = [80, 200, 320];
+  const fish = zones.map((x, i) =>
+    createFish(`r${i}`, { ...SPEC, roam: { x, range: 60 } }, 300 + i, { x, y: 170, z: 0 }, 0),
+  );
+  const sum = zones.map(() => 0);
+  let n = 0;
+  for (let t = 0; t < 180; t += 1 / 30) {
+    stepAll(fish, 1 / 30);
+    fish.forEach((f, i) => (sum[i] += f.p.x));
+    n++;
+  }
+  zones.forEach((x, i) => assert.ok(Math.abs(sum[i] / n - x) < 50, `zone ${x}: average ${sum[i] / n}`));
+});
+
+test("a pulsing swimmer surges and glides", () => {
+  const [f] = [createFish("p", { ...SPEC, hover: 0, pulse: 3 }, 9, { x: 100, y: 170, z: 0 }, 0)];
+  const speeds: number[] = [];
+  for (let t = 0; t < 30; t += 1 / 30) {
+    stepAll([f], 1 / 30);
+    speeds.push(f.v);
+  }
+  const late = speeds.slice(150);
+  assert.ok(Math.max(...late) > Math.min(...late) * 1.6, "speed should rise and fall with each jet");
+});

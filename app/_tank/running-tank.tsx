@@ -1,7 +1,7 @@
 "use client";
 
 import type { AmbienceSound } from "@/lib/ambience-logic";
-import { broodCaption, broodStage } from "@/lib/brood";
+import { broodCaption, broodStage, type BroodStage } from "@/lib/brood";
 import { TANK_CAPACITY, type Aquarium } from "@/lib/fish";
 import { plantLook } from "@/lib/plant-look";
 import {
@@ -15,7 +15,6 @@ import {
 } from "@/lib/plants";
 import { focusMsBetween, isNotes, type Session } from "@/lib/timer";
 import type { Owned } from "@/lib/economy";
-import { LiveBrood } from "./brood";
 import { PlantSprite } from "./plant-sprite";
 import type { TankSkin } from "./skins";
 import { PLANT_SLOTS_X, Tank } from "./tank";
@@ -49,6 +48,7 @@ export function RunningTank({
 
   let index: number;
   let overlay = null;
+  let brood: BroodStage | null = null;
   let caption: string;
 
   if (isNotes(session)) {
@@ -73,7 +73,7 @@ export function RunningTank({
   } else {
     // The new fish joins the tank that has room: the newest, or a new one if it's full.
     index = Math.floor(fishCount / TANK_CAPACITY);
-    overlay = <LiveBrood stage={broodStage(minutes)} />;
+    brood = broodStage(minutes); // drawn by the tank: egg → eyed egg → fry
     caption = broodCaption(minutes);
   }
 
@@ -89,6 +89,7 @@ export function RunningTank({
           decorations={decorations}
           scene={scene}
           overlay={overlay}
+          brood={brood}
         />
       </div>
       <p className="text-center text-sm text-muted">{caption}</p>

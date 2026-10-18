@@ -10,6 +10,7 @@ import type { Result } from "@/lib/timer";
 import { broodStage } from "@/lib/brood";
 import { DriftingBrood } from "./brood";
 import { Bone, SpeciesSprite } from "./fish-sprite";
+import { MiniCanvas } from "./tank4/mini-canvas";
 
 // What happened to this session's fish, shown on the result screen.
 export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aquarium | null }) {
@@ -23,7 +24,7 @@ export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aqu
     return (
       <div className="flex flex-col items-center gap-2">
         <div className="relative flex h-28 w-40 items-center justify-center">
-          <DriftingBrood stage={stage} />
+          <MiniCanvas className="absolute inset-0" scene={{ kind: "drift", stage }} fallback={<DriftingBrood stage={stage} />} />
           <div className="bone-appear absolute">
             <Bone width={48} />
           </div>
@@ -71,6 +72,7 @@ function revealSequence(id: string, species: SpeciesId): SpeciesId[] {
 
 // The calm "hatching" moment: silhouettes flick past, slow down, and the fry
 // becomes its species. Tap to skip; reduced motion shows the fish straight away.
+// Drawn with the tank's art (MiniCanvas); the SVG drawings are the fallback.
 function HatchReveal({ id, species, tank }: { id: string; species: SpeciesId; tank: number }) {
   const sequence = useMemo(() => revealSequence(id, species), [id, species]);
   const last = sequence.length - 1;
@@ -95,19 +97,25 @@ function HatchReveal({ id, species, tank }: { id: string; species: SpeciesId; ta
         onClick={() => setStep(last)}
         disabled={done}
         aria-label={done ? undefined : "Skip the hatching"}
-        className="flex h-28 w-48 items-center justify-center text-ink/30"
+        className="relative h-28 w-48"
       >
-        {done ? (
-          <div className="tank-bob">
-            <div className="fish-grow">
-              <SpeciesSprite species={species} width={width} />
-            </div>
-          </div>
-        ) : (
-          <div key={step} className="hatch-flick">
-            <SpeciesSprite species={shown} width={width} silhouette />
-          </div>
-        )}
+        <MiniCanvas
+          className="absolute inset-0"
+          scene={done ? { kind: "fish", species, rarity: info.rarity, id } : { kind: "silhouette", species: shown, key: step }}
+          fallback={
+            done ? (
+              <div className="tank-bob">
+                <div className="fish-grow">
+                  <SpeciesSprite species={species} width={width} />
+                </div>
+              </div>
+            ) : (
+              <div key={step} className="hatch-flick text-ink/30">
+                <SpeciesSprite species={shown} width={width} silhouette />
+              </div>
+            )
+          }
+        />
       </button>
       {done ? (
         <div className="flex flex-col items-center gap-1" aria-live="polite">

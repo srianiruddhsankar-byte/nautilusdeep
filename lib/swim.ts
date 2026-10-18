@@ -35,6 +35,8 @@ export type SwimSpec = {
   girth: number; // half the body's height, as a fraction of the length (for keeping apart)
   home?: V3; // stays near this most of the time (a clownfish and its anemone)
   homeRange?: number;
+  roam?: { x: number; range: number }; // mostly patrols this stretch of the tank (spreads a full tank out)
+  pulse?: number; // swims in jets, one every `pulse` seconds (the nautilus)
 };
 
 export type Fish = {
@@ -132,8 +134,11 @@ function pickTarget(f: Fish) {
     // A few tries for somewhere a good distance away: fish patrol, they don't jitter.
     let best = f.target;
     let bestD = -1;
+    const zone = spec.roam && r() < 0.75 ? spec.roam : null;
+    const x0 = zone ? Math.max(TANK.x0, zone.x - zone.range) : TANK.x0;
+    const x1 = zone ? Math.min(TANK.x1, zone.x + zone.range) : TANK.x1;
     for (let i = 0; i < 4; i++) {
-      const c = { x: TANK.x0 + r() * (TANK.x1 - TANK.x0), y: TANK.y0 + r() * (TANK.y1 - TANK.y0), z: zMid() };
+      const c = { x: x0 + r() * (x1 - x0), y: TANK.y0 + r() * (TANK.y1 - TANK.y0), z: zMid() };
       const d = Math.hypot(c.x - f.p.x, c.y - f.p.y);
       if (d > bestD) {
         best = c;
@@ -145,6 +150,9 @@ function pickTarget(f: Fish) {
   }
   f.retarget = 6 + r() * 8;
 }
+
+// How hard a pulsing swimmer is pushing right now: 0 (gliding) … 1 (mid-jet).
+export const jetPush = (t: number, period: number) => Math.pow(Math.max(0, Math.sin((2 * Math.PI * t) / period)), 4);
 
 export function step(f: Fish, dt: number) {
   dt = Math.max(0, Math.min(dt, 0.05));
@@ -205,7 +213,9 @@ export function step(f: Fish, dt: number) {
   // Speed: slows into a sharp turn, eases off near the target, nearly stops to hover.
   const turnSlow = 0.32 + 0.68 * Math.max(0, Math.cos(Math.min(Math.abs(e), Math.PI)));
   const arrive = clamp(dist / (spec.length * 1.6), 0.45, 1);
-  const goal = hovering ? spec.cruise * 0.07 : Math.min(spec.burst, spec.cruise * f.gait * turnSlow * arrive);
+  // A jet: a quick push, then a long glide (averages about the cruise speed).
+  const jet = spec.pulse ? 0.45 + 2.2 * jetPush(f.t, spec.pulse) : 1;
+  const goal = hovering ? spec.cruise * 0.07 : Math.min(spec.burst, spec.cruise * f.gait * turnSlow * arrive * jet);
   f.v += (goal - f.v) * ease(goal > f.v ? 1.6 : 1.1, dt);
 
   // Turning needs forward motion: a fish can't spin on the spot without its

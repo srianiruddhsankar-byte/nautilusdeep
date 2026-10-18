@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import type { AmbienceSound } from "@/lib/ambience-logic";
+import type { BroodStage } from "@/lib/brood";
 import { inTank, type Owned } from "@/lib/economy";
 import { TANK_CAPACITY, type Aquarium, type Fish } from "@/lib/fish";
 import { fishLook, type FishLook } from "@/lib/fish-look";
@@ -14,6 +15,7 @@ import { FOCUS_MODE_LABEL } from "@/lib/timer";
 import { Bone, NautilusSprite, SpeciesSprite } from "./fish-sprite";
 import { PlantSprite } from "./plant-sprite";
 import { AmbienceScene } from "./ambience-scene";
+import { LiveBrood } from "./brood";
 import { DecorationSprite } from "./decoration-sprite";
 import { DEFAULT_SKIN, type TankSkin } from "./skins";
 import { LOOKS } from "./tank4/scenery";
@@ -65,6 +67,7 @@ export function Tank({
   fixedIndex,
   scene = null,
   overlay = null,
+  brood = null,
 }: {
   aquarium: Aquarium | null; // null while loading
   garden: Garden | null;
@@ -79,6 +82,7 @@ export function Tank({
   fixedIndex?: number;
   scene?: AmbienceSound | null; // the ambience scene (rain, waves…), or none
   overlay?: ReactNode;
+  brood?: BroodStage | null; // the running screen's egg → fry (study sessions)
 }) {
   const [ownPick, setOwnPick] = useState<number | null>(null); // null = newest tank
   const picked = fixedIndex ?? (edit ? edit.index : ownPick);
@@ -200,6 +204,7 @@ export function Tank({
           <TankCanvas
             probe={bare ? "running" : edit ? "shop" : "home"}
             fish={swimmers}
+            brood={brood}
             skin={skin.id}
             selected={selected}
             ref={canvas}
@@ -233,6 +238,7 @@ export function Tank({
         ))}
 
         {overlay}
+        {fallback && brood && <LiveBrood stage={brood} />}
 
         {fallback && nautilus && (
           <Swimmer
