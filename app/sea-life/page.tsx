@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
-import { Page } from "../_ui/page";
+import { Page, TabContent } from "../_ui/page";
 import { SeaLifeView } from "../_sea-life/sea-life-view";
 
 export const metadata: Metadata = {
@@ -14,7 +14,9 @@ export default function SeaLifePage() {
   return (
     <Page>
       <PageHeader title="Sea life index" />
-      <SeaLifeView />
+      <TabContent>
+        <SeaLifeView />
+      </TabContent>
       <BottomNav active="stats" />
     </Page>
   );

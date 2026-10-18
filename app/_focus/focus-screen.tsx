@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { type CSSProperties, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CHECK_IN_ALARM_EVERY_MS,
   SESSION_DONE_ALARM,
@@ -60,12 +59,10 @@ import {
 import { describeParts } from "@/lib/session-parts";
 import { resultMoments } from "@/lib/result-moments";
 import type { SessionFacts } from "@/lib/fish";
-import { NAUTILUS } from "@/lib/species";
 import { useClock } from "@/lib/use-clock";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
-import { FlameIcon, StatsLine } from "../_stats/stats-line";
-import { NautilusSprite } from "../_tank/fish-sprite";
+import { StatsLine } from "../_stats/stats-line";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
 import { RunningTank } from "../_tank/running-tank";
@@ -76,8 +73,9 @@ import { Button, buttonClass } from "../_ui/button";
 import { CountUp } from "../_ui/count-up";
 import { Field, NumberField } from "../_ui/field";
 import { ProgressBar, Skeleton } from "../_ui/feedback";
-import { changeScreen, step } from "../_ui/motion";
+import { changeScreen, step, useLoadFade } from "../_ui/motion";
 import { AlarmOverlay } from "./alarm-overlay";
+import { NautilusMoment, StreakMoment } from "./result-moments";
 import { SetupForm } from "./setup-form";
 import { VolumeSlider } from "./setup-form";
 import { InProgressBadge, MarkDone } from "./task-status";
@@ -183,6 +181,7 @@ export function FocusScreen() {
   // On for breaks too: a locked phone can't ring the "Break's over" alarm.
   useWakeLock(session !== null && !isOpenFocus(session) && status !== null && !status.finished);
 
+  const fade = useLoadFade(saved !== null); // Home fades in over its skeleton
   if (saved === null) return <HomeSkeleton />;
   // Running: just the timer. No navigation, nothing else to tap.
   if (session && status) {
@@ -216,34 +215,36 @@ export function FocusScreen() {
   return (
     <>
       <AlarmOverlay />
-      <StatsLine />
-      <TodayTasks
-        picked={task}
-        onPick={(name) => {
-          setTask(name);
-          if (name) scrollToStart();
-        }}
-      />
-      <Tank
-        aquarium={aquarium}
-        garden={garden}
-        error={error}
-        skinOf={skinOf}
-        decorations={economy.owned}
-        coins={economy.balance}
-        scene={scene}
-      />
-      <SetupForm
-        task={task}
-        onTaskChange={setTask}
-        onStart={(s) => {
-          unlockAudio(); // this runs inside the Start tap, which phones require for sound
-          // The id is generated here, once, and becomes the database row's id.
-          // withChain: when its time is up it can be continued (Continue session).
-          const session = withChain({ ...s, id: crypto.randomUUID() });
-          changeScreen(() => save({ session, result: null }));
-        }}
-      />
+      <div className={`flex flex-col gap-5 ${fade}`}>
+        <StatsLine />
+        <TodayTasks
+          picked={task}
+          onPick={(name) => {
+            setTask(name);
+            if (name) scrollToStart();
+          }}
+        />
+        <Tank
+          aquarium={aquarium}
+          garden={garden}
+          error={error}
+          skinOf={skinOf}
+          decorations={economy.owned}
+          coins={economy.balance}
+          scene={scene}
+        />
+        <SetupForm
+          task={task}
+          onTaskChange={setTask}
+          onStart={(s) => {
+            unlockAudio(); // this runs inside the Start tap, which phones require for sound
+            // The id is generated here, once, and becomes the database row's id.
+            // withChain: when its time is up it can be continued (Continue session).
+            const session = withChain({ ...s, id: crypto.randomUUID() });
+            changeScreen(() => save({ session, result: null }));
+          }}
+        />
+      </div>
       <BottomNav active="home" />
     </>
   );
@@ -715,54 +716,6 @@ function ResultView({
         </Button>
       </div>
     </div>
-  );
-}
-
-// This session grew the streak: the line arrives, then gets a small soft
-// highlight as the number ticks up. Only shown when it grew, so it always means something.
-function StreakMoment({ from, to }: { from: number; to: number }) {
-  const delay = { "--delay": "700ms" } as CSSProperties;
-  return (
-    <p className="rise-in -mt-3 flex justify-center text-sm" style={step(3)}>
-      <span className="glow-once inline-flex items-center gap-1.5 px-1 py-0.5" style={delay}>
-        <FlameIcon className="pop-once" />
-        <span>
-          <b className="font-semibold">
-            <CountUp value={to} from={from} delay={700} duration={400} />
-            -day streak
-          </b>
-          {from === 0 ? " · started today" : " · today counts"}
-        </span>
-      </span>
-    </p>
-  );
-}
-
-// 100 credited hours: the namesake arrives, once (only the session that crossed
-// the line shows this). Slow and calm: a soft halo opens behind it while it floats.
-function NautilusMoment({ delayMs }: { delayMs: number }) {
-  const slow = { animationDelay: `${delayMs}ms`, animationDuration: "var(--dur-calm)" };
-  return (
-    <section
-      aria-label="The nautilus has arrived"
-      className="rise-in flex w-full flex-col items-center gap-2 overflow-hidden rounded-card bg-card p-4 shadow-card"
-      style={slow}
-    >
-      <div className="relative flex h-24 w-36 items-center justify-center">
-        <span aria-hidden className="halo-once" style={{ animationDelay: `${delayMs + 300}ms` }} />
-        <div className="tank-bob">
-          <NautilusSprite width={72} />
-        </div>
-      </div>
-      <p className="eyebrow">The namesake · {NAUTILUS.hours} hours</p>
-      <p className="title-card">The nautilus has joined your tank</p>
-      <p className="max-w-xs text-sm text-muted">
-        A hundred hours of real focus. It lives in your newest tank from now on.
-      </p>
-      <Link href="/sea-life" className="-my-1 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
-        See it in the Sea life index
-      </Link>
-    </section>
   );
 }
 

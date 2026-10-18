@@ -124,12 +124,19 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `buttonClass`), `card.tsx` (`Card`, `CardHeader`), `field.tsx` (`Field`, `NumberField`, `inputClass`),
   `segmented.tsx` (`Segmented`, `Chip`), `tabs.tsx`, `switch.tsx`, `sheet.tsx` (native `<dialog>`),
   `toast.tsx` (`toast("…")`, `<Toaster/>` in the root layout), `feedback.tsx` (`Skeleton`, `EmptyState`,
-  `ProgressBar`), `page.tsx` (`Page`: every signed-in page's frame), `stat.tsx` (`StatTile`, `StatGrid`),
+  `ProgressBar`), `page.tsx` (`Page`: every signed-in page's frame; `TabContent`: a page's content below its
+  title, which fades when moving between tabs), `stat.tsx` (`StatTile`, `StatGrid`),
   `motion.ts` (`changeScreen`: the cross-fade between whole screens via the View Transitions API; `step(n)`
-  for staggering; `prefersReducedMotion`), `count-up.tsx` (`CountUp`), `tick.tsx` (`TickBox`, `TickMark`).
+  for staggering; `useLoadFade`; `prefersReducedMotion`), `count-up.tsx` (`CountUp`), `tick.tsx` (`TickBox`,
+  `TickMark`).
   Tokens and the few component classes live in `app/globals.css`
 - `lib/result-moments.ts` — pure: what one session changed, for the result screen (`resultMoments`: the streak
-  grew / the nautilus arrived; `isNewSpecies`), tested in `lib/result-moments.test.ts`
+  grew / the nautilus arrived; `isNewSpecies`), tested in `lib/result-moments.test.ts`.
+  `app/_focus/result-moments.tsx` — `StreakMoment`, `NautilusMoment` (also on `/design-preview`)
+- `lib/theme.ts` — Appearance (System / Light / Dark): `useTheme`, `setTheme`, saved on the device.
+  `lib/theme-script.ts` — no React: the key, the browser bar colours and `THEME_SCRIPT`, the inline `<head>`
+  script in `app/layout.tsx` that sets `<html data-theme>` before the first paint. `app/help/appearance.tsx` —
+  the setting, in Help → Account
 - `app/not-found.tsx` — the 404 page (signed-in only: signed out, proxy.ts sends unknown paths to /login)
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
@@ -155,7 +162,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
 ## Design system ("Paper Tide", Phase 9)
 Every screen uses these. New UI is built from `app/_ui/` components and the tokens in `app/globals.css`; never
 raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styles.
-- **Colours** (tokens, light + dark, swapped in `globals.css`): `paper` page, `card` cards/sheets/inputs, `ink`
+- **Colours** (tokens, light + dark, swapped in `globals.css`; dark = the device is dark and Appearance is
+  System, or `data-theme="dark"`. Every dark block exists twice, media query + attribute: keep both in sync,
+  also in `viz.css` and `alarm.css`): `paper` page, `card` cards/sheets/inputs, `ink`
   text, `muted` secondary text, `line` borders/dividers, `soft` quiet fills, `primary` (+ `on-primary`,
   `primary-edge`) the one action colour, `success` / `warn` / `danger` as TEXT colours, `coin`, `accent` for icons
   only (too faint for text). Use as `bg-paper`, `text-muted`, `border-line` etc.
@@ -183,8 +192,15 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   - Use the classes in globals.css, never new one-off keyframes: `rise-in` (arrive; `style={step(n)}` staggers),
     `swap-in` (changed in place), `calm-in` (slow fade, no movement: ended early), `glow-once`, `ring-once`,
     `tick-pop` / `tick-draw`, `strike-in`, `new-badge`, `halo-once`. `CountUp` for numbers.
-  - Whole-screen changes (Start, the result, back Home) go through `changeScreen`; a page or element never
-    fades the whole screen itself.
+  - Whole-screen changes (Start, the result, back Home, Appearance) go through `changeScreen`; a page or
+    element never fades the whole screen itself.
+  - Moving between tabs: bottom-nav links carry the `tab` transition type and each page wraps its content in
+    `TabContent` (React's `<ViewTransition>`): only the content fades (out 120 ms, in 240 ms with a 6 px rise);
+    the title and the nav bar never move. In-page tabs: the underline grows, the panel (keyed) `swap-in`s.
+  - Opening: `details.disclosure` fades its content in and out (`::details-content`); tank cards and task
+    options `swap-in`. Content replacing a skeleton uses `useLoadFade` (only after a real skeleton).
+  - Stats animate in ONCE per app open (`StatsIntro` in charts.tsx: `stagger-in`, `grow-up`, `grow-right`,
+    `cell-in`, whole numbers count up); switching Study / Notes or coming back never replays it.
   - Animate transform and opacity only (colour for small fills); no layout properties. Moments play once,
     when they happen (a tap, a session ending), never on every visit.
   - `prefers-reduced-motion`: every animation becomes instant or a plain fade (globals.css, tank.css);
@@ -276,7 +292,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Result screen: big focus minutes, the hatching reveal (or notes result), then one main button (New session);
   Mark done is quieter.
 - Stats: Streak, Tasks done, then per type: time, last 7 days, plants (notes) / fish caught by rarity + rarest
-  catch + the Sea life index link (study), target (notes), time per task; the rest under "More stats". Sign out is on the Help page (Account section with your email), not on Home.
+  catch + the Sea life index link (study), target (notes), time per task; the rest under "More stats". Sign out is on the Help page (Account section with your email and Appearance), not on Home.
 
 ### Night mode ("Still studying?" check-ins)
 - Optional, off by default, in Session settings: interval 20 / 30 / 45 / 60 min or Custom (any whole 10–120,
@@ -482,8 +498,9 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
     shapes as puppets + egg / fry / reveal, C3 plants, decorations and every skin's own scenery; Tanks 1 and 3
     and the `three` package removed. Stage D (every page rebuilt phone-first) is next.
   - Stage E (in progress): motion. E1 core moments (screen changes, Continue, result count-up / streak /
-    new species / nautilus, quiet ending, buy → place, settling decorations, ticks). E2 navigation and polish
-    (tab transitions, presses, open/close, skeleton fades, stats animating in once) next.
+    new species / nautilus, quiet ending, buy → place, settling decorations, ticks) committed. E2 navigation
+    and polish (tab transitions, presses, open/close, skeleton fades, stats animating in once) + the
+    Appearance setting (requested with it).
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?

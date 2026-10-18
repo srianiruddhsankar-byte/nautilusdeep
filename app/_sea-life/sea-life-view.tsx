@@ -18,6 +18,7 @@ import {
 import { NautilusSprite, SpeciesSprite } from "../_tank/fish-sprite";
 import { Card } from "../_ui/card";
 import { ProgressBar, Skeleton } from "../_ui/feedback";
+import { useLoadFade } from "../_ui/motion";
 
 // Every species, grouped by rarity. Caught ones in colour with their fact,
 // uncaught ones as dark "???" silhouettes. All derived from your sessions.
@@ -27,6 +28,7 @@ export function SeaLifeView() {
     if (!rows) return null;
     return { log: catchLog(deriveAquarium(rows)), hours: creditedHours(rows) };
   }, [rows]);
+  const fade = useLoadFade(data !== null);
 
   if (!data) {
     if (error) return <p role="alert" className="text-sm text-danger">Couldn&apos;t load: {error}</p>;
@@ -40,7 +42,7 @@ export function SeaLifeView() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className={`flex flex-col gap-5 ${fade}`}>
       <div className="flex flex-col gap-2">
         <p>
           <b className="font-semibold tabular-nums">

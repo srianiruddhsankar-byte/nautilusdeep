@@ -3,8 +3,9 @@
 import type { KeyboardEvent, ReactNode } from "react";
 
 // Tabs switch between VIEWS of a page (Segmented chooses a SETTING). Ink
-// underline on the current tab; Left / Right arrows move between tabs. The panel
-// itself is rendered by the page, with id `${idPrefix}-panel`.
+// underline on the current tab (it grows from the centre when chosen); Left /
+// Right arrows move between tabs. The page renders the panel (id
+// `${idPrefix}-panel`), keyed by the tab with `swap-in`, so a new view swaps in.
 export function Tabs<T extends string>({
   tabs,
   value,
@@ -41,14 +42,21 @@ export function Tabs<T extends string>({
             aria-controls={`${idPrefix}-panel`}
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(t.id)}
-            className={`-mb-px min-h-11 border-b-2 px-3 font-semibold transition-colors duration-(--dur) ease-snap ${
-              on ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"
+            className={`relative min-h-11 px-3 font-semibold transition-colors duration-(--dur) ease-snap ${
+              on ? "text-ink" : "text-muted hover:text-ink"
             }`}
           >
             {t.label}
+            <span
+              aria-hidden
+              className={`absolute inset-x-0 -bottom-px h-0.5 bg-ink transition-transform duration-(--dur-slow) ease-snap ${
+                on ? "scale-x-100" : "scale-x-0"
+              }`}
+            />
           </button>
         );
       })}
     </div>
   );
 }
+

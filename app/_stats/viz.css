@@ -14,8 +14,9 @@
   --viz-heat-4: #173f6e;
   --viz-forgiven: var(--muted);
 }
+/* Dark: the device is dark and Appearance is System (Light chosen opts out). */
 @media (prefers-color-scheme: dark) {
-  .viz {
+  :root:not([data-theme="light"]) .viz {
     --viz-bar: #4a86cf;
     /* On dark, more focus = lighter. */
     --viz-heat-1: #33669f;
@@ -23,4 +24,13 @@
     --viz-heat-3: #86b3e8;
     --viz-heat-4: #c6dcf5;
   }
+}
+/* Dark chosen in Appearance. Keep in sync with the block above. */
+:root[data-theme="dark"] .viz {
+  --viz-bar: #4a86cf;
+  /* On dark, more focus = lighter. */
+  --viz-heat-1: #33669f;
+  --viz-heat-2: #4a86cf;
+  --viz-heat-3: #86b3e8;
+  --viz-heat-4: #c6dcf5;
 }

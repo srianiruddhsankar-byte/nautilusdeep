@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
-import { Page } from "../_ui/page";
+import { Page, TabContent } from "../_ui/page";
 import { TaskList } from "../_tasks/task-list";
 
 export const metadata: Metadata = {
@@ -13,7 +13,9 @@ export default function TasksPage() {
   return (
     <Page>
       <PageHeader title="Tasks" />
-      <TaskList />
+      <TabContent>
+        <TaskList />
+      </TabContent>
       <BottomNav active="tasks" />
     </Page>
   );

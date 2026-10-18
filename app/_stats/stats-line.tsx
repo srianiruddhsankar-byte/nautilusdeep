@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useSessions } from "@/lib/sessions-data";
 import { computeOverview, formatDuration } from "@/lib/stats";
 import { useClock } from "@/lib/use-clock";
+import { useLoadFade } from "../_ui/motion";
 
 // "Today 1h 20m · 4-day streak" (study + notes) — tap for the full stats page.
 export function StatsLine() {
@@ -16,13 +17,14 @@ export function StatsLine() {
   );
 
   const streak = stats?.streak.current ?? 0;
+  const fade = useLoadFade(stats !== null);
   return (
     <Link
       href="/stats"
       className="flex min-h-12 items-center justify-between gap-3 rounded-control bg-soft px-4 text-sm transition-colors duration-(--dur-fast) hover:bg-line"
     >
       {stats ? (
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${fade}`}>
           <span>
             Today <b className="font-semibold tabular-nums">{formatDuration(stats.todaySeconds)}</b>
           </span>

@@ -4,6 +4,7 @@ import { firstName } from "@/lib/first-name";
 import { createClient } from "@/lib/supabase/server";
 import { FocusScreen } from "./_focus/focus-screen";
 import { Skeleton } from "./_ui/feedback";
+import { TabContent } from "./_ui/page";
 
 export default function Home() {
   return (
@@ -13,8 +14,11 @@ export default function Home() {
         <Greeting />
       </Suspense>
       {/* Client-only state (localStorage + clock), so it doesn't need the cookie.
-          It also draws the bottom navigation, except while a session is running. */}
-      <FocusScreen />
+          It also draws the bottom navigation, except while a session is running
+          (the nav is lifted out of the tab fade by its own name, globals.css). */}
+      <TabContent>
+        <FocusScreen />
+      </TabContent>
     </main>
   );
 }

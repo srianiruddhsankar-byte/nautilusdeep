@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type CSSProperties, type ReactNode } from "react";
 import "./viz.css";
 
 // Plain HTML/CSS charts. One series → one colour (--viz-bar). Every chart's
 // values are also reachable without tapping, via labels or "Show as table".
+
+// True while the Stats page plays its one-time intro (stats-view.tsx): columns
+// grow up, bars grow out, heatmap weeks fade in (globals.css, `--i` = position).
+export const StatsIntro = createContext(false);
+const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
 export type Column = {
   key: string;
@@ -27,6 +32,7 @@ export function ColumnChart({
   tableHeading: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
+  const intro = useContext(StatsIntro);
   const shown = columns[active ?? defaultIndex];
   const max = Math.max(0, ...columns.map((c) => c.value));
   const peak = max > 0 ? columns.findIndex((c) => c.value === max) : -1;
@@ -58,8 +64,9 @@ export function ColumnChart({
                 className="flex h-full min-w-0 flex-1 items-end justify-center"
               >
                 <span
-                  className="relative w-full max-w-6 rounded-t-[4px] transition-opacity"
+                  className={`relative w-full max-w-6 rounded-t-[4px] transition-opacity ${intro ? "grow-up" : ""}`}
                   style={{
+                    ...at(i),
                     height: `${max ? (c.value / max) * 100 : 0}%`,
                     minHeight: c.value > 0 ? 2 : 0,
                     background: "var(--viz-bar)",
@@ -143,6 +150,7 @@ export function Heatmap({
   monthLabel: (day: string) => string;
 }) {
   const [active, setActive] = useState<HeatCell | null>(null);
+  const intro = useContext(StatsIntro);
   const todayCell = weeks.flat().find((c) => c.day === today)!;
   const shown = active ?? todayCell;
   const withFocus = weeks.flat().filter((c) => (c.seconds > 0 || c.forgiven) && !c.future);
@@ -170,7 +178,11 @@ export function Heatmap({
             const month = monthLabel(week[0].day);
             const showMonth = w === 0 || month !== monthLabel(weeks[w - 1][0].day);
             return (
-              <div key={week[0].day} className="flex min-w-0 flex-1 flex-col gap-[2px]">
+              <div
+                key={week[0].day}
+                className={`flex min-w-0 flex-1 flex-col gap-[2px] ${intro ? "cell-in" : ""}`}
+                style={at(w)}
+              >
                 <span className="h-4 text-[10px] leading-4 whitespace-nowrap text-muted" aria-hidden>
                   {showMonth ? month : ""}
                 </span>
@@ -254,15 +266,17 @@ export function Heatmap({
 // Horizontal bars with every value labelled (no tapping needed).
 export function BarList({ rows }: { rows: { label: string; value: number; display: string }[] }) {
   const max = Math.max(0, ...rows.map((r) => r.value));
+  const intro = useContext(StatsIntro);
   return (
     <ul className="viz flex flex-col gap-2">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <li key={r.label} className="grid grid-cols-[6rem_1fr_auto] items-center gap-3 text-sm">
           <span className="truncate text-muted">{r.label}</span>
           <span className="flex h-3 items-center">
             <span
-              className="h-3 rounded-r-[4px]"
+              className={`h-3 rounded-r-[4px] ${intro ? "grow-right" : ""}`}
               style={{
+                ...at(i),
                 width: `${max ? (r.value / max) * 100 : 0}%`,
                 minWidth: r.value > 0 ? 2 : 0,
                 background: "var(--viz-bar)",
@@ -278,7 +292,7 @@ export function BarList({ rows }: { rows: { label: string; value: number; displa
 
 function TableView({ children }: { children: ReactNode }) {
   return (
-    <details className="text-sm">
+    <details className="disclosure text-sm">
       <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold text-primary">Show as table</summary>
       <div className="pt-2">{children}</div>
     </details>

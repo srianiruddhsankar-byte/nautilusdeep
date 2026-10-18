@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NautilusMoment } from "../_focus/result-moments";
 import { SpeciesSprite } from "../_tank/fish-sprite";
 import { RevealDemo, TankReal } from "./tank-real";
 import "./preview.css";
@@ -62,8 +63,27 @@ export function DesignPreview({ fontClasses }: { fontClasses: string }) {
         <RevealDemo />
       </section>
 
+      <NautilusPreview />
+
       {full && <RunningScreen onClose={() => setFull(false)} />}
     </main>
+  );
+}
+
+// The result screen's one-time nautilus moment (100 hours), the real component.
+// Replay re-mounts it, so its slow arrival and halo play again.
+function NautilusPreview() {
+  const [run, setRun] = useState(0);
+  return (
+    <section className="mx-auto flex w-full max-w-md flex-col gap-3" aria-label="Nautilus unlock moment">
+      <div className="flex items-center justify-between gap-3">
+        <p className="pv-eyebrow">Result screen · nautilus unlock (100 hours)</p>
+        <button type="button" className="pv-btn pv-btn-secondary pv-btn-sm" onClick={() => setRun(run + 1)}>
+          Replay
+        </button>
+      </div>
+      <NautilusMoment key={run} delayMs={300} />
+    </section>
   );
 }
 

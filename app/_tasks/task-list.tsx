@@ -12,7 +12,7 @@ import { Button } from "../_ui/button";
 import { Card } from "../_ui/card";
 import { EmptyState, Skeleton } from "../_ui/feedback";
 import { inputClass } from "../_ui/field";
-import { prefersReducedMotion } from "../_ui/motion";
+import { prefersReducedMotion, useLoadFade } from "../_ui/motion";
 import { TickBox } from "../_ui/tick";
 import { Tabs } from "../_ui/tabs";
 import { toast } from "../_ui/toast";
@@ -51,6 +51,7 @@ export function TaskList() {
   );
   const history = useMemo(() => (tasks && rows ? doneHistory(tasks, rows) : null), [tasks, rows]);
   const today = clock ? dayKey(clock.now, clock.timeZone) : null;
+  const fade = useLoadFade(groups !== null && today !== null);
 
   return (
     <div className="flex flex-col gap-5">
@@ -72,13 +73,17 @@ export function TaskList() {
         ]}
       />
 
-      <div role="tabpanel" id="tasks-panel" aria-labelledby={`tasks-tab-${view}`}>
+      <div key={view} role="tabpanel" className="swap-in" id="tasks-panel" aria-labelledby={`tasks-tab-${view}`}>
         {!groups || !today ? (
           !loadError && <ListSkeleton />
-        ) : view === "todo" ? (
-          <TodoView groups={groups} today={today} running={running} busy={busy} run={run} />
         ) : (
-          <DoneView history={history} timeZone={clock!.timeZone} busy={busy} run={run} />
+          <div className={fade}>
+            {view === "todo" ? (
+              <TodoView groups={groups} today={today} running={running} busy={busy} run={run} />
+            ) : (
+              <DoneView history={history} timeZone={clock!.timeZone} busy={busy} run={run} />
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -304,7 +309,7 @@ function TaskRow({
       </div>
 
       {open && (
-        <div className="flex flex-wrap items-end gap-2 pt-1 pb-2 pl-9">
+        <div className="swap-in flex flex-wrap items-end gap-2 pt-1 pb-2 pl-9">
           {!done && (
             <label className="flex flex-col gap-1.5 text-sm text-muted">
               Due date

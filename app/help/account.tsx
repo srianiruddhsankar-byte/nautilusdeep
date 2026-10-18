@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "../_ui/button";
 import { Card } from "../_ui/card";
+import { AppearanceSetting } from "./appearance";
 
 async function signOut() {
   "use server";
@@ -12,7 +13,7 @@ async function signOut() {
 
 // Who's signed in, and the way out. Reads the login cookie, so the Help page
 // renders it inside <Suspense> (the rest of the page stays static). The page's
-// "Account" group heading sits right above it.
+// "Account" group heading sits right above it. Appearance lives here too.
 export async function Account() {
   const supabase = await createClient();
   const {
@@ -23,8 +24,9 @@ export async function Account() {
   if (!user) redirect("/login");
 
   return (
-    <Card as="section" aria-label="Account" className="gap-3">
-      <p className="text-sm">
+    <Card as="section" aria-label="Account" className="gap-4">
+      <AppearanceSetting />
+      <p className="border-t border-line pt-4 text-sm">
         <span className="text-muted">Signed in as </span>
         <span className="font-semibold break-all">{user.email}</span>
       </p>

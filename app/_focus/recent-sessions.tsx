@@ -21,7 +21,7 @@ export function RecentSessions() {
     : null;
 
   return (
-    <details className="group text-sm">
+    <details className="disclosure group text-sm">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-muted [&::-webkit-details-marker]:hidden">
         <span aria-hidden className="transition-transform duration-(--dur) ease-snap group-open:rotate-90">
           ›

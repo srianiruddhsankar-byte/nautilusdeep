@@ -9,6 +9,7 @@ import { useTasks } from "@/lib/tasks";
 import { useClock } from "@/lib/use-clock";
 import { Card, CardHeader } from "../_ui/card";
 import { Skeleton } from "../_ui/feedback";
+import { useLoadFade } from "../_ui/motion";
 import { TickBox } from "../_ui/tick";
 
 const SHOWN = 4;
@@ -25,13 +26,14 @@ export function TodayTasks({ picked, onPick }: { picked: string; onPick: (name: 
   );
   const pickedName = cleanTaskName(picked);
   const [tapped, setTapped] = useState<string | null>(null); // only a tap animates the tick
+  const fade = useLoadFade(groups !== null && clock !== null);
 
   if (!groups || !clock) return <Skeleton className="h-28 rounded-card" />; // the card's size, so nothing jumps
   const due = [...groups.today, ...groups.overdue];
   const today = dayKey(clock.now, clock.timeZone);
 
   return (
-    <Card as="section" aria-labelledby="today-tasks" className="gap-0 py-2">
+    <Card as="section" aria-labelledby="today-tasks" className={`gap-0 py-2 ${fade}`}>
       <CardHeader
         id="today-tasks"
         title="Today"

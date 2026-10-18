@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import { flushSync } from "react-dom";
 
 // Small motion helpers shared by every screen. The animations themselves are
@@ -43,4 +43,12 @@ export function changeScreen(update: () => void) {
 // `style={step(2)}` on a `.rise-in` / `.calm-in`: arrive third in its group.
 export function step(n: number): CSSProperties {
   return { "--step": n } as CSSProperties;
+}
+
+// Content that replaces a skeleton fades in: returns "load-in" once `ready`, but
+// only if this component first showed its skeleton (data already in memory
+// from another page shows at once, with no fade).
+export function useLoadFade(ready: boolean): string {
+  const [waited] = useState(!ready);
+  return waited && ready ? "load-in" : "";
 }

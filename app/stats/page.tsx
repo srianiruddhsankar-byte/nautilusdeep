@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { RecentSessions } from "../_focus/recent-sessions";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
-import { Page } from "../_ui/page";
+import { Page, TabContent } from "../_ui/page";
 import { StatsView } from "../_stats/stats-view";
 
 export const metadata: Metadata = {
@@ -15,8 +15,10 @@ export default function StatsPage() {
   return (
     <Page>
       <PageHeader title="Stats" />
-      <StatsView />
-      <RecentSessions />
+      <TabContent>
+        <StatsView />
+        <RecentSessions />
+      </TabContent>
       <BottomNav active="stats" />
     </Page>
   );

@@ -28,7 +28,7 @@ export function Segmented<T extends string | number>({
             type="button"
             onClick={() => onChange(o.id)}
             aria-pressed={on}
-            className={`min-h-11 truncate rounded-[8px] px-2 font-semibold transition-[background-color,color,box-shadow] duration-(--dur) ease-snap ${
+            className={`min-h-11 truncate rounded-[8px] px-2 font-semibold transition-[background-color,color,box-shadow,transform] duration-(--dur) ease-snap active:scale-[0.97] ${
               on ? "bg-card text-ink shadow-[0_1px_0_var(--line)]" : "text-muted hover:text-ink"
             }`}
           >
@@ -57,7 +57,7 @@ export function Chip({
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`min-h-11 max-w-full truncate rounded-chip px-4 text-sm font-semibold transition-[background-color,color,box-shadow] duration-(--dur) ease-snap ${
+      className={`min-h-11 max-w-full truncate rounded-chip px-4 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-(--dur) ease-snap active:scale-[0.97] ${
         on
           ? "bg-primary text-on-primary"
           : "bg-card text-ink shadow-[inset_0_0_0_1.5px_var(--line)] hover:bg-soft"

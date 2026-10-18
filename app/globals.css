@@ -28,8 +28,9 @@
   color-scheme: light;
 }
 
+/* Dark: the device is dark and Appearance is System (Light chosen opts out; lib/theme.ts). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #121a22;
     --card: #19232e;
     --ink: #ece4d6;
@@ -48,6 +49,26 @@
     --scrim: rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
+}
+/* Dark chosen in Appearance. Keep in sync with the block above. */
+:root[data-theme="dark"] {
+  --paper: #121a22;
+  --card: #19232e;
+  --ink: #ece4d6;
+  --muted: #a2abb6;
+  --line: #2b3744;
+  --soft: #222d39;
+  --primary: #9cc0e6;
+  --primary-edge: #5d84ab;
+  --on-primary: #0f1d2b;
+  --accent: #e48a70;
+  --success: #7fc8a2;
+  --warn: #e0b56a;
+  --danger: #f08f7e;
+  --coin: #e3b04f;
+  --focus: #9cc0e6;
+  --scrim: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -426,6 +447,116 @@ body {
   }
 }
 
+/* Moving between tabs. The nav links carry the "tab" transition type
+   (bottom-nav.tsx) and each page's content is a <TabContent> (app/_ui/page.tsx):
+   only that content fades out and in. Everything else (the title, the nav bar)
+   swaps in place, so nothing jumps. */
+::view-transition {
+  pointer-events: none; /* a tap during the fade still reaches the page */
+}
+html:active-view-transition-type(tab)::view-transition-old(root),
+html:active-view-transition-type(tab)::view-transition-new(root) {
+  animation: none;
+}
+/* The nav bar (also inside Home's content) swaps in place, never fades. */
+html:active-view-transition-type(tab) .bottom-nav {
+  view-transition-name: bottom-nav;
+}
+::view-transition-group(bottom-nav),
+::view-transition-new(bottom-nav) {
+  animation: none;
+}
+::view-transition-old(bottom-nav) {
+  display: none;
+}
+::view-transition-old(.tab-out) {
+  animation: motion-fade-out var(--dur-fast) ease-in both;
+}
+::view-transition-new(.tab-in) {
+  animation: tab-in var(--dur-slow) var(--ease-soft) 60ms both;
+}
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Opening a disclosure (More stats, Show as table, Recent sessions): the content
+   fades and settles in; closing fades it out. Browsers without ::details-content
+   just open and close. */
+details.disclosure::details-content {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--dur-slow) var(--ease-snap),
+    transform var(--dur-slow) var(--ease-snap),
+    content-visibility var(--dur-slow) allow-discrete;
+}
+details.disclosure[open]::details-content {
+  opacity: 1;
+  transform: none;
+}
+
+/* Help's contents chips: the heading you jumped to glows primary for a moment. */
+.eyebrow:target {
+  animation: target-flash 1.6s ease-out;
+}
+@keyframes target-flash {
+  0%,
+  35% {
+    color: var(--primary);
+  }
+}
+
+/* Content replacing its skeleton fades in (useLoadFade in motion.ts). */
+.load-in {
+  animation: motion-fade var(--dur-slow) ease-out both;
+}
+
+/* A group whose children arrive one after another (the Stats intro). Up to 10
+   are staggered; `--stagger-from` starts later in the queue. */
+.stagger-in > * {
+  animation: rise-in var(--dur-moment) var(--ease-soft) both;
+  animation-delay: calc((var(--stagger-from, 0) + var(--n, 0)) * var(--stagger));
+}
+.stagger-in > :nth-child(2) { --n: 1; }
+.stagger-in > :nth-child(3) { --n: 2; }
+.stagger-in > :nth-child(4) { --n: 3; }
+.stagger-in > :nth-child(5) { --n: 4; }
+.stagger-in > :nth-child(6) { --n: 5; }
+.stagger-in > :nth-child(7) { --n: 6; }
+.stagger-in > :nth-child(8) { --n: 7; }
+.stagger-in > :nth-child(9) { --n: 8; }
+.stagger-in > :nth-child(n + 10) { --n: 9; }
+
+/* Stats, the first time they're shown after the app opens (StatsIntro): columns
+   grow up, bars grow out, heatmap weeks fade in left to right. `--i` = position. */
+.grow-up {
+  transform-origin: bottom;
+  animation: grow-up var(--dur-moment) var(--ease-soft) both;
+  animation-delay: calc(120ms + var(--i, 0) * 30ms);
+}
+@keyframes grow-up {
+  from {
+    transform: scaleY(0);
+  }
+}
+.grow-right {
+  transform-origin: left;
+  animation: grow-right var(--dur-moment) var(--ease-soft) both;
+  animation-delay: calc(120ms + var(--i, 0) * var(--stagger));
+}
+@keyframes grow-right {
+  from {
+    transform: scaleX(0);
+  }
+}
+.cell-in {
+  animation: motion-fade var(--dur-slow) ease-out both;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+
 /* Reduced motion: no movement anywhere in the UI (the tank has its own rules in tank.css). */
 @media (prefers-reduced-motion: reduce) {
   .sheet,
@@ -438,8 +569,20 @@ body {
   }
   /* Arrivals become a plain fade; flourishes go, their end state stays. */
   .rise-in,
-  .swap-in {
+  .swap-in,
+  .stagger-in > *,
+  .grow-up,
+  .grow-right {
     animation-name: motion-fade;
+  }
+  /* Screen and tab changes: instant. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  details.disclosure::details-content {
+    transform: none;
   }
   .glow-once .pop-once,
   .tick-pop,

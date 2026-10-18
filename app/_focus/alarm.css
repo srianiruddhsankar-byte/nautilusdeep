@@ -8,11 +8,17 @@
   animation: alarm-pulse 1.4s ease-in-out infinite alternate;
 }
 
+/* Dark: the device is dark and Appearance is System (Light chosen opts out). */
 @media (prefers-color-scheme: dark) {
-  .alarm-flash {
+  :root:not([data-theme="light"]) .alarm-flash {
     --alarm-a: #121a22;
     --alarm-b: #1f3a55;
   }
+}
+/* Dark chosen in Appearance. Keep in sync with the block above. */
+:root[data-theme="dark"] .alarm-flash {
+  --alarm-a: #121a22;
+  --alarm-b: #1f3a55;
 }
 
 @keyframes alarm-pulse {

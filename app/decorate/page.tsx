@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DecorateView } from "../_decorate/decorate-view";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
-import { Page } from "../_ui/page";
+import { Page, TabContent } from "../_ui/page";
 
 export const metadata: Metadata = {
   title: "Shop – Deep Nautilus",
@@ -13,7 +13,9 @@ export default function DecoratePage() {
   return (
     <Page>
       <PageHeader title="Shop" />
-      <DecorateView />
+      <TabContent>
+        <DecorateView />
+      </TabContent>
       <BottomNav active="shop" />
     </Page>
   );

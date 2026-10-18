@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 // Each page renders it (Home leaves it out while a session is running, so the
 // timer screen stays distraction-free). It also adds a spacer at the end of the
 // page so the fixed bar never covers the last thing on it.
+// Its links are "tab" navigations: the page content fades, the bar stays put.
 
 export type NavPage = "home" | "tasks" | "shop" | "stats" | "help";
 
@@ -62,7 +63,7 @@ export function BottomNav({ active }: { active: NavPage }) {
       <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        className="bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
         <ul className="mx-auto grid max-w-md grid-cols-5">
           {ITEMS.map((item) => {
@@ -71,6 +72,7 @@ export function BottomNav({ active }: { active: NavPage }) {
               <li key={item.page}>
                 <Link
                   href={item.href}
+                  transitionTypes={["tab"]}
                   aria-current={current ? "page" : undefined}
                   className={`relative flex h-16 flex-col items-center justify-center gap-1 text-xs transition-colors duration-(--dur-fast) ${
                     current ? "font-bold text-primary" : "font-semibold text-muted hover:text-ink"

@@ -20,7 +20,7 @@ import { Coin, Tank } from "../_tank/tank";
 import { Button } from "../_ui/button";
 import { Card } from "../_ui/card";
 import { EmptyState, Skeleton } from "../_ui/feedback";
-import { prefersReducedMotion } from "../_ui/motion";
+import { prefersReducedMotion, useLoadFade } from "../_ui/motion";
 import { TickMark } from "../_ui/tick";
 import { Tabs } from "../_ui/tabs";
 import { toast } from "../_ui/toast";
@@ -49,6 +49,7 @@ export function DecorateView() {
   const [bought, setBought] = useState<string | null>(null); // the item just bought, for its "✓ Yours"
   const [settlingId, setSettlingId] = useState<string | null>(null); // just placed / moved: it settles
   const tankRef = useRef<HTMLDivElement>(null);
+  const fade = useLoadFade(rows !== null && economy.balance !== null);
 
   const owned = economy.owned ?? [];
   const activeId = mode.kind === "idle" ? null : mode.id;
@@ -103,7 +104,7 @@ export function DecorateView() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className={`flex flex-col gap-5 ${fade}`}>
       <div ref={tankRef} className="scroll-mt-4">
       <Tank
         aquarium={aquarium}
@@ -197,7 +198,7 @@ export function DecorateView() {
         ]}
       />
 
-      <div role="tabpanel" id="shop-panel" aria-labelledby={`shop-tab-${tab}`}>
+      <div key={tab} role="tabpanel" className="swap-in" id="shop-panel" aria-labelledby={`shop-tab-${tab}`}>
         {tab === "items" && (
           <Items owned={owned} activeId={activeId} onPick={(id) => setMode({ kind: "placing", id })} />
         )}

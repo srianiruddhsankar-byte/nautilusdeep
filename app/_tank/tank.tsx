@@ -378,9 +378,9 @@ export function Tank({
           </p>
         )}
 
-        {selectedFish && <FishCard fish={selectedFish} onClose={() => setSelected(null)} />}
+        {selectedFish && <FishCard key={selectedFish.id} fish={selectedFish} onClose={() => setSelected(null)} />}
         {selected === "nautilus" && nautilus && <NautilusCard onClose={() => setSelected(null)} />}
-        {selectedPlant && <PlantCard plant={selectedPlant} onClose={() => setSelected(null)} />}
+        {selectedPlant && <PlantCard key={selectedPlant.id} plant={selectedPlant} onClose={() => setSelected(null)} />}
       </div>
 
       {tankCount > 1 && !bare && (
@@ -595,7 +595,7 @@ function NautilusCard({ onClose }: { onClose: () => void }) {
 function TankCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
     <div
-      className="absolute inset-x-2 bottom-2 flex items-start justify-between gap-3 rounded-card bg-[#fffcf6]/95 p-3 text-sm text-[#1e2b38] shadow-[0_0_0_1px_#e3dacb,0_2px_0_#e3dacb]"
+      className="swap-in absolute inset-x-2 bottom-2 flex items-start justify-between gap-3 rounded-card bg-[#fffcf6]/95 p-3 text-sm text-[#1e2b38] shadow-[0_0_0_1px_#e3dacb,0_2px_0_#e3dacb]"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col gap-0.5">{children}</div>

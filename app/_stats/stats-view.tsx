@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useContext, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { RARITIES, RARITY_LABEL, speciesById } from "@/lib/species";
 import { MATURE_MINUTES, PLANT_MIN_MINUTES, deriveGarden, type Garden } from "@/lib/plants";
 import { SKIN_UNLOCKS, formatHours, nextSkin, skinUnlocked } from "@/lib/economy";
@@ -23,11 +23,18 @@ import { Card } from "../_ui/card";
 import { EmptyState, Skeleton } from "../_ui/feedback";
 import { StatGrid, StatTile } from "../_ui/stat";
 import { Tabs } from "../_ui/tabs";
-import { BarList, ColumnChart, Heatmap } from "./charts";
+import { CountUp } from "../_ui/count-up";
+import { useLoadFade } from "../_ui/motion";
+import { BarList, ColumnChart, Heatmap, StatsIntro } from "./charts";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" } as const;
 const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TYPES: SessionType[] = ["study", "notes"];
+
+// The intro plays the first time Stats is shown after the app opens (this
+// module stays loaded while you move between tabs), never on every visit.
+let introPlayed = false;
+const INTRO_MS = 1600; // long enough for the slowest intro animation to finish
 
 const percent = (part: number, whole: number) =>
   whole > 0 ? `${Math.round((part / whole) * 100)}%` : "–";
@@ -47,6 +54,17 @@ export function StatsView() {
     () => (tasks && clock ? taskCompletions(tasks, clock.now, clock.timeZone) : null),
     [tasks, clock],
   );
+  const ready = all !== null;
+  const fade = useLoadFade(ready);
+  // On for INTRO_MS once the numbers are there, then off, so switching Study /
+  // Notes or opening More stats later never replays it.
+  const [intro, setIntro] = useState(() => !introPlayed);
+  useEffect(() => {
+    if (!ready) return;
+    introPlayed = true;
+    const timer = setTimeout(() => setIntro(false), INTRO_MS);
+    return () => clearTimeout(timer);
+  }, [ready]);
 
   if (!all) {
     if (error) return <p role="alert" className="text-sm text-danger">Couldn&apos;t load your sessions: {error}</p>;
@@ -61,66 +79,69 @@ export function StatsView() {
 
   const { overview } = all;
   return (
-    <div className="flex flex-col gap-5">
-      {/* Study and notes together: both keep the streak alive. */}
-      <Section
-        title="Streak"
-        note="A day counts with 5+ minutes of study or notes. One missed day per week (Mon–Sun) is forgiven, but never two in a row."
-      >
-        <Tiles>
-          <Tile label="Current streak" value={days(overview.streak.current)} />
-          <Tile label="Longest streak" value={days(overview.streak.longest)} />
-        </Tiles>
-        <Heatmap
-          today={overview.today}
-          monthLabel={(day) =>
-            new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: "UTC", month: "short" })
-          }
-          weeks={overview.heatmap.map((week) =>
-            week.map((c) => ({
-              ...c,
-              label: c.day === overview.today ? `Today, ${formatDay(c.day)}` : formatDay(c.day),
-              display: c.forgiven ? `${formatDuration(c.seconds)} · forgiven ❄` : formatDuration(c.seconds),
-            })),
-          )}
+    <StatsIntro.Provider value={intro}>
+      <div className={`flex flex-col gap-5 ${intro ? "stagger-in" : fade}`}>
+        {/* Study and notes together: both keep the streak alive. */}
+        <Section
+          title="Streak"
+          note="A day counts with 5+ minutes of study or notes. One missed day per week (Mon–Sun) is forgiven, but never two in a row."
+        >
+          <Tiles>
+            <Tile label="Current streak" value={days(overview.streak.current)} />
+            <Tile label="Longest streak" value={days(overview.streak.longest)} />
+          </Tiles>
+          <Heatmap
+            today={overview.today}
+            monthLabel={(day) =>
+              new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: "UTC", month: "short" })
+            }
+            weeks={overview.heatmap.map((week) =>
+              week.map((c) => ({
+                ...c,
+                label: c.day === overview.today ? `Today, ${formatDay(c.day)}` : formatDay(c.day),
+                display: c.forgiven ? `${formatDuration(c.seconds)} · forgiven ❄` : formatDuration(c.seconds),
+              })),
+            )}
+          />
+        </Section>
+
+        <Section title="Tasks done">
+          <StatGrid cols={3}>
+            <Tile label="Today" value={completed ? String(completed.today) : "–"} />
+            <Tile label="This week" value={completed ? String(completed.week) : "–"} />
+            <Tile label="This month" value={completed ? String(completed.month) : "–"} />
+          </StatGrid>
+        </Section>
+
+        <Section title="Coins & tank" note="1 coin per focus minute (Open Focus: half). Study and notes both count.">
+          <Tiles>
+            <Tile label="Earned" value={economy.earned === null ? "–" : String(economy.earned)} />
+            <Tile label="Spent" value={economy.spent === null ? "–" : String(economy.spent)} />
+            <Tile label="Decorations" value={economy.owned ? String(economy.owned.length) : "–"} sub="Owned" />
+            <SkinTile hours={economy.hours} />
+          </Tiles>
+        </Section>
+
+        <Tabs<SessionType>
+          label="Session type"
+          idPrefix="stats"
+          value={type}
+          onChange={setType}
+          tabs={TYPES.map((t) => ({ id: t, label: SESSION_TYPE_LABEL[t] }))}
         />
-      </Section>
 
-      <Section title="Tasks done">
-        <StatGrid cols={3}>
-          <Tile label="Today" value={completed ? String(completed.today) : "–"} />
-          <Tile label="This week" value={completed ? String(completed.week) : "–"} />
-          <Tile label="This month" value={completed ? String(completed.month) : "–"} />
-        </StatGrid>
-      </Section>
-
-      <Section title="Coins & tank" note="1 coin per focus minute (Open Focus: half). Study and notes both count.">
-        <Tiles>
-          <Tile label="Earned" value={economy.earned === null ? "–" : String(economy.earned)} />
-          <Tile label="Spent" value={economy.spent === null ? "–" : String(economy.spent)} />
-          <Tile label="Decorations" value={economy.owned ? String(economy.owned.length) : "–"} sub="Owned" />
-          <SkinTile hours={economy.hours} />
-        </Tiles>
-      </Section>
-
-      <Tabs<SessionType>
-        label="Session type"
-        idPrefix="stats"
-        value={type}
-        onChange={setType}
-        tabs={TYPES.map((t) => ({ id: t, label: SESSION_TYPE_LABEL[t] }))}
-      />
-
-      <div role="tabpanel" id="stats-panel" aria-labelledby={`stats-tab-${type}`}>
-        {/* key: switching tabs resets each chart's selected column. */}
-        <TypeStats key={type} type={type} stats={all[type]} garden={garden} />
+        <div key={type} role="tabpanel" className="swap-in" id="stats-panel" aria-labelledby={`stats-tab-${type}`}>
+          {/* key: switching tabs resets each chart's selected column. */}
+          <TypeStats key={type} type={type} stats={all[type]} garden={garden} />
+        </div>
       </div>
-    </div>
+    </StatsIntro.Provider>
   );
 }
 
 function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; garden: Garden | null }) {
   const study = type === "study";
+  const intro = useContext(StatsIntro);
   const peakHour = stats.hours.reduce((best, s, h) => (s > stats.hours[best] ? h : best), 0);
   const hasHours = stats.hours[peakHour] > 0;
   const focusTotal = stats.focusMode.deep + stats.focusMode.open;
@@ -135,8 +156,12 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
     );
   }
 
+  // In the intro its cards follow the four above (Streak, Tasks, Coins, the tabs).
   return (
-    <div className="flex flex-col gap-5">
+    <div
+      className={`flex flex-col gap-5 ${intro ? "stagger-in" : ""}`}
+      style={{ "--stagger-from": 4 } as CSSProperties}
+    >
       <Section title={study ? "Study time" : "Notes time"}>
         <Tiles>
           <Tile label="Today" value={formatDuration(stats.focus.today)} />
@@ -214,7 +239,7 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
       </Section>
 
       {/* The everyday numbers are above; the rest is one tap away. */}
-      <details className="group">
+      <details className="disclosure group">
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between rounded-card bg-card px-4 shadow-card transition-colors duration-(--dur-fast) hover:bg-soft [&::-webkit-details-marker]:hidden">
           <span className="title-card">More stats</span>
           <span aria-hidden className="text-muted transition-transform duration-(--dur) ease-snap group-open:rotate-90">
@@ -394,4 +419,18 @@ function Section({ title, note, children }: { title: string; note?: string; chil
 }
 
 const Tiles = StatGrid;
-const Tile = StatTile;
+
+// A stat tile; in the intro a whole number ("12", "5 days") counts up from 0.
+function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  const intro = useContext(StatsIntro);
+  const count = intro ? /^(\d+)( days?)?$/.exec(value) : null;
+  const shown = count ? (
+    <>
+      <CountUp value={Number(count[1])} from={0} delay={200} duration={700} />
+      {count[2] ?? ""}
+    </>
+  ) : (
+    value
+  );
+  return <StatTile label={label} value={shown} sub={sub} />;
+}
