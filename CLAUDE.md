@@ -19,6 +19,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   are the escape hatches.
 - Falling asleep isn't quitting: Night mode ends a session at the last check-in you confirmed, with no bone and no
   dying fish, so the record stays honest without punishing you.
+- Low effort to start: a new user signs in and can start a session in one tap, no setup required.
 - Keep tasks simple: title, optional due date, done.
 - No leaderboards. Any future friends features are about encouragement, not ranking.
 - Web-first: no features that require native iPhone/Android apps.

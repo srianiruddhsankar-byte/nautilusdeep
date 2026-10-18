@@ -38,6 +38,20 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 - **End-of-day summary**.
   - Why parked: needs notifications (Phase 10) to be useful.
   - Revisit: after Phase 10.
+- **Holiday mode + "total days studied" first**: turn on holiday mode before a long break (e.g. a month off) and
+  the streak pauses: it doesn't grow, but it doesn't break either. Alongside it, make total days studied more
+  prominent than the current streak, so a long run of work never feels wiped out by one gap.
+  - Why parked: the streak freeze (one forgiven day a week) covers short gaps; long breaks need a small new
+    setting and a stats rethink.
+  - Revisit: soon. It fits "punish quitting, never absence": a holiday should never cost you anything.
+- **Depth levels**: every hour of study takes you deeper ("You're at 340 m"), tied to the existing skin
+  progression (Shallows → Deep already unlocks by hours). A way to make total progress visible.
+  - Why parked: no XP bars or levels-to-grind; it must stay a quiet measure of real work, not a game.
+  - Revisit: after Phase 11 (friends testing).
+- **Calm companion**: the nautilus offers gentle, encouraging messages (progress you've made, a warm welcome
+  back after a break). Warm like Duolingo's owl, but never guilt-driven: no "you missed a day", no nagging.
+  - Why parked: the tone has to be exactly right, and it needs real usage to know which moments matter.
+  - Revisit: after Phase 11 (friends testing).
 
 ## Tank & creatures
 
@@ -67,7 +81,7 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
   - Why parked: the tank must stay simple, not become a game.
   - Revisit: with real species / water types.
 
-## Sounds
+## Sounds and video
 
 - **Revisit ambience**: Rain is weak and some static remains in the generated sounds. Consider real recordings
   instead (Freesound CC0 / Pixabay), looped and crossfaded.
@@ -80,6 +94,11 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 - **More ambient sounds** beyond the ocean (stream, rain, underwater), matched to the water type.
   - Why parked: Phase 8 builds ocean sounds only.
   - Revisit: after Phase 8, together with water types.
+- **Study-with-me videos**: play a YouTube "study with me" video alongside a session (e.g. a small player on
+  the running screen, instead of the ambience).
+  - Why parked: was rejected earlier together with ads and monetisation (see "Reconsidered"); needs a careful
+    look at embedding, autoplay rules on phones, and how it fits Deep Focus (leaving the app to YouTube fails it).
+  - Revisit: after Phase 10.
 
 ## Tasks
 
@@ -88,6 +107,16 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
   - Why parked: rewards and tank items belong to Phase 7 (coins and decorations), and it must reward real
     work, never app activity.
   - Revisit: in Phase 7.
+- **Planner**: grow Tasks into a cute, aesthetic planner: exams and assignments with countdowns ("Biology exam
+  · 12 days", shown on Home) and study goals (e.g. hours per week for a subject).
+  - Why parked: it bends "keep tasks simple" (title, optional due date, done), and we don't yet know whether
+    testers would plan here at all.
+  - Revisit: after Phase 11 (friends testing), if they keep their to-do lists and exam dates elsewhere.
+- **Spaced repetition reminders**: after studying a topic, "revisit this topic" reminders after 1, 3, 7 and
+  21 days, built on tasks + push notifications (each reminder is a task with a due date). Not flashcards:
+  NotebookLM already handles studying the content itself.
+  - Why parked: needs task reminders and push notifications (Phase 10b) to exist first.
+  - Revisit: after Phase 10.
 - **Subtasks and priorities**.
   - Why parked: tasks stay simple (title, optional due date, done).
   - Revisit: only if testers ask.
@@ -107,6 +136,20 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
   - Revisit: if testers often open the app with no signal (e.g. on the underground); start with one cached
     "You're offline" page, not cached real pages.
 
+- **Home / lock screen widgets** showing today's progress.
+  - Why parked: not possible for a web app; widgets need a native iPhone / Android app (see "native-only
+    features" under Deliberately rejected).
+  - Revisit: only if the app ever goes native.
+
+## Friends
+
+- **Friends + focus rooms**: add friends, see who's studying right now, and study rooms ("study servers")
+  where friends focus at the same time. Encouragement only: no leaderboards, ever, and no ranking of any kind.
+  It must stay free.
+  - Why parked: the app is for the owner and a few friends first; it needs accounts to see each other (new
+    tables, RLS, privacy) and moving fish rolls / coins server-side (see "Fairness").
+  - Revisit: after Phase 11 (friends testing), if testers ask to study together.
+
 ## Fairness
 
 - **Move fish roll and coin calc server-side if the app goes public or gets leaderboards.** Today the browser
@@ -120,9 +163,12 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 - **Categories / subject tags**: an extra step before studying.
 - **App blocking, controlling phone notifications, native-only features**: not possible on the web, and not needed.
 - **Leaderboards**: no competition between users, ever.
-- **Ads, monetisation, charity, YouTube**: this is a personal project.
+- **Ads, monetisation, charity**: this is a personal project.
 
 ## Reconsidered
+
+- **YouTube**: first rejected along with ads and monetisation. Playing a "study with me" video during a session
+  is a different thing (no ads from us, no money), so it's parked as an idea instead (see "Sounds and video").
 
 - **Pause button**: first rejected as a loophole around the leave rule. Built after all as a limited pause
   (Deep Focus only, once per session, up to 5 minutes, paused time not credited), the way Flipd does it, which
