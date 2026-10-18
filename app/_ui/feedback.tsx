@@ -49,8 +49,13 @@ export function ProgressBar({
       {Array.from({ length: steps }, (_, i) => {
         const part = i < index ? 1 : i > index ? 0 : clamped;
         return (
+          // The fill is scaled, not resized (transform only), and glides between
+          // the clock's quarter-second ticks.
           <span key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-line">
-            <span className={`block h-full rounded-full ${fill}`} style={{ width: `${part * 100}%` }} />
+            <span
+              className={`block h-full w-full origin-left rounded-full transition-[transform,background-color] duration-(--dur-screen) ease-linear ${fill}`}
+              style={{ transform: `scaleX(${part})` }}
+            />
           </span>
         );
       })}

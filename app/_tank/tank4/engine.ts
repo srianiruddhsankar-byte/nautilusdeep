@@ -72,7 +72,18 @@ export type TankPlant = {
   pop: string;
 };
 // A placed decoration: x 0–100 % across, y 0 (front) … 1 (back) of the sand.
-export type TankDecor = { key: string; art: string; x: number; y: number; width: number; selected: boolean; bubbles: boolean };
+// `settle`: it was just placed or moved here, so it drops softly onto the sand
+// (once per spot, however often the scenery is rebuilt).
+export type TankDecor = {
+  key: string;
+  art: string;
+  x: number;
+  y: number;
+  width: number;
+  selected: boolean;
+  bubbles: boolean;
+  settle?: boolean;
+};
 // The drawings for plants and decorations, as SVG markup at a given size (and
 // optional viewBox, to give a plant's leaves room).
 export type ArtSource = (key: string) => { aspect: number; svg: (w: number, h: number, viewBox?: string) => string } | null;
@@ -108,6 +119,8 @@ const PLANT_ROOT = { x: 20, y: 58 }; // its base, in drawing units
 const SAND_BOTTOM = 2;
 const SAND_DEPTH = 14;
 const DECOR_SCALE = 1.1; // a decoration's width in world units per px of its drawing
+const SETTLE_SECONDS = 0.6; // a placed decoration settling onto the sand
+const SETTLE_DROP = 16; // world units it falls from
 
 export async function createEngine(
   P: Pixi,
@@ -368,6 +381,8 @@ export async function createEngine(
   type DecorRig = { d: TankDecor; sprite: PX.Sprite; glow: PX.Sprite; bubbles: PX.Sprite[]; w: number; h: number; x: number; y: number };
   let plants: PlantRig[] = [];
   let decor: DecorRig[] = [];
+  // When each decoration last started settling, and the spot it settled on.
+  const settling = new Map<string, { at: number; spot: string }>();
   let sceneryToken = 0;
   const artTex = new Map<string, Promise<PX.Texture | null>>();
 
@@ -446,6 +461,8 @@ export async function createEngine(
       sprite.position.set(x, y);
       sprite.width = w;
       sprite.height = h;
+      const spot = `${d.x},${d.y}`;
+      if (d.settle && settling.get(d.key)?.spot !== spot) settling.set(d.key, { at: t, spot });
       const z = Math.round((1 - d.y) * 1000); // front ones on top
       glow.zIndex = z;
       sprite.zIndex = z + 1;
@@ -479,6 +496,16 @@ export async function createEngine(
       r.mesh.scale.set(k >= 1 ? 1 : 0.6 + 0.4 * (1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2)));
     }
     for (const r of decor) {
+      // Settling: drops from a little above, lands with a tiny squash (0.6 s).
+      const since = t - (settling.get(r.d.key)?.at ?? -9);
+      const k = resting ? 1 : Math.min(1, since / SETTLE_SECONDS);
+      const fall = k < 0.7 ? 1 - Math.pow(k / 0.7, 2) : 0; // falls faster as it goes, like sinking to rest
+      const squash = k >= 0.7 && k < 1 ? Math.sin(((k - 0.7) / 0.3) * Math.PI) * 0.06 : 0;
+      r.sprite.position.y = r.y - fall * SETTLE_DROP;
+      r.sprite.width = r.w * (1 + squash);
+      r.sprite.height = r.h * (1 - squash);
+      r.sprite.alpha = Math.min(1, 0.4 + k * 2);
+      r.glow.position.y = r.y - r.h / 2 - fall * SETTLE_DROP;
       r.bubbles.forEach((b, i) => {
         const k = resting ? 0.3 + i * 0.3 : ((t / 2.1 + i / 3) % 1);
         b.position.set(r.x + (i - 1) * 1.5 + Math.sin(k * 6 + i) * 1.2, r.y - r.h * 0.17 - k * 40);

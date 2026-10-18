@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { dayKey } from "@/lib/stats";
 import { cleanTaskName, taskKey } from "@/lib/task-name";
 import { dueLabel, groupTasks } from "@/lib/task-views";
@@ -9,6 +9,7 @@ import { useTasks } from "@/lib/tasks";
 import { useClock } from "@/lib/use-clock";
 import { Card, CardHeader } from "../_ui/card";
 import { Skeleton } from "../_ui/feedback";
+import { TickBox } from "../_ui/tick";
 
 const SHOWN = 4;
 
@@ -23,6 +24,7 @@ export function TodayTasks({ picked, onPick }: { picked: string; onPick: (name: 
     [tasks, clock],
   );
   const pickedName = cleanTaskName(picked);
+  const [tapped, setTapped] = useState<string | null>(null); // only a tap animates the tick
 
   if (!groups || !clock) return <Skeleton className="h-28 rounded-card" />; // the card's size, so nothing jumps
   const due = [...groups.today, ...groups.overdue];
@@ -55,17 +57,13 @@ export function TodayTasks({ picked, onPick }: { picked: string; onPick: (name: 
                 <button
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => onPick(selected ? "" : t.name)}
+                  onClick={() => {
+                    setTapped(t.id);
+                    onPick(selected ? "" : t.name);
+                  }}
                   className="flex min-h-14 w-full items-center gap-3 py-2 text-left"
                 >
-                  <span
-                    aria-hidden
-                    className={`flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-[6px] text-xs transition-colors duration-(--dur) ${
-                      selected ? "bg-primary text-on-primary" : "shadow-[inset_0_0_0_2px_var(--line)]"
-                    }`}
-                  >
-                    {selected && "✓"}
-                  </span>
+                  <TickBox checked={selected} animate={tapped === t.id} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate">{t.name}</span>
                     {t.due_date !== today && (

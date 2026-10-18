@@ -4,6 +4,7 @@ import { plantLook } from "@/lib/plant-look";
 import { MATURE_MINUTES, PLANT_MIN_MINUTES, PLANT_STAGE_LABEL, nextPlantStage, type Garden } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
 import type { Result } from "@/lib/timer";
+import { step } from "../_ui/motion";
 import { PlantSprite } from "./plant-sprite";
 
 // The plant this notes session grew, shown on its result screen: one plant per
@@ -34,8 +35,10 @@ export function ResultPlant({ result, garden }: { result: Result; garden: Garden
           <PlantSprite look={plantLook(plant.id)} stage={plant.stage} width={52} />
         </div>
       </div>
-      <p className="title-card">{PLANT_STAGE_LABEL[plant.stage]}</p>
-      <p className="max-w-xs text-sm">
+      <p className="rise-in title-card" style={step(3)}>
+        {PLANT_STAGE_LABEL[plant.stage]}
+      </p>
+      <p className="rise-in max-w-xs text-sm" style={step(4)}>
         Planted in Tank {plant.tank + 1}.{" "}
         {next ? (
           <span className="text-muted">

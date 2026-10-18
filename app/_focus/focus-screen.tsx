@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import { type CSSProperties, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CHECK_IN_ALARM_EVERY_MS,
   SESSION_DONE_ALARM,
@@ -57,17 +58,25 @@ import {
   type Status,
 } from "@/lib/timer";
 import { describeParts } from "@/lib/session-parts";
+import { resultMoments } from "@/lib/result-moments";
+import type { SessionFacts } from "@/lib/fish";
+import { NAUTILUS } from "@/lib/species";
+import { useClock } from "@/lib/use-clock";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
-import { StatsLine } from "../_stats/stats-line";
+import { FlameIcon, StatsLine } from "../_stats/stats-line";
+import { NautilusSprite } from "../_tank/fish-sprite";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
 import { RunningTank } from "../_tank/running-tank";
 import { SKINS } from "../_tank/skins";
 import { Coin, Tank } from "../_tank/tank";
+import { useReducedMotion } from "../_tank/tank4/tank-loop";
 import { Button, buttonClass } from "../_ui/button";
+import { CountUp } from "../_ui/count-up";
 import { Field, NumberField } from "../_ui/field";
 import { ProgressBar, Skeleton } from "../_ui/feedback";
+import { changeScreen, step } from "../_ui/motion";
 import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
 import { VolumeSlider } from "./setup-form";
@@ -77,6 +86,8 @@ import { TodayTasks } from "./today-tasks";
 // Every way a session ends goes through here.
 // - Cancelled (first 10 s): the session just disappears. Nothing is queued or
 //   saved, no bone, no result screen: straight back to setup.
+// Going to another screen (back to setup, or the result) cross-fades
+// (changeScreen); a session that carries on just changes in place.
 // - Updated: it carries on, changed (a stopwatch part stopped into its break, or
 //   a cancelled continuation back in the break).
 // - Ended: the row is queued for saving BEFORE the result is shown, so nothing
@@ -84,7 +95,7 @@ import { TodayTasks } from "./today-tasks";
 //   refresh there can't save twice).
 function finish(end: SessionEnd | SessionUpdate, withAlarm = false) {
   if (end.status === "cancelled") {
-    save({ session: null, result: null });
+    changeScreen(() => save({ session: null, result: null }));
     return;
   }
   if (end.status === "updated") {
@@ -96,7 +107,7 @@ function finish(end: SessionEnd | SessionUpdate, withAlarm = false) {
 
 function endWith(result: Result, withAlarm: boolean) {
   queueResult(result);
-  save({ session: null, result });
+  changeScreen(() => save({ session: null, result }));
   void flushPending();
   if (withAlarm) startAlarm(SESSION_DONE_ALARM);
 }
@@ -190,7 +201,13 @@ export function FocusScreen() {
   if (saved.result) {
     return (
       <>
-        <ResultView result={saved.result} aquarium={aquarium} garden={garden} onTaskDone={() => setTask("")} />
+        <ResultView
+          result={saved.result}
+          rows={rows}
+          aquarium={aquarium}
+          garden={garden}
+          onTaskDone={() => setTask("")}
+        />
         <BottomNav active="home" />
         <AlarmOverlay />
       </>
@@ -223,7 +240,8 @@ export function FocusScreen() {
           unlockAudio(); // this runs inside the Start tap, which phones require for sound
           // The id is generated here, once, and becomes the database row's id.
           // withChain: when its time is up it can be continued (Continue session).
-          save({ session: withChain({ ...s, id: crypto.randomUUID() }), result: null });
+          const session = withChain({ ...s, id: crypto.randomUUID() });
+          changeScreen(() => save({ session, result: null }));
         }}
       />
       <BottomNav active="home" />
@@ -522,7 +540,10 @@ function RunningView({
     <div className="fixed inset-0 z-30 overflow-y-auto bg-paper">
       <div className="mx-auto grid min-h-full w-full max-w-md grid-rows-[auto_auto_1fr] gap-5 p-4 landscape:max-w-7xl landscape:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] landscape:grid-rows-[1fr_1fr] landscape:gap-x-8">
         {/* What's running, and the time. */}
-        <div className="flex flex-col items-center gap-3 landscape:col-start-2 landscape:row-start-1 landscape:self-end">
+        <div
+          className="rise-in flex flex-col items-center gap-3 landscape:col-start-2 landscape:row-start-1 landscape:self-end"
+          style={step(0)}
+        >
           {checkIn.status === "due" && (
             <CheckInBanner
               secondsLeft={Math.max(0, Math.ceil((checkIn.deadline - now) / 1000))}
@@ -537,32 +558,44 @@ function RunningView({
               </span>
               {session.ambience && <SoundControl ambience={session.ambience} />}
             </p>
-            <p className={`title-card max-w-full truncate px-2 ${isFocus ? "text-ink" : "text-success"}`}>{heading}</p>
-            {subheading && <p className="text-sm text-muted">{subheading}</p>}
-            {task && <InProgressBadge taskName={task} />}
-            <p
-              className={`numeral pt-2 text-[76px] sm:text-[88px] lg:text-[104px] ${paused ? "text-muted" : ""}`}
-              aria-live="off"
-            >
-              {time}
-            </p>
-            {waiting && <p className="text-sm text-muted">left to continue</p>}
-            {progress && (
-              <div className="w-full max-w-xs pt-3">
-                <ProgressBar {...progress} muted={paused} />
-              </div>
-            )}
+            {/* A new phase (focus → break, the break you can continue in, a
+                continued part) swaps in, so the change is noticed but quiet. */}
+            <div key={`${status.phaseIndex}:${waiting}`} className="swap-in flex w-full flex-col items-center gap-1">
+              <p className={`title-card max-w-full truncate px-2 ${isFocus ? "text-ink" : "text-success"}`}>{heading}</p>
+              {subheading && <p className="text-sm text-muted">{subheading}</p>}
+              {task && <InProgressBadge taskName={task} />}
+              <p
+                className={`numeral pt-2 text-[76px] transition-colors duration-(--dur-slow) sm:text-[88px] lg:text-[104px] ${paused ? "text-muted" : ""}`}
+                aria-live="off"
+              >
+                {time}
+              </p>
+              {waiting && <p className="text-sm text-muted">left to continue</p>}
+              {progress && (
+                <div className="w-full max-w-xs pt-3">
+                  <ProgressBar {...progress} muted={paused} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* The tank: compact in portrait; as big as the height allows in landscape. */}
-        <div className="mx-auto w-full max-w-[calc(34svh*4/3)] landscape:col-start-1 landscape:row-span-2 landscape:row-start-1 landscape:max-w-[calc((100svh-6rem)*4/3)] landscape:self-center">
+        <div
+          style={step(1)}
+          className="rise-in mx-auto w-full max-w-[calc(34svh*4/3)] landscape:col-start-1 landscape:row-span-2 landscape:row-start-1 landscape:max-w-[calc((100svh-6rem)*4/3)] landscape:self-center"
+        >
           <RunningTank session={session} now={now} {...tank} note={notes ? targetLine(session, status) : null} />
         </div>
 
         {/* Hint and buttons: at the bottom in portrait, easy to reach one-handed. */}
-        <div className="flex w-full flex-col items-center gap-2 self-end landscape:col-start-2 landscape:row-start-2 landscape:self-start">
-          <p className="max-w-xs text-center text-sm text-muted">{hint}</p>
+        <div
+          style={step(2)}
+          className="rise-in flex w-full flex-col items-center gap-2 self-end landscape:col-start-2 landscape:row-start-2 landscape:self-start"
+        >
+          <p key={hint} className="swap-in max-w-xs text-center text-sm text-muted">
+            {hint}
+          </p>
           {session.checkIn && !paused && (
             <p className="text-center text-sm text-muted">
               Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
@@ -608,21 +641,38 @@ function RunningView({
 
 function ResultView({
   result,
+  rows,
   aquarium,
   garden,
   onTaskDone,
 }: {
   result: Result;
+  rows: SessionFacts[] | null;
   aquarium: Aquarium | null;
   garden: Garden | null;
   onTaskDone: () => void;
 }) {
   const { title, detail } = describe(result);
   const notes = isNotes(result);
+  const clock = useClock();
+  const reduce = useReducedMotion();
+  // What this session changed: the streak (if it grew) and the nautilus (once, at 100 hours).
+  const moments = useMemo(
+    () =>
+      rows && clock && result.id
+        ? resultMoments(rows, toRow(result, result.id, null), clock.now, clock.timeZone)
+        : null,
+    [rows, clock, result],
+  );
+  // Ended early: everything just fades in slowly, in place. No rising, no counting.
+  const quiet = result.outcome === "failed";
+  const arrive = quiet ? "calm-in" : "rise-in";
+  // The nautilus waits until the fish has hatched (about 2.5 s; at once with reduced motion).
+  const nautilusDelay = reduce ? 0 : notes ? 900 : 3000;
 
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-2 text-center">
-      <div className="flex flex-col items-center gap-2">
+      <div className={`${arrive} flex flex-col items-center gap-2`} style={step(0)}>
         <p className="eyebrow">
           {FOCUS_MODE_LABEL[result.focusMode === "open" ? "open" : "deep"]}
           {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
@@ -636,16 +686,18 @@ function ResultView({
       </div>
 
       {/* The number that matters most, big. */}
-      <p className="flex flex-col items-center gap-1">
+      <p className={`${arrive} flex flex-col items-center gap-1`} style={step(1)}>
         <span className="numeral text-[72px]">{Math.floor(result.focusMs / 60_000)}</span>
         <span className="eyebrow">focus minutes</span>
       </p>
       <EarnedCoins result={result} />
+      {moments?.streak && <StreakMoment {...moments.streak} />}
 
       {notes ? <NotesResult result={result} garden={garden} /> : <ResultFish result={result} aquarium={aquarium} />}
+      {moments?.nautilus && <NautilusMoment delayMs={nautilusDelay} />}
 
       {(result.mode === "cycle" || result.lostMs >= 1000) && (
-        <dl className="grid w-full grid-cols-2 gap-3 text-left">
+        <dl className={`${arrive} grid w-full grid-cols-2 gap-3 text-left`} style={step(4)}>
           {result.mode === "cycle" && (
             <Stat label="Blocks completed" value={`${result.blocksCompleted} of ${result.totalBlocks}`} />
           )}
@@ -654,15 +706,63 @@ function ResultView({
       )}
 
       {/* One main action. Mark done is there, but quieter. */}
-      <div className="mt-auto flex w-full flex-col items-center gap-3">
+      <div className={`${arrive} mt-auto flex w-full flex-col items-center gap-3`} style={step(5)}>
         {tasksOf(result).map((name) => (
           <MarkDone key={name} taskName={name} onDone={onTaskDone} />
         ))}
-        <Button variant="primary" size="lg" onClick={() => save({ session: null, result: null })}>
+        <Button variant="primary" size="lg" onClick={() => changeScreen(() => save({ session: null, result: null }))}>
           New session
         </Button>
       </div>
     </div>
+  );
+}
+
+// This session grew the streak: the line arrives, then gets a small soft
+// highlight as the number ticks up. Only shown when it grew, so it always means something.
+function StreakMoment({ from, to }: { from: number; to: number }) {
+  const delay = { "--delay": "700ms" } as CSSProperties;
+  return (
+    <p className="rise-in -mt-3 flex justify-center text-sm" style={step(3)}>
+      <span className="glow-once inline-flex items-center gap-1.5 px-1 py-0.5" style={delay}>
+        <FlameIcon className="pop-once" />
+        <span>
+          <b className="font-semibold">
+            <CountUp value={to} from={from} delay={700} duration={400} />
+            -day streak
+          </b>
+          {from === 0 ? " · started today" : " · today counts"}
+        </span>
+      </span>
+    </p>
+  );
+}
+
+// 100 credited hours: the namesake arrives, once (only the session that crossed
+// the line shows this). Slow and calm: a soft halo opens behind it while it floats.
+function NautilusMoment({ delayMs }: { delayMs: number }) {
+  const slow = { animationDelay: `${delayMs}ms`, animationDuration: "var(--dur-calm)" };
+  return (
+    <section
+      aria-label="The nautilus has arrived"
+      className="rise-in flex w-full flex-col items-center gap-2 overflow-hidden rounded-card bg-card p-4 shadow-card"
+      style={slow}
+    >
+      <div className="relative flex h-24 w-36 items-center justify-center">
+        <span aria-hidden className="halo-once" style={{ animationDelay: `${delayMs + 300}ms` }} />
+        <div className="tank-bob">
+          <NautilusSprite width={72} />
+        </div>
+      </div>
+      <p className="eyebrow">The namesake · {NAUTILUS.hours} hours</p>
+      <p className="title-card">The nautilus has joined your tank</p>
+      <p className="max-w-xs text-sm text-muted">
+        A hundred hours of real focus. It lives in your newest tank from now on.
+      </p>
+      <Link href="/sea-life" className="-my-1 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+        See it in the Sea life index
+      </Link>
+    </section>
   );
 }
 
@@ -697,9 +797,9 @@ function ContinuePanel({ session, windowMs }: { session: Session; windowMs: numb
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-2">
+    <div className="swap-in flex w-full flex-col items-center gap-2">
       {changing && (
-        <div className="flex w-full flex-col gap-3 rounded-card bg-card p-4 shadow-card">
+        <div className="swap-in flex w-full flex-col gap-3 rounded-card bg-card p-4 shadow-card">
           {isTimer && <NumberField label="Minutes" value={minutes} onChange={setMinutes} />}
           <Field label="Task (optional)" value={task} onChange={(e) => setTask(e.target.value)} placeholder="No task" />
         </div>
@@ -720,7 +820,7 @@ function ContinuePanel({ session, windowMs }: { session: Session; windowMs: numb
 // While paused: how long is left, and Resume. Calm, never a takeover.
 function PausePanel({ msLeft }: { msLeft: number }) {
   return (
-    <div className="flex w-full items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-card">
+    <div className="swap-in flex w-full items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-card">
       <span className="flex flex-col text-left">
         <span className="font-semibold">Paused</span>
         <span className="text-sm text-muted tabular-nums">{formatClock(msLeft)} left, then it carries on</span>
@@ -764,7 +864,7 @@ function SoundControl({ ambience }: { ambience: SessionAmbience }) {
         <SpeakerIcon off={ambience.paused} />
       </button>
       {open && (
-        <span className="absolute top-full left-1/2 z-20 mt-1 flex w-64 -translate-x-1/2 flex-col gap-2 rounded-card bg-card p-4 text-left shadow-card">
+        <span className="swap-in absolute top-full left-1/2 z-20 mt-1 flex w-64 -translate-x-1/2 flex-col gap-2 rounded-card bg-card p-4 text-left shadow-card">
           <span className="flex items-center justify-between gap-2">
             <span className="font-semibold">{AMBIENCE_LABEL[ambience.sound]}</span>
             <Button variant="secondary" size="sm" onClick={() => update({ paused: !ambience.paused })}>
@@ -791,13 +891,14 @@ function SpeakerIcon({ off }: { off: boolean }) {
 }
 
 // Night mode: a small, calm banner at the top. The timer keeps running under it.
+// It swaps in when it appears (the "silent pulse" style has its own animation instead).
 function CheckInBanner({ secondsLeft, pulse }: { secondsLeft: number; pulse: boolean }) {
   return (
     <button
       type="button"
       onClick={confirmNow}
       className={`flex w-full flex-col items-center gap-0.5 rounded-card px-4 py-3 text-center shadow-[inset_0_0_0_2px_var(--primary)] ${
-        pulse ? "alarm-flash" : "bg-card"
+        pulse ? "alarm-flash" : "swap-in bg-card"
       }`}
     >
       <span className="title-card">Still studying? Tap to continue</span>
@@ -838,12 +939,13 @@ function NotesResult({ result, garden }: { result: Result; garden: Garden | null
 }
 
 // "+25 coins" (Open Focus earns half). Nothing for failed or under-5-minute sessions.
+// They count up from 0 once the minutes have arrived.
 function EarnedCoins({ result }: { result: Result }) {
   const coins = coinsFor(toRow(result, result.id ?? "legacy", null));
   if (coins === 0) return null;
   return (
-    <p className="-mt-3 flex items-center gap-1.5 text-lg font-semibold text-coin">
-      <Coin size={18} />+{coins} coins
+    <p className="rise-in -mt-3 flex items-center gap-1.5 text-lg font-semibold text-coin" style={step(2)}>
+      <Coin size={18} />+<CountUp value={coins} from={0} delay={350} duration={900} /> coins
       {result.focusMode === "open" && <span className="text-sm font-normal text-muted">(Open Focus: half)</span>}
     </p>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DECORATIONS,
   MILESTONE_LABEL,
@@ -20,11 +20,16 @@ import { Coin, Tank } from "../_tank/tank";
 import { Button } from "../_ui/button";
 import { Card } from "../_ui/card";
 import { EmptyState, Skeleton } from "../_ui/feedback";
+import { prefersReducedMotion } from "../_ui/motion";
+import { TickMark } from "../_ui/tick";
 import { Tabs } from "../_ui/tabs";
 import { toast } from "../_ui/toast";
 
 type Mode = { kind: "idle" } | { kind: "placing"; id: string } | { kind: "selected"; id: string };
 type TabId = "items" | "shop" | "skins";
+
+// After buying: how long "✓ Yours" shows on the row before it goes to placing.
+const BOUGHT_MS = 650;
 
 // Decorating, kept quick: tap an item, tap the sand. Tap a placed item to move
 // it (tap a new spot) or put it back in your items.
@@ -41,6 +46,9 @@ export function DecorateView() {
   const [tab, setTab] = useState<TabId>("shop");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [bought, setBought] = useState<string | null>(null); // the item just bought, for its "✓ Yours"
+  const [settlingId, setSettlingId] = useState<string | null>(null); // just placed / moved: it settles
+  const tankRef = useRef<HTMLDivElement>(null);
 
   const owned = economy.owned ?? [];
   const activeId = mode.kind === "idle" ? null : mode.id;
@@ -58,20 +66,28 @@ export function DecorateView() {
   async function onSandTap(x: number, y: number) {
     if (!active) return;
     setMode({ kind: "idle" });
+    setSettlingId(active.id);
     await run(() => placeDecoration(active.id, index, x, y));
   }
 
   async function get(item: DecorationItem, price: number) {
     setBusy(true);
     const result = await getDecoration(item.id, price);
-    setBusy(false);
     setMessage(result.error);
-    if (result.id) {
-      // Straight to placing: the quickest path from shop to tank.
-      toast(`${price === 0 ? "Got" : "Bought"} ${item.name}. Tap the sand to place it.`);
-      setMode({ kind: "placing", id: result.id });
-      setTab("items");
-    }
+    if (!result.id) return setBusy(false);
+    const id = result.id;
+    // A moment of "✓ Yours" on the row (still busy, so nothing else can be
+    // bought meanwhile), then straight to placing, the quickest path from shop
+    // to tank: the tank scrolls into view and the hint line rings once.
+    const reduce = prefersReducedMotion();
+    setBought(item.id);
+    if (!reduce) await new Promise((resolve) => setTimeout(resolve, BOUGHT_MS));
+    setBought(null);
+    setBusy(false);
+    toast(`${price === 0 ? "Got" : "Bought"} ${item.name}. Tap the sand to place it.`);
+    setMode({ kind: "placing", id });
+    setTab("items");
+    tankRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }
 
   if (!rows || economy.balance === null) {
@@ -88,6 +104,7 @@ export function DecorateView() {
 
   return (
     <div className="flex flex-col gap-5">
+      <div ref={tankRef} className="scroll-mt-4">
       <Tank
         aquarium={aquarium}
         garden={garden}
@@ -101,18 +118,24 @@ export function DecorateView() {
           },
           selectedId: mode.kind === "selected" ? mode.id : null,
           onSandTap,
+          settlingId,
           onDecorationTap: (id) =>
             setMode(mode.kind === "selected" && mode.id === id ? { kind: "idle" } : { kind: "selected", id }),
         }}
       />
+      </div>
 
       {/* One line that always says what a tap will do. */}
       <div
         aria-live="polite"
-        className={`flex min-h-12 items-center justify-between gap-3 rounded-control px-4 py-1 text-sm ${
+        className={`relative flex min-h-12 items-center justify-between gap-3 rounded-control px-4 py-1 text-sm transition-colors duration-(--dur) ${
           mode.kind === "idle" ? "bg-soft" : "bg-card shadow-[inset_0_0_0_2px_var(--primary)]"
         }`}
       >
+        {/* Placing something new: one ring, so your eye finds the next step. */}
+        {mode.kind === "placing" && (
+          <span key={mode.id} aria-hidden className="ring-once pointer-events-none absolute inset-0 rounded-control" />
+        )}
         {mode.kind === "idle" && (
           <p className="text-muted">
             {inventory(owned).length > 0
@@ -179,7 +202,14 @@ export function DecorateView() {
           <Items owned={owned} activeId={activeId} onPick={(id) => setMode({ kind: "placing", id })} />
         )}
         {tab === "shop" && (
-          <Shop owned={owned} balance={economy.balance} reached={economy.reached} busy={busy} onGet={get} />
+          <Shop
+            owned={owned}
+            balance={economy.balance}
+            reached={economy.reached}
+            busy={busy}
+            bought={bought}
+            onGet={get}
+          />
         )}
         {tab === "skins" && (
           <Skins
@@ -248,12 +278,14 @@ function Shop({
   balance,
   reached,
   busy,
+  bought,
   onGet,
 }: {
   owned: Owned[];
   balance: number;
   reached: Set<MilestoneId>;
   busy: boolean;
+  bought: string | null;
   onGet: (item: DecorationItem, price: number) => void;
 }) {
   const ownedItems = owned.map((d) => d.item);
@@ -291,7 +323,12 @@ function Shop({
                     )}
                   </span>
                 </span>
-                {check.ok ? (
+                {bought === item.id ? (
+                  <span className="swap-in flex min-h-11 shrink-0 items-center gap-1 px-2 text-sm font-semibold text-success">
+                    <TickMark animate className="h-4 w-4" />
+                    Yours
+                  </span>
+                ) : check.ok ? (
                   <Button variant="secondary" size="sm" disabled={busy} onClick={() => onGet(item, check.price)}>
                     {check.price === 0 ? "Get · free" : "Buy"}
                   </Button>

@@ -12,11 +12,16 @@ import { Button } from "../_ui/button";
 import { Card } from "../_ui/card";
 import { EmptyState, Skeleton } from "../_ui/feedback";
 import { inputClass } from "../_ui/field";
+import { prefersReducedMotion } from "../_ui/motion";
+import { TickBox } from "../_ui/tick";
 import { Tabs } from "../_ui/tabs";
 import { toast } from "../_ui/toast";
 
 type Run = (action: () => Promise<string | null>) => Promise<boolean>;
 type View = "todo" | "done";
+
+// How long a fresh tick stays on screen before the task moves to Done.
+const TICK_MS = 450;
 
 // The task list: add (with an optional due date), group by when it's due, tick
 // off, and look back at what's done. Deleting a task never touches sessions:
@@ -234,10 +239,21 @@ function TaskRow({
   run: Run;
 }) {
   const [open, setOpen] = useState(false);
+  // Just ticked: the tick pops and a line draws through the name, then (after a
+  // moment, so you see it) the task is saved as done and moves to Done.
+  const [ticking, setTicking] = useState(false);
   const done = task.done_at !== null;
+  const checked = done || ticking;
 
   async function toggle() {
-    if ((await run(() => setTaskDone(task.id, !done))) && !done) toast("Done. Nice work.");
+    if (done) {
+      await run(() => setTaskDone(task.id, false));
+      return;
+    }
+    setTicking(true);
+    if (!prefersReducedMotion()) await new Promise((resolve) => setTimeout(resolve, TICK_MS));
+    if (await run(() => setTaskDone(task.id, true))) toast("Done. Nice work.");
+    else setTicking(false); // it didn't save: untick (the error shows above the list)
   }
 
   return (
@@ -247,23 +263,26 @@ function TaskRow({
         <label className="-ml-2.5 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
           <input
             type="checkbox"
-            checked={done}
-            disabled={busy}
+            checked={checked}
+            disabled={busy || ticking}
             onChange={toggle}
             aria-label={done ? `Mark "${task.name}" as not done` : `Mark "${task.name}" as done`}
             className="peer sr-only"
           />
-          <span
-            aria-hidden
-            className={`flex h-5.5 w-5.5 items-center justify-center rounded-[6px] text-xs transition-colors duration-(--dur) peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(--focus) ${
-              done ? "bg-primary text-on-primary" : "shadow-[inset_0_0_0_2px_var(--line)]"
-            }`}
-          >
-            {done && "✓"}
-          </span>
+          <TickBox
+            checked={checked}
+            animate={ticking}
+            className="peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(--focus)"
+          />
         </label>
         <div className="flex min-w-0 flex-1 flex-col py-1.5">
-          <span className={`break-words ${done ? "text-muted line-through" : ""}`}>{task.name}</span>
+          <span
+            className={`break-words transition-colors duration-(--dur-slow) ${
+              done ? "text-muted line-through" : ticking ? "strike-in self-start text-muted" : ""
+            }`}
+          >
+            {task.name}
+          </span>
           {(detail || inProgress) && (
             <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
               {inProgress && (

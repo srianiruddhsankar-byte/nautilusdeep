@@ -8,6 +8,8 @@ import { toRow } from "@/lib/session-record";
 import { RARITY_LABEL, SPECIES, speciesById, type SpeciesId } from "@/lib/species";
 import type { Result } from "@/lib/timer";
 import { broodStage } from "@/lib/brood";
+import { isNewSpecies } from "@/lib/result-moments";
+import { step as stagger } from "../_ui/motion";
 import { DriftingBrood } from "./brood";
 import { Bone, SpeciesSprite } from "./fish-sprite";
 import { MiniCanvas } from "./tank4/mini-canvas";
@@ -51,7 +53,9 @@ export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aqu
   // The species saved with the session (the tank's copy once it has loaded).
   const species = (aquarium && findFish(aquarium, id)?.species) || speciesOf(row);
   const tank = aquarium ? tankIndexOf(aquarium, id) + 1 : 0;
-  return <HatchReveal key={id} id={id} species={species} tank={tank} />;
+  // The first of its species: a small "New to your index" moment (unknown until the tank has loaded).
+  const isNew = aquarium ? isNewSpecies(aquarium, id, species) : false;
+  return <HatchReveal key={id} id={id} species={species} tank={tank} isNew={isNew} />;
 }
 
 // How long each silhouette stays before the next: quick at first, then slowing
@@ -73,7 +77,8 @@ function revealSequence(id: string, species: SpeciesId): SpeciesId[] {
 // The calm "hatching" moment: silhouettes flick past, slow down, and the fry
 // becomes its species. Tap to skip; reduced motion shows the fish straight away.
 // Drawn with the tank's art (MiniCanvas); the SVG drawings are the fallback.
-function HatchReveal({ id, species, tank }: { id: string; species: SpeciesId; tank: number }) {
+// Then its name and fact rise in, and a first catch gets its badge just after.
+function HatchReveal({ id, species, tank, isNew }: { id: string; species: SpeciesId; tank: number; isNew: boolean }) {
   const sequence = useMemo(() => revealSequence(id, species), [id, species]);
   const last = sequence.length - 1;
   const [step, setStep] = useState(0);
@@ -118,7 +123,12 @@ function HatchReveal({ id, species, tank }: { id: string; species: SpeciesId; ta
         />
       </button>
       {done ? (
-        <div className="flex flex-col items-center gap-1" aria-live="polite">
+        <div className="rise-in flex flex-col items-center gap-1" aria-live="polite">
+          {isNew && (
+            <p className="new-badge rise-in mb-1 rounded-chip bg-soft px-2.5 py-1 text-xs font-semibold text-primary" style={stagger(4)}>
+              <span aria-hidden>✦ </span>New to your index
+            </p>
+          )}
           <p className="title-card">{info.name}</p>
           <p className="eyebrow">{RARITY_LABEL[info.rarity]}</p>
           <p className="max-w-xs text-sm">{info.fact}</p>

@@ -124,7 +124,12 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `buttonClass`), `card.tsx` (`Card`, `CardHeader`), `field.tsx` (`Field`, `NumberField`, `inputClass`),
   `segmented.tsx` (`Segmented`, `Chip`), `tabs.tsx`, `switch.tsx`, `sheet.tsx` (native `<dialog>`),
   `toast.tsx` (`toast("…")`, `<Toaster/>` in the root layout), `feedback.tsx` (`Skeleton`, `EmptyState`,
-  `ProgressBar`), `page.tsx` (`Page`: every signed-in page's frame), `stat.tsx` (`StatTile`, `StatGrid`). Tokens and the few component classes live in `app/globals.css`
+  `ProgressBar`), `page.tsx` (`Page`: every signed-in page's frame), `stat.tsx` (`StatTile`, `StatGrid`),
+  `motion.ts` (`changeScreen`: the cross-fade between whole screens via the View Transitions API; `step(n)`
+  for staggering; `prefersReducedMotion`), `count-up.tsx` (`CountUp`), `tick.tsx` (`TickBox`, `TickMark`).
+  Tokens and the few component classes live in `app/globals.css`
+- `lib/result-moments.ts` — pure: what one session changed, for the result screen (`resultMoments`: the streak
+  grew / the nautilus arrived; `isNewSpecies`), tested in `lib/result-moments.test.ts`
 - `app/not-found.tsx` — the 404 page (signed-in only: signed out, proxy.ts sends unknown paths to /login)
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
@@ -170,9 +175,20 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   `eyebrow` group headings. Public pages (login, privacy) have no nav bar.
 - **Shadows**: paper edges, never blurry drop shadows: `shadow-card` (hairline + 2 px edge), `shadow-press`
   (primary button's 3 px edge that presses down).
-- **Motion**: controls are snappy and precise: `--dur-fast` 120 ms (press, hover), `--dur` 160 ms (toggles,
-  segments), `--dur-slow` 240 ms (sheets, toasts), easing `ease-snap`. Animate transform/opacity/colour only.
-  `prefers-reduced-motion` removes UI motion (globals.css) and tank motion (tank.css).
+- **Motion** (Stage E): calm and purposeful, never flashy. Controls are snappy: `--dur-fast` 120 ms (press,
+  hover), `--dur` 160 ms (toggles, segments), `--dur-slow` 240 ms (sheets, toasts, swapping in place), easing
+  `ease-snap`. Moments arrive softly: `--dur-screen` 280 ms (one screen becoming another), `--dur-moment`
+  520 ms (things arriving on the result screen), `--dur-calm` 900 ms (count-ups, a quiet ending, the
+  nautilus), `--stagger` 70 ms between items, easing `ease-soft`. The tank stays gentle and slow.
+  - Use the classes in globals.css, never new one-off keyframes: `rise-in` (arrive; `style={step(n)}` staggers),
+    `swap-in` (changed in place), `calm-in` (slow fade, no movement: ended early), `glow-once`, `ring-once`,
+    `tick-pop` / `tick-draw`, `strike-in`, `new-badge`, `halo-once`. `CountUp` for numbers.
+  - Whole-screen changes (Start, the result, back Home) go through `changeScreen`; a page or element never
+    fades the whole screen itself.
+  - Animate transform and opacity only (colour for small fills); no layout properties. Moments play once,
+    when they happen (a tap, a session ending), never on every visit.
+  - `prefers-reduced-motion`: every animation becomes instant or a plain fade (globals.css, tank.css);
+    JS waits (`CountUp`, the tick / "✓ Yours" pauses) are skipped.
 - **Buttons**: exactly ONE `primary` per screen (Start, New session, Resume). `secondary` for normal actions,
   `outline` for ending a session (Give up / End session / Stop: calm, NEVER red; the confirm tap only darkens
   the border), `quiet` for small extras. `danger` text only for real deletes and real errors.
@@ -465,6 +481,9 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   - Stage C (done): Tank 4 in the app. C1 engine (all species, merged layers, taps, fallback, paintings), C2 odd
     shapes as puppets + egg / fry / reveal, C3 plants, decorations and every skin's own scenery; Tanks 1 and 3
     and the `three` package removed. Stage D (every page rebuilt phone-first) is next.
+  - Stage E (in progress): motion. E1 core moments (screen changes, Continue, result count-up / streak /
+    new species / nautilus, quiet ending, buy → place, settling decorations, ticks). E2 navigation and polish
+    (tab transitions, presses, open/close, skeleton fades, stats animating in once) next.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?

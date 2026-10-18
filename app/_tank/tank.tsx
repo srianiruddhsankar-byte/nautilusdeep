@@ -17,6 +17,7 @@ import { PlantSprite } from "./plant-sprite";
 import { AmbienceScene } from "./ambience-scene";
 import { LiveBrood } from "./brood";
 import { DecorationSprite } from "./decoration-sprite";
+import { CountUp } from "../_ui/count-up";
 import { DEFAULT_SKIN, type TankSkin } from "./skins";
 import { LOOKS } from "./tank4/scenery";
 import type { TankFish } from "./tank4/engine";
@@ -56,6 +57,7 @@ export type TankEdit = {
   index: number;
   onIndexChange: (index: number) => void;
   selectedId: string | null;
+  settlingId?: string | null; // just placed or moved: it settles onto the sand
   onSandTap: (x: number, y: number) => void;
   onDecorationTap: (id: string) => void;
 };
@@ -143,6 +145,7 @@ export function Tank({
     y: d.y ?? 0,
     width: decorationById(d.item)?.width ?? 30,
     selected: edit?.selectedId === d.id,
+    settle: edit?.settlingId === d.id,
   }));
 
   function go(delta: number) {
@@ -197,7 +200,8 @@ export function Tank({
               aria-label={`${coins} coins. Decorate your tank`}
             >
               <Coin />
-              <span className="tabular-nums">{coins}</span>
+              {/* Counts to the new balance when it changes (after buying). */}
+              <CountUp value={coins} duration={600} />
             </Link>
           )}
         </span>
@@ -257,6 +261,7 @@ export function Tank({
             key={d.id}
             decoration={d}
             selected={edit?.selectedId === d.id}
+            settle={edit?.settlingId === d.id}
             onTap={
               edit
                 ? () => {
@@ -475,10 +480,12 @@ function PlantInTank({
 function PlacedDecoration({
   decoration,
   selected,
+  settle = false,
   onTap,
 }: {
   decoration: Owned;
   selected: boolean;
+  settle?: boolean; // just placed or moved: settles onto the sand (tank.css)
   onTap?: () => void;
 }) {
   const y = decoration.y ?? 0;
@@ -488,7 +495,12 @@ function PlacedDecoration({
     transform: `translateX(-50%) scale(${(1 - 0.2 * y).toFixed(2)})`,
     transformOrigin: "50% 100%",
   };
-  const sprite = <DecorationSprite item={decoration.item} />;
+  // Keyed by the spot, so moving it settles again.
+  const sprite = (
+    <span key={`${decoration.x},${y}`} className={`block ${settle ? "decor-settle" : ""}`}>
+      <DecorationSprite item={decoration.item} />
+    </span>
+  );
   if (!onTap) {
     return (
       <span className="pointer-events-none absolute block leading-none" style={style}>

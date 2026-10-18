@@ -86,14 +86,19 @@
   --shadow-press: 0 3px 0 var(--primary-edge);
   --shadow-sheet: 0 0 0 1px var(--line), 0 -2px 0 var(--line), 0 24px 48px -12px rgb(0 0 0 / 0.25);
 
-  /* Motion: controls are snappy and precise. */
+  /* Motion: controls are snappy and precise; moments arrive softly. */
   --ease-snap: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1); /* arrivals: quick start, long gentle landing */
 }
 
 :root {
   --dur-fast: 120ms; /* presses, hovers */
   --dur: 160ms; /* toggles, segments, chips */
-  --dur-slow: 240ms; /* sheets, toasts coming in */
+  --dur-slow: 240ms; /* sheets, toasts coming in, content swapping in place */
+  --dur-screen: 280ms; /* one screen becoming another (Start, result, back Home) */
+  --dur-moment: 520ms; /* things arriving on the result screen */
+  --dur-calm: 900ms; /* the slow ones: count-ups, a quiet ending, the nautilus */
+  --stagger: 70ms; /* the gap between items arriving one after another */
 }
 
 body {
@@ -231,6 +236,196 @@ body {
   }
 }
 
+/* ---------- Motion (Phase 9 Stage E) ----------
+   Only transform and opacity move, so the browser can do it all on the GPU
+   while the tank keeps its 30 fps. Rules: CLAUDE.md, "Motion". */
+
+/* One screen becoming another (Start, the result, back Home): the old screen
+   fades out as the new one fades in (app/_ui/motion.ts `changeScreen`). */
+::view-transition-old(root) {
+  animation: motion-fade-out var(--dur-slow) var(--ease-snap) both;
+}
+::view-transition-new(root) {
+  animation: motion-fade var(--dur-screen) var(--ease-soft) both;
+}
+@keyframes motion-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes motion-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Arriving: a short rise into place. `--step` (0, 1, 2…) staggers a group. */
+.rise-in {
+  animation: rise-in var(--dur-moment) var(--ease-soft) both;
+  animation-delay: calc(var(--step, 0) * var(--stagger));
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Changing in place (focus → break, Continue): a quick, small swap. */
+.swap-in {
+  animation: swap-in var(--dur-slow) var(--ease-snap) both;
+}
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Quiet: a slow fade with no movement at all (a session that ended early). */
+.calm-in {
+  animation: motion-fade var(--dur-calm) ease-out both;
+  animation-delay: calc(var(--step, 0) * 2 * var(--stagger));
+}
+
+/* A small soft highlight that comes and goes once (the streak growing). */
+.glow-once {
+  position: relative;
+  isolation: isolate;
+}
+.glow-once::after {
+  content: "";
+  position: absolute;
+  inset: -4px -10px;
+  z-index: -1;
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  opacity: 0;
+  animation: glow-once 1.8s ease-in-out both;
+  animation-delay: var(--delay, 0ms);
+}
+@keyframes glow-once {
+  30%,
+  60% {
+    opacity: 1;
+  }
+}
+.glow-once .pop-once {
+  animation: pop-once 600ms var(--ease-soft) both;
+  animation-delay: var(--delay, 0ms);
+}
+@keyframes pop-once {
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+/* A ring that shows once around something that needs your next tap. */
+.ring-once {
+  position: relative;
+}
+.ring-once::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 3px var(--primary);
+  opacity: 0;
+  pointer-events: none;
+  animation: ring-once 1.1s ease-in-out both;
+}
+@keyframes ring-once {
+  35% {
+    opacity: 0.5;
+  }
+}
+
+/* A tick: the box pops a little, then the check draws itself. */
+.tick-pop {
+  animation: tick-pop 280ms var(--ease-soft);
+}
+@keyframes tick-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+}
+.tick-draw {
+  stroke-dasharray: 20;
+  animation: tick-draw 240ms 80ms var(--ease-soft) both;
+}
+@keyframes tick-draw {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* A line drawn through a ticked task's name (left to right). */
+.strike-in {
+  position: relative;
+}
+.strike-in::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  height: 1.5px;
+  background: currentColor;
+  transform-origin: left;
+  animation: strike-in 320ms 120ms var(--ease-soft) both;
+}
+@keyframes strike-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* "New to your index": a little badge with one soft glint passing over it. */
+.new-badge {
+  position: relative;
+  overflow: hidden;
+}
+.new-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: glint 1.2s 500ms ease-in-out both;
+}
+@keyframes glint {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* The nautilus arriving: a slow halo that opens once behind it. */
+.halo-once {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(245 197 66 / 0.35), transparent);
+  opacity: 0;
+  transform: scale(0.6);
+  animation: halo-once 2.6s 300ms var(--ease-soft) both;
+  pointer-events: none;
+}
+@keyframes halo-once {
+  40% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+    transform: scale(1.15);
+  }
+}
+
 /* Reduced motion: no movement anywhere in the UI (the tank has its own rules in tank.css). */
 @media (prefers-reduced-motion: reduce) {
   .sheet,
@@ -240,6 +435,28 @@ body {
   .skeleton,
   .toast-in {
     animation: none;
+  }
+  /* Arrivals become a plain fade; flourishes go, their end state stays. */
+  .rise-in,
+  .swap-in {
+    animation-name: motion-fade;
+  }
+  .glow-once .pop-once,
+  .tick-pop,
+  .new-badge::after {
+    animation: none;
+  }
+  .tick-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .strike-in::after {
+    animation: none;
+  }
+  .halo-once {
+    animation: motion-fade var(--dur-calm) both;
+    opacity: 0.35;
+    transform: none;
   }
   *,
   *::before,

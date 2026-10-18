@@ -207,6 +207,30 @@
   }
 }
 
+/* A decoration just placed or moved (the still picture; Tank 4 does the same
+   in engine.ts): it drops softly onto the sand and squashes a little as it lands. */
+.decor-settle {
+  transform-origin: 50% 100%;
+  animation: decor-settle 0.6s ease-in both;
+}
+@keyframes decor-settle {
+  0% {
+    opacity: 0.4;
+    transform: translateY(-14px);
+  }
+  70% {
+    opacity: 1;
+    transform: none;
+    animation-timing-function: ease-out;
+  }
+  85% {
+    transform: scale(1.06, 0.94);
+  }
+  100% {
+    transform: none;
+  }
+}
+
 /* Decorations: the bubbler's bubbles rise a short way and fade. */
 .decor-bubble {
   animation: decor-bubble 2.1s ease-in infinite;
@@ -282,6 +306,7 @@
   .plant-sway,
   .decor-bubble,
   .deep-glow,
+  .decor-settle,
   .bone-appear {
     animation: none !important;
   }

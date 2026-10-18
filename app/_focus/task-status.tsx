@@ -4,6 +4,7 @@ import { useState } from "react";
 import { findTaskByName } from "@/lib/task-views";
 import { setTaskDone, useTasks } from "@/lib/tasks";
 import { Button } from "../_ui/button";
+import { TickMark } from "../_ui/tick";
 import { toast } from "../_ui/toast";
 
 // Both match the session's task to the NOT-done task with that name (names are
@@ -27,7 +28,11 @@ export function MarkDone({ taskName, onDone }: { taskName: string; onDone: () =>
   const task = findTaskByName(tasks ?? [], taskName);
 
   if (doneName) {
-    return <p className="flex min-h-12 items-center font-semibold text-success">✓ “{doneName}” is done</p>;
+    return (
+      <p className="swap-in flex min-h-12 items-center gap-1.5 font-semibold text-success">
+        <TickMark animate className="h-4 w-4 shrink-0" />“{doneName}” is done
+      </p>
+    );
   }
   if (!task) return null;
 
