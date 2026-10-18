@@ -60,7 +60,6 @@ import { describeParts } from "@/lib/session-parts";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
 import { StatsLine } from "../_stats/stats-line";
-import { SeedlingCard } from "../_tank/live-plant";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
 import { RunningTank } from "../_tank/running-tank";
@@ -217,7 +216,6 @@ export function FocusScreen() {
         coins={economy.balance}
         scene={scene}
       />
-      <SeedlingCard garden={garden} />
       <SetupForm
         task={task}
         onTaskChange={setTask}

@@ -44,7 +44,7 @@ export function reachedMilestones(rows: SessionFacts[], now: number, timeZone: s
   if (fish.some((f) => rarityRank(f.rarity) >= rarityRank("rare"))) reached.add("first-rare");
   if (creditedHours(rows) >= 10) reached.add("ten-hours");
   if (computeOverview(rows, now, timeZone).streak.longest >= 7) reached.add("week-streak");
-  if (deriveGarden(rows).matured.length > 0) reached.add("first-mature");
+  if (deriveGarden(rows).plants.some((p) => p.stage === "mature")) reached.add("first-mature");
   return reached;
 }
 

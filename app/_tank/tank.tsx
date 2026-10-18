@@ -8,7 +8,7 @@ import { inTank, type Owned } from "@/lib/economy";
 import { TANK_CAPACITY, type Aquarium, type Fish } from "@/lib/fish";
 import { fishLook, type FishLook } from "@/lib/fish-look";
 import { plantLook } from "@/lib/plant-look";
-import { MATURE_MINUTES, type MaturePlant, type Garden } from "@/lib/plants";
+import { PLANT_STAGE_LABEL, type Garden, type Plant } from "@/lib/plants";
 import { NAUTILUS, RARITY_LABEL, speciesById } from "@/lib/species";
 import { formatDuration } from "@/lib/stats";
 import { FOCUS_MODE_LABEL } from "@/lib/timer";
@@ -20,7 +20,9 @@ import { DecorationSprite } from "./decoration-sprite";
 import { DEFAULT_SKIN, type TankSkin } from "./skins";
 import { LOOKS } from "./tank4/scenery";
 import type { TankFish } from "./tank4/engine";
-import { TankCanvas, type TankHandle, type TankStatus } from "./tank4/tank-canvas";
+import { type CanvasDecor, type CanvasPlant, TankCanvas, type TankHandle, type TankStatus } from "./tank4/tank-canvas";
+import { decorationById } from "@/lib/decorations";
+import type { PlantStage } from "@/lib/plants";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" };
 // Bigger fish cruise a little slower (a lap's length, scaled by width in px).
@@ -38,8 +40,11 @@ const NAUTILUS_LOOK: FishLook = {
 };
 const SWIPE_PX = 50;
 // Plant spots along the sand (% from the left), one per slot. Low in the tank,
-// below the fish lanes, so plants never crowd the fish.
+// below the fish lanes, so plants never crowd the fish. (The same as Tank 4's.)
 export const PLANT_SLOTS_X = [9, 25, 41, 58, 74, 90];
+
+// The running screen's growing plant (notes): drawn in its spot by the tank.
+export type GrowingInTank = { lookId: string; stage: PlantStage; wilted: boolean; slot: number };
 // Decorations stand on the sand: y = 0 (front) … 1 (back) maps to this band,
 // as % up from the bottom. Drawn behind plants and fish, so they never block them.
 const SAND_BOTTOM = 2;
@@ -68,6 +73,7 @@ export function Tank({
   scene = null,
   overlay = null,
   brood = null,
+  growing = null,
 }: {
   aquarium: Aquarium | null; // null while loading
   garden: Garden | null;
@@ -83,6 +89,7 @@ export function Tank({
   scene?: AmbienceSound | null; // the ambience scene (rain, waves…), or none
   overlay?: ReactNode;
   brood?: BroodStage | null; // the running screen's egg → fry (study sessions)
+  growing?: GrowingInTank | null; // …or its growing plant (notes)
 }) {
   const [ownPick, setOwnPick] = useState<number | null>(null); // null = newest tank
   const picked = fixedIndex ?? (edit ? edit.index : ownPick);
@@ -104,15 +111,39 @@ export function Tank({
   const fish = aquarium?.tanks[index] ?? [];
   // The namesake lives in the newest tank once you reach 100 credited hours.
   const nautilus = (aquarium?.nautilus ?? false) && index === tankCount - 1;
-  const plants = garden?.matured.filter((p) => p.tank === index) ?? [];
+  const plants = garden?.plants.filter((p) => p.tank === index) ?? [];
   const selectedFish = fish.find((f) => `fish:${f.id}` === selected) ?? null;
   const selectedPlant = plants.find((p) => `plant:${p.id}` === selected) ?? null;
-  const empty = aquarium !== null && aquarium.fishCount === 0 && (garden?.matured.length ?? 0) === 0;
+  const empty = aquarium !== null && aquarium.fishCount === 0 && (garden?.plants.length ?? 0) === 0;
   const swimmers: TankFish[] = [
     ...fish.map((f) => ({ key: `fish:${f.id}`, id: f.id, species: f.species, rarity: f.rarity })),
     ...(nautilus ? [{ key: "nautilus", id: "nautilus", species: "nautilus" as const, rarity: null }] : []),
   ];
   const fallback = status === "fallback";
+  const tappable = !edit && !bare;
+  const canvasPlants: CanvasPlant[] = [
+    ...plants.map((p) => ({
+      key: `plant:${p.id}`,
+      lookId: p.id,
+      stage: p.stage,
+      wilted: false,
+      slot: p.slot,
+      width: 36,
+      tappable,
+      pop: p.stage,
+    })),
+    ...(growing
+      ? [{ key: "growing", lookId: growing.lookId, stage: growing.stage, wilted: growing.wilted, slot: growing.slot, width: 40, tappable: false, pop: growing.stage }]
+      : []),
+  ];
+  const canvasDecor: CanvasDecor[] = decor.map((d) => ({
+    key: `decor:${d.id}`,
+    item: d.item,
+    x: d.x ?? 50,
+    y: d.y ?? 0,
+    width: decorationById(d.item)?.width ?? 30,
+    selected: edit?.selectedId === d.id,
+  }));
 
   function go(delta: number) {
     const next = index + delta;
@@ -129,10 +160,12 @@ export function Tank({
     return { x: ((e.clientX - box.left) / box.width) * 100, y: (fromBottom - SAND_BOTTOM) / SAND_DEPTH };
   }
 
+  // open (or close) a card
+  const toggle = (key: string) => setSelected((open) => (open === key ? null : key));
+  // a tap on the tank: not the end of a swipe
   function tap(key: string) {
-    if (!justSwiped.current) setSelected(key === selected ? null : key);
+    if (!justSwiped.current) toggle(key);
   }
-  const tappable = !edit && !bare;
 
   return (
     <section className="flex flex-col gap-2" aria-label="Your tank">
@@ -189,11 +222,14 @@ export function Tank({
         onClick={(e) => {
           if (justSwiped.current) return;
           if (edit) {
+            // a decoration under the finger is picked; otherwise the sand is the spot
+            const hit = !fallback ? canvas.current?.hitTest(e.clientX, e.clientY, { decorations: true }) : null;
+            if (hit?.startsWith("decor:")) return edit.onDecorationTap(hit.slice("decor:".length));
             const spot = sandSpot(e);
             edit.onSandTap(spot.x, spot.y);
           } else {
-            // a fish under the finger opens its card; the water closes it
-            const hit = tappable && !fallback ? canvas.current?.hitTest(e.clientX, e.clientY) : null;
+            // a fish or plant under the finger opens its card; the water closes it
+            const hit = tappable && !fallback ? canvas.current?.hitTest(e.clientX, e.clientY, { fish: true, plants: true }) : null;
             if (hit) tap(hit);
             else setSelected(null);
           }
@@ -204,6 +240,8 @@ export function Tank({
           <TankCanvas
             probe={bare ? "running" : edit ? "shop" : "home"}
             fish={swimmers}
+            plants={canvasPlants}
+            decorations={canvasDecor}
             brood={brood}
             skin={skin.id}
             selected={selected}
@@ -213,7 +251,8 @@ export function Tank({
         )}
         <AmbienceScene scene={scene} layer="back" />
 
-        {decor.map((d) => (
+        {/* The still picture (no WebGL) draws these itself. */}
+        {fallback && decor.map((d) => (
           <PlacedDecoration
             key={d.id}
             decoration={d}
@@ -228,7 +267,7 @@ export function Tank({
           />
         ))}
 
-        {plants.map((p) => (
+        {fallback && plants.map((p) => (
           <PlantInTank
             key={p.id}
             plant={p}
@@ -239,6 +278,11 @@ export function Tank({
 
         {overlay}
         {fallback && brood && <LiveBrood stage={brood} />}
+        {fallback && growing && (
+          <div className="pointer-events-none absolute bottom-[3%] -translate-x-1/2" style={{ left: `${PLANT_SLOTS_X[growing.slot]}%` }}>
+            <PlantSprite look={plantLook(growing.lookId)} stage={growing.stage} wilted={growing.wilted} width={40} />
+          </div>
+        )}
 
         {fallback && nautilus && (
           <Swimmer
@@ -270,15 +314,44 @@ export function Tank({
 
         {/* The canvas can't be focused, so keyboard and screen-reader users get
             a button per fish (visible while focused). */}
-        {tappable && !fallback && swimmers.length > 0 && (
+        {!fallback && (tappable || edit) && (
           <div className="absolute inset-x-2 top-2 flex flex-wrap gap-1">
-            {swimmers.map((f) => (
+            {edit &&
+              decor.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  aria-pressed={edit.selectedId === d.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    edit.onDecorationTap(d.id);
+                  }}
+                  className="sr-only rounded-chip bg-[#fffcf6] px-3 text-sm text-[#1e2b38] focus:not-sr-only focus:min-h-11"
+                >
+                  {decorationById(d.item)?.name ?? d.item}
+                </button>
+              ))}
+            {tappable &&
+              plants.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(`plant:${p.id}`); // a key press is never a swipe
+                  }}
+                  className="sr-only rounded-chip bg-[#fffcf6] px-3 text-sm text-[#1e2b38] focus:not-sr-only focus:min-h-11"
+                >
+                  {plantLabel(p)}
+                </button>
+              ))}
+            {tappable && swimmers.map((f) => (
               <button
                 key={f.key}
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  tap(f.key);
+                  toggle(f.key);
                 }}
                 className="sr-only rounded-chip bg-[#fffcf6] px-3 text-sm text-[#1e2b38] focus:not-sr-only focus:min-h-11"
               >
@@ -374,7 +447,7 @@ function PlantInTank({
   selected,
   onTap,
 }: {
-  plant: MaturePlant;
+  plant: Plant;
   selected: boolean;
   onTap?: () => void; // none in decorate mode
 }) {
@@ -386,13 +459,13 @@ function PlantInTank({
         e.stopPropagation();
         onTap?.();
       }}
-      aria-label={`Mature plant, matured ${shortDate(plant.maturedAt)}`}
+      aria-label={plantLabel(plant)}
       className={`absolute bottom-[3%] -translate-x-1/2 rounded-control px-1 ${selected ? "bg-white/40 ring-2 ring-white" : ""} ${
         onTap ? "" : "pointer-events-none"
       }`}
       style={{ left: `${PLANT_SLOTS_X[plant.slot % PLANT_SLOTS_X.length]}%` }}
     >
-      <PlantSprite look={plantLook(plant.id)} stage="mature" width={36} />
+      <PlantSprite look={plantLook(plant.id)} stage={plant.stage} width={36} />
     </button>
   );
 }
@@ -453,15 +526,14 @@ export function Coin({ size = 14 }: { size?: number }) {
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
-function PlantCard({ plant, onClose }: { plant: MaturePlant; onClose: () => void }) {
+const plantLabel = (p: Plant) => `${PLANT_STAGE_LABEL[p.stage]}, planted ${shortDate(p.plantedAt)}`;
+
+function PlantCard({ plant, onClose }: { plant: Plant; onClose: () => void }) {
   return (
     <TankCard onClose={onClose}>
-      <p className="font-semibold">Mature plant</p>
-      <p className="text-[#5f6977]">Matured {shortDate(plant.maturedAt)}</p>
-      <p>
-        {formatDuration(MATURE_MINUTES * 60)} of notes · {plant.sessions}{" "}
-        {plant.sessions === 1 ? "session" : "sessions"} since {shortDate(plant.startedAt)}
-      </p>
+      <p className="font-semibold">{PLANT_STAGE_LABEL[plant.stage]}</p>
+      <p>Grown in one notes session of {formatDuration(plant.minutes * 60)}</p>
+      <p className="text-[#5f6977]">Planted {shortDate(plant.plantedAt)}</p>
     </TankCard>
   );
 }

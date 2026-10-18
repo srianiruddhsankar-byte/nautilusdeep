@@ -7,7 +7,7 @@ import { SPECIES } from "@/lib/species";
 import type { TankFish } from "../_tank/tank4/engine";
 import type { MiniScene } from "../_tank/tank4/mini";
 import { MiniCanvas } from "../_tank/tank4/mini-canvas";
-import { TankCanvas, type TankHandle } from "../_tank/tank4/tank-canvas";
+import { type CanvasDecor, type CanvasPlant, TankCanvas, type TankHandle } from "../_tank/tank4/tank-canvas";
 
 // Tank 4 as it runs in the app (app/_tank/tank4/), with a demo tank: ten
 // animals including every odd shape, and the nautilus. Tap a fish to
@@ -31,6 +31,20 @@ const DEMO: TankFish[] = (
 });
 const CAST: TankFish[] = [...DEMO, { key: "nautilus", id: "nautilus", species: "nautilus", rarity: null }];
 
+// Mature plants in three spots, one still growing, and some decorations.
+const PLANTS: CanvasPlant[] = [
+  { key: "plant:a", lookId: "demo-plant-a", stage: "mature", wilted: false, slot: 0, width: 36, tappable: true, pop: "mature" },
+  { key: "plant:b", lookId: "demo-plant-b", stage: "mature", wilted: false, slot: 3, width: 36, tappable: true, pop: "mature" },
+  { key: "plant:c", lookId: "demo-plant-d", stage: "mature", wilted: false, slot: 5, width: 36, tappable: true, pop: "mature" },
+  { key: "growing", lookId: "demo-plant-c", stage: "young", wilted: true, slot: 2, width: 40, tappable: false, pop: "young" },
+];
+const DECOR: CanvasDecor[] = [
+  { key: "decor:1", item: "shipwreck", x: 70, y: 0.9, width: 84, selected: false },
+  { key: "decor:2", item: "treasure-chest", x: 30, y: 0.4, width: 40, selected: false },
+  { key: "decor:3", item: "bubbler", x: 52, y: 0.6, width: 26, selected: false },
+  { key: "decor:4", item: "starfish", x: 84, y: 0.1, width: 24, selected: true },
+];
+
 const SKINS: SkinId[] = ["shallows", "pond", "river", "lake", "deep"];
 const BROOD = ["none", "eggs", "eyed", "fry"] as const;
 
@@ -48,6 +62,8 @@ export function TankReal({ id }: { id: string }) {
       <TankCanvas
         probe={id}
         fish={CAST}
+        plants={PLANTS}
+        decorations={DECOR}
         brood={brood === "none" ? null : (brood as BroodStage)}
         skin={skin}
         selected={selected}

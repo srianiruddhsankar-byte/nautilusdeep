@@ -165,7 +165,7 @@ describe("no bones, and only credited time grows things", () => {
     const s = confirmCheckIn(night(startStopwatch(T0, "open"), 30, "notes"), T0 + 45 * MIN);
     const row = toRow(ended(checkSession(s, T0 + 180 * MIN)), ID, null);
     const g = deriveGarden([row]);
-    assert.equal(g.growing.minutes, 45);
-    assert.equal(g.growing.wilted, false);
+    assert.equal(g.plants[0].minutes, 45);
+    assert.equal(g.plants[0].stage, "young"); // 45 credited, not the 180 minutes that passed
   });
 });

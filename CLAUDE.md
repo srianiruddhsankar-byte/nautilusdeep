@@ -53,20 +53,37 @@ The owner is a student learning to code: explain what you do and why, briefly.
   bones, the nautilus flag, `catchLog` for the index, `creditedHours` (tested in `lib/fish.test.ts`).
   `lib/fish-look.ts` — a fish's swim (speed, lane, bob) seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
   all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
-- `lib/plants.ts` — pure plant derivation (`deriveGarden`): notes sessions → growing plant, mature plants with
-  tank + slot, per-session growth; stage thresholds in `PLANT_STAGES` (tested in `lib/plants.test.ts`).
+- `lib/plants.ts` — pure plant derivation (`deriveGarden`): one plant per notes session with its stage, tank +
+  slot; `growingSpot` (where a running session's plant grows); stage thresholds in `PLANT_STAGES` (tested in
+  `lib/plants.test.ts`).
   `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
-- `app/_tank/` — tank UI: `tank.tsx` (fish + plants on the floor, the nautilus, tap cards), `fish-sprite.tsx`
-  (`SpeciesSprite`: one simple SVG per species, also as a "???" silhouette; `NautilusSprite`; bone),
-  `brood.tsx` (eggs → eyed eggs → fry, and their gentle drift on failure), `plant-sprite.tsx` (SVG underwater
-  plants: stem / fern / grass × 5 stages, no flowers), `running-tank.tsx` (the running screen's real tank with
-  the session's eggs / fry / fish or growing plant), `ambience-scene.tsx` + `.css` (the tank scene for each
-  ambience: all scene effects live here), `live-plant.tsx` (Home `SeedlingCard`), `result-fish.tsx` (the
-  hatching reveal),
-  `result-plant.tsx`, `decoration-sprite.tsx` (SVG decorations), `skins.tsx` (the 5 tank looks built on one
-  `WaterScene`; `SHALLOWS` is the default), `tank.css` (animation + reduced-motion rules). `Tank` takes `skinOf`,
-  `decorations`, `coins`, `edit` (decorate mode), and for the running screen `bare`, `fixedIndex`, `scene`,
-  `overlay`
+- `app/_tank/` — tank UI: `tank.tsx` (`Tank`: header, arrows / swipe, tap cards, keyboard buttons, the canvas;
+  takes `skinOf`, `decorations`, `coins`, `edit` (decorate mode), and for the running screen `bare`, `fixedIndex`,
+  `scene`, `brood`, `growing`), `running-tank.tsx` (the running screen's real tank with the session's egg / fry or
+  growing plant), `result-fish.tsx` (the hatching reveal) + `result-plant.tsx`, `ambience-scene.tsx` + `.css` (the scene for each ambience, DOM layers over the canvas).
+  The SVG drawings `fish-sprite.tsx` (`SpeciesSprite`, also "???" silhouettes; `NautilusSprite`; bone),
+  `brood.tsx`, `plant-sprite.tsx` (stem / fern / grass × 5 stages, no flowers), `decoration-sprite.tsx` and
+  `skins.tsx` (the 5 skins as one `WaterScene`) are used by the index and the still-picture fallback; Tank 4
+  reads the plant and decoration drawings in as textures, so each has ONE drawing. `tank.css`: animation +
+  reduced-motion rules
+- `app/_tank/tank4/` — **Tank 4**, the tank everywhere (PixiJS, WebGL, loaded only when a tank is on screen):
+  - `tank-canvas.tsx` (`TankCanvas`: builds the engine, follows the props, rebuilds after a lost GPU context,
+    reports "fallback" without WebGL; renders the plant / decoration drawings hidden and passes their SVG in),
+    `tank-loop.ts` (30 fps; stops when hidden, unfocused or off screen; reduced motion = one still frame)
+  - `engine.ts` (the scene: one merged background texture + small cropped strips, plants that sway from the base
+    (MeshPlane), decorations, the egg / fry, fish; `hitTest` for fish, plants and decorations with a 44 px minimum)
+  - `rigs.ts` (ROPE fish bent along the swim spine at full length, sideways U-curl turns with a mirror dissolve;
+    PUPPETS turning parts around joints), `puppets.ts` (manta, seahorse, nautilus drawn here; puffer, lionfish,
+    sunfish cut from their art), `fish-art.ts` (every species in body space + how it swims; the one place to
+    tune their look), `side-view.ts` (art → one side drawing, or parts), `textures.ts` (every drawing → texture;
+    make a `CanvasSource` at resolution 1 and THEN set `.resolution`, or a float pixel size clears the canvas),
+    `scenery.ts` (each skin's colours and own scenery, seagrass, anemone, specks), `brood-art.ts`, `art-files.ts`
+    (paintings: `public/fish/<species id>.png` replaces a species' drawing, listed by `next.config.ts` at dev
+    start / build; the recipe is in the file)
+  - `mini.ts` + `mini-canvas.tsx`: the result screen's small stage (reveal silhouettes, the caught fish, a
+    drifting egg / fry), same art and rigs
+- `lib/swim.ts` — pure swimming simulation (3D spine, steering, separation, roaming stretches, jets), tested in
+  `lib/swim.test.ts`
 - `app/_sea-life/sea-life-view.tsx` + `app/sea-life/page.tsx` — the `/sea-life` "Sea life index" route (linked
   from Stats "Fish caught", the result screen and a fish's tank card; the Stats tab stays highlighted)
 - `lib/brood.ts` — pure egg stages (`broodStage`, `broodCaption`): eggs 0–2 min, eyed 2–5, fry from 5 until the
@@ -100,8 +117,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
   stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
 - `lib/session-parts.ts` — a continued session's / cycle's pieces (`sessions.parts`): read, describe, time per task
-- `app/design-preview/` — Phase 9 design preview (dev only: 404 in production, not in the nav). One tank runs at
-  a time (the others show a Play button and aren't mounted)
+- `app/design-preview/` — Phase 9 design preview (dev only: 404 in production, not in the nav): Paper Tide around
+  the real Tank 4 with a demo tank (every odd shape, plants, decorations; menus for skin and egg) and the result
+  screen's stage
 - `app/_ui/` — the shared design-system components (see "Design system"): `button.tsx` (`Button`, `ButtonLink`,
   `buttonClass`), `card.tsx` (`Card`, `CardHeader`), `field.tsx` (`Field`, `NumberField`, `inputClass`),
   `segmented.tsx` (`Segmented`, `Chip`), `tabs.tsx`, `switch.tsx`, `sheet.tsx` (native `<dialog>`),
@@ -283,8 +301,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - The running screen shows your real tank. A study session's fish starts as ONE big translucent egg on a rock
   (0–2 min; bright outline + soft glow so it's visible on every skin), then an eyed egg (2–5), hatches into a
   see-through fry with a yolk sac at 5, and stays a fry until the session ends (no growing through sizes). The
-  caption says when the odds improve next ("rarer fish get likelier at 25 min"). A notes session's plant grows
-  in the tank's next free plant spot. A failed session's egg / fry fades and drifts away.
+  caption says when the odds improve next ("rarer fish get likelier at 25 min"). A notes session's own plant
+  grows through the stages live, in the spot it's planted in when the session ends. A failed session's egg / fry fades and drifts away.
 - One completed or partial session with at least 5 credited focus minutes = one fish; under 5 min = no fish
   (anti-farming). Deep and Open Focus earn fish the same way (same odds, full minutes). Night mode: credited
   minutes only. Partial cycles: banked minutes.
@@ -328,18 +346,20 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 
 ### Plants, coins, decorations and skins (Phase 7)
 - Study sessions grow FISH. Notes sessions grow PLANTS, never fish; study sessions never touch plants.
-- Plants are DERIVED from `sessions` like fish (no table). One plant grows at a time from notes focus minutes added
-  up across sessions (completed / partial, 5+ minutes each). Stages: seed 0 → sprout 30 → young 90 → full 180 →
-  mature 300 min (`PLANT_STAGES` in `lib/plants.ts`, the one place to tune).
+- Plants are DERIVED from `sessions` like fish (no table): ONE plant per notes session (completed / partial; a
+  Continue chain is one session), like a fish per study session. Its credited minutes set its final stage:
+  under 15 no plant (minutes and coins still count), sprout 15–29, young 30–59, full 60–119, mature 120+
+  (`PLANT_STAGES` in `lib/plants.ts`, the one place to tune). Minutes never add up across sessions. During the
+  session the plant grows through the stages live (seed until 15). Changed from "one plant at a time from
+  cumulative minutes" on 2026-10-18; past plants are simply re-derived.
 - Plants live underwater: NO land-style flowers or petals. Maturity shows through size, fullness and colour
   (richer greens; the newest growth at the top takes on a warm tint, `tipHue`).
-- When it's mature it's planted in the tank that is newest at that moment (by fish count then), in the next free
-  floor slot (6 per tank; if full, the next tank, which can then exist with plants only). A new seed starts with
-  the leftover minutes of that session.
-- A failed notes session (Deep or Open) adds no growth and the growing plant looks a little wilted until the next
-  notes session that counts. No bones from notes. Plants never die; time passing does nothing (holidays are safe).
-- A plant's look is seeded from the session that started it (`plantLook`); a session that starts several plants
-  gives ids `<id>`, `<id>#2`… Don't change the order of random draws in `plantLook()`.
+- When its session ends the plant goes into the tank that is newest at that moment (by fish count then), in the
+  next free floor slot (6 per tank; if full, the next tank, which can then exist with plants only).
+- A failed notes session (Deep or Open) grows no plant and leaves no bone. Plants never die; time passing does
+  nothing (holidays are safe).
+- A plant's id is its session's id, which seeds its look (`plantLook`). Don't change the order of random draws
+  in `plantLook()`.
 - Coins (Phase 7 part 2): DERIVED from sessions like fish; only spending is stored. Per completed / partial
   session with 5+ credited focus minutes, Study and Notes alike: Deep Focus 1 coin per minute, Open Focus half
   (rounded down). Failed: 0. Night mode: credited minutes only (focus_seconds already is). Balance = earned − sum of
@@ -389,6 +409,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Use the Screen Wake Lock API for the whole running session, breaks included (Deep Focus only).
 - Leaving (Deep Focus only) = Page Visibility "hidden" for more than 15 s of focus time. The web can't tell a phone
   lock from an app switch, so locking during focus counts as leaving (revisit the grace period after real use).
+- Tank 4 merges everything that never moves into one texture; keep it that way (new static scenery goes into
+  `backgroundSvg` / a skin's `far` / `floor`, never a new full-screen layer).
 - Animated tanks (any canvas / WebGL / requestAnimationFrame scene) default to 30 fps, cap the pixel ratio at 2,
   and pause when the tab is hidden, the window loses focus or the tank is off screen. Only one animated tank
   runs per page.
@@ -431,15 +453,18 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   plus Shop as a bottom-bar tab.
   - Pulled forward from "later": fish species with a rarity roulette, the Sea life index and the nautilus
     (simple drawings; the realistic redesign and water types are still later).
-- Phase 9 (in progress): professional UI/UX redesign, visual only (no new features). Includes the tank/scene
-  redesign (moved here from IDEAS.md). Stages: A design direction (3 options on `/design-preview`), B design
+- Phase 9 (in progress): professional UI/UX redesign, visual only (no new features; Continue session was added
+  on request between Stage C batches). Includes the tank/scene redesign (moved here from IDEAS.md). Stages: A design direction (3 options on `/design-preview`), B design
   system (tokens + shared components, rules written here), C tank and scene art, D every page rebuilt
   phone-first, E motion. The owner approves each stage before the next.
   - Stage A (done): UI = Paper Tide (C); tank = Tank 4 (PixiJS rope-mesh fish), built in Stage C.
-  - Stage B (in progress): design system + Paper Tide on the real app, keeping the current tank art. Batch 1:
+  - Stage B (done): design system + Paper Tide on the real app, keeping the current tank art. Batch 1:
     tokens, `app/_ui/`, login, Home, session settings (a sheet), running and result screens (committed).
     Batch 2: Tasks, Shop, Stats, Sea life index (committed). Batch 3: Help, Privacy, nav bar, 404, consistency
-    sweep (committed). Stage B is done. Stage C (tank and scene art: Tank 4) is next once Stage B is approved.
+    sweep (committed). Stage B is done.
+  - Stage C (done): Tank 4 in the app. C1 engine (all species, merged layers, taps, fallback, paintings), C2 odd
+    shapes as puppets + egg / fry / reveal, C3 plants, decorations and every skin's own scenery; Tanks 1 and 3
+    and the `three` package removed. Stage D (every page rebuilt phone-first) is next.
 - Phase 10: PWA (installable) + task reminder notifications.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?

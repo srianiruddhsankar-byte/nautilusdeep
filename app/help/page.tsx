@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { DECORATIONS, MILESTONE_LABEL } from "@/lib/decorations";
 import { COIN_MIN_MINUTES, SKIN_UNLOCKS } from "@/lib/economy";
 import { FISH_MIN_MINUTES, TANK_CAPACITY } from "@/lib/fish";
-import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
+import { PLANT_MIN_MINUTES, PLANT_STAGE_LABEL, PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
 import { EYED_AT, HATCH_AT } from "@/lib/brood";
 import { NAUTILUS, ODDS, RARITIES, RARITY_LABEL, SPECIES } from "@/lib/species";
@@ -244,25 +244,29 @@ export default function HelpPage() {
 
       <Card title="Plants">
         <Points>
-          <li>Notes sessions grow one plant at a time. Their minutes add up across sessions.</li>
-          <li>Sessions under {FISH_MIN_MINUTES} minutes don&apos;t count, same as fish.</li>
+          <li>
+            Every notes session grows its own plant, like a fish for a study session. A continued session is one
+            session, so one plant.
+          </li>
+          <li>
+            The plant grows while you take notes, and the session&apos;s length decides how big it gets. Under{" "}
+            {PLANT_MIN_MINUTES} minutes there&apos;s no plant (your minutes and coins still count).
+          </li>
         </Points>
         <dl className="grid grid-cols-2 gap-2 text-sm">
-          {PLANT_STAGES.slice(1).map((s) => (
+          {PLANT_STAGES.slice(1).map((s, i, all) => (
             <Size
               key={s.stage}
-              label={s.stage[0].toUpperCase() + s.stage.slice(1)}
-              range={`at ${formatDuration(s.from * 60)}`}
+              label={PLANT_STAGE_LABEL[s.stage]}
+              range={all[i + 1] ? `${s.from}–${all[i + 1].from - 1} min` : `${formatDuration(s.from * 60)}+`}
             />
           ))}
         </dl>
         <Points>
           <li>
-            When it matures, it&apos;s planted on the floor of your newest tank (up to {PLANTS_PER_TANK} per tank) and a new
-            seed starts. Extra minutes carry over.
+            When the session ends, its plant goes on the floor of your newest tank (up to {PLANTS_PER_TANK} per tank).
           </li>
-          <li>A failed notes session adds no growth, and the plant looks a little wilted until your next notes session.</li>
-          <li>Plants never die, and nothing happens while you&apos;re away.</li>
+          <li>A failed notes session grows no plant. Plants never die, and nothing happens while you&apos;re away.</li>
         </Points>
       </Card>
 

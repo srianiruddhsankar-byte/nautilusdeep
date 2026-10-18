@@ -3,8 +3,10 @@
 // World units: the tank is 400 × 300, y DOWN (screen space). Pure strings and
 // maths, except causticTile (which draws on a canvas).
 //
-// Batch C1 gives every skin its own colours on one shared layout; C3 gives
-// each skin its own scenery (reeds, lily pads, stones…).
+// Every skin shares one layout (the anemone, rocks and seagrass) in its own
+// colours, plus its own scenery: Shallows a starfish and shell, Pond reeds and
+// lily-pad shadows, River round stones and a drifting current, Lake a rocky
+// slope, Deep glowing specks and no sunlight.
 
 import type { SkinId } from "@/lib/economy";
 
@@ -27,7 +29,33 @@ export type Look = {
   plantTint: number; // multiplies the seagrass (0xffffff = as drawn)
   speck: number; // drifting specks' colour
   vignette: string;
+  far: string; // its own scenery behind the sand (SVG, world units)
+  floor: string; // …and on the sand
+  streaks: boolean; // a current drifting through (River)
+  glows: boolean; // softly glowing specks (Deep)
 };
+
+const star = (cx: number, cy: number, outer: number, inner: number) =>
+  Array.from({ length: 10 }, (_, i) => {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
+  }).join(" ");
+
+const REEDS = [30, 44, 58, 352, 366, 384]
+  .map(
+    (x, i) =>
+      `<path d="M${x} 216 Q ${x + (i % 2 ? 6 : -6)} ${160 - (i % 3) * 15} ${x + (i % 2 ? 3 : -3)} ${100 - (i % 3) * 20}" stroke="#5f8a4a" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>`,
+  )
+  .join("");
+
+const STONES: [number, number, number, number, string][] = [
+  [40, 262, 16, 8, "#9ca7a3"],
+  [150, 270, 14, 7, "#8c9894"],
+  [196, 282, 11, 6, "#b6bfbb"],
+  [300, 266, 18, 9, "#97a29e"],
+  [356, 278, 13, 7, "#b2bbb7"],
+];
 
 export const LOOKS: Record<SkinId, Look> = {
   shallows: {
@@ -44,6 +72,10 @@ export const LOOKS: Record<SkinId, Look> = {
     plantTint: 0xffffff,
     speck: 0xf4fbfa,
     vignette: "rgb(11 42 54 / 0.38)",
+    far: ``,
+    floor: `<polygon points="${star(196, 276, 9, 4)}" fill="#f59e7c"/><circle cx="196" cy="276" r="1.3" fill="#fbd0bd"/><path d="M262 282 q 10 -18 20 0 z" fill="#f8cdbd"/><path d="M272 282 v -13 M267 281 l 3 -10 M277 281 l -3 -10" stroke="#eaa58f" stroke-width="1"/>`,
+    streaks: false,
+    glows: false,
   },
   pond: {
     water: ["#dcebc6", "#a3c78f", "#6f9a66", "#56805a"],
@@ -59,6 +91,10 @@ export const LOOKS: Record<SkinId, Look> = {
     plantTint: 0xe8f2d8,
     speck: 0xf4f8e8,
     vignette: "rgb(28 46 20 / 0.36)",
+    far: `${REEDS}<ellipse cx="130" cy="2" rx="40" ry="8" fill="#4f7a3a" opacity=".35"/><ellipse cx="290" cy="0" rx="30" ry="6" fill="#4f7a3a" opacity=".3"/>`,
+    floor: `<ellipse cx="196" cy="280" rx="20" ry="8" fill="#8f8a6a"/><ellipse cx="190" cy="276" rx="8" ry="2" fill="#a8a382"/>`,
+    streaks: false,
+    glows: false,
   },
   river: {
     water: ["#d7f0f3", "#94d0dc", "#5ea9bb", "#4790a4"],
@@ -74,6 +110,10 @@ export const LOOKS: Record<SkinId, Look> = {
     plantTint: 0xf2fff6,
     speck: 0xffffff,
     vignette: "rgb(14 46 58 / 0.32)",
+    far: ``,
+    floor: `${STONES.map(([cx, cy, rx, ry, f]) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${f}"/><ellipse cx="${cx - rx * 0.3}" cy="${cy - ry * 0.4}" rx="${rx * 0.4}" ry="${ry * 0.25}" fill="#fff" opacity=".25"/>`).join("")}`,
+    streaks: true,
+    glows: false,
   },
   lake: {
     water: ["#c2e0e5", "#6aa3b2", "#3f7a8e", "#2f6275"],
@@ -89,6 +129,10 @@ export const LOOKS: Record<SkinId, Look> = {
     plantTint: 0xd6e6de,
     speck: 0xeef8fa,
     vignette: "rgb(10 34 44 / 0.42)",
+    far: `<path d="M-20 222 L40 160 L100 196 L160 150 L230 206 L300 172 L420 214 V240 H-20 Z" fill="#4f8090" opacity=".4"/><path d="M160 150 L176 164 L150 170Z" fill="#6f9aa6" opacity=".35"/>`,
+    floor: `<ellipse cx="330" cy="270" rx="30" ry="12" fill="#7f8e8c"/><ellipse cx="356" cy="276" rx="15" ry="7" fill="#6d7c7a"/>`,
+    streaks: false,
+    glows: false,
   },
   deep: {
     water: ["#2a5279", "#173a5e", "#0e2742", "#081a2e"],
@@ -104,6 +148,10 @@ export const LOOKS: Record<SkinId, Look> = {
     plantTint: 0x7f9bb0,
     speck: 0x9cc3e6,
     vignette: "rgb(2 10 20 / 0.5)",
+    far: ``,
+    floor: `<ellipse cx="330" cy="268" rx="30" ry="12" fill="#24323f"/><ellipse cx="200" cy="284" rx="12" ry="5" fill="#2c3b4a"/>`,
+    streaks: false,
+    glows: true,
   },
 };
 
@@ -124,6 +172,7 @@ export function backgroundSvg(l: Look) {
 <path d="M-20 222 C10 196 40 200 60 208 C80 186 120 190 140 204 C170 194 190 200 205 210 C230 188 270 192 290 206 C320 190 360 196 420 204 V240 H-20Z" fill="${l.reef}" opacity=".55"/>
 <path d="M236 214 C232 170 244 140 238 100 C250 140 252 176 246 214Z M252 214 C254 180 266 160 268 130 C272 166 262 192 260 214Z" fill="${l.reef}" opacity=".5"/>
 <path d="M20 214 C18 182 30 166 26 140 C36 168 36 192 30 214Z" fill="${l.reef}" opacity=".45"/>
+${l.far}
 <path d="${SAND_D}" fill="url(#s)"/>
 <g fill="none" stroke-linecap="round">
 <path d="M20 262 C70 254 120 262 170 256" stroke="${l.sandLight}" stroke-width="1.4" opacity=".6"/>
@@ -134,8 +183,29 @@ export function backgroundSvg(l: Look) {
 <path d="M52 250 C50 232 66 220 86 222 C100 214 124 218 136 230 C146 238 148 248 144 254 Z" fill="url(#r)"/>
 <path d="M66 230 C76 224 90 223 100 226" stroke="${l.rock[0]}" stroke-width="2" stroke-linecap="round" fill="none" opacity=".6"/>
 <path d="M222 250 C222 238 236 230 252 232 C266 228 280 236 282 250 Z" fill="url(#r)"/>
-<ellipse cx="${ANEMONE_BASE.x}" cy="${ANEMONE_BASE.y + 2}" rx="30" ry="6" fill="#7a3a57"/>`;
+<ellipse cx="${ANEMONE_BASE.x}" cy="${ANEMONE_BASE.y + 2}" rx="30" ry="6" fill="#7a3a57"/>
+${l.floor}`;
 }
+
+// River's current: faint streaks drifting across (each a small texture).
+export const STREAKS = [
+  { y: 70, len: 90, speed: 16 },
+  { y: 118, len: 120, speed: 22 },
+  { y: 160, len: 80, speed: 13 },
+];
+export const streakSvg = (len: number) =>
+  `<path d="M0 3 q ${len / 4} -3 ${len / 2} 0 t ${len / 2} 0" stroke="#fff" stroke-opacity=".35" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+
+// Deep's glowing specks: fixed places, each pulsing at its own pace.
+export const GLOWS: [number, number, number][] = [
+  [40, 60, 1.6],
+  [120, 110, 1.2],
+  [190, 50, 1.4],
+  [260, 140, 1.1],
+  [330, 80, 1.5],
+  [370, 170, 1.2],
+  [80, 190, 1.3],
+];
 
 // The caustics are a strip over the sand. LIP is a slice of the background
 // drawn back over the strip's top edge: solid over the water, fading out over

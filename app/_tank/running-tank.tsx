@@ -3,23 +3,12 @@
 import type { AmbienceSound } from "@/lib/ambience-logic";
 import { broodCaption, broodStage, type BroodStage } from "@/lib/brood";
 import { TANK_CAPACITY, type Aquarium } from "@/lib/fish";
-import { plantLook } from "@/lib/plant-look";
-import {
-  PLANT_MIN_MINUTES,
-  PLANT_STAGE_LABEL,
-  PLANTS_PER_TANK,
-  previewPlant,
-  toNextStage,
-  type Garden,
-  type GrowingPlant,
-} from "@/lib/plants";
+import { growingSpot, PLANT_MIN_MINUTES, PLANTS_PER_TANK, PLANT_STAGE_LABEL, plantStageFor, toNextStage, type Garden } from "@/lib/plants";
 import { focusMsBetween, isNotes, type Session } from "@/lib/timer";
 import type { Owned } from "@/lib/economy";
-import { PlantSprite } from "./plant-sprite";
 import type { TankSkin } from "./skins";
-import { PLANT_SLOTS_X, Tank } from "./tank";
+import { type GrowingInTank, Tank } from "./tank";
 
-const FRESH_SEED: GrowingPlant = { id: null, minutes: 0, stage: "seed", wilted: false };
 
 // The running screen's picture: your real tank (fish, plants, decorations, skin
 // and the ambience scene), with this session's egg → fry (study; it becomes a
@@ -47,29 +36,22 @@ export function RunningTank({
   const fishCount = aquarium?.fishCount ?? 0;
 
   let index: number;
-  let overlay = null;
+  let growingPlant: GrowingInTank | null = null;
   let brood: BroodStage | null = null;
   let caption: string;
 
   if (isNotes(session)) {
-    // The plant grows where mature plants go: the newest tank's next free spot.
-    index = Math.max(0, Math.ceil(fishCount / TANK_CAPACITY) - 1);
-    const growing = garden?.growing ?? FRESH_SEED;
-    const counts = minutes >= PLANT_MIN_MINUTES;
-    const plant = previewPlant(growing, session.id ?? "legacy", counts ? minutes : 0);
-    const slot = (garden?.matured.filter((p) => p.tank === index).length ?? 0) % PLANTS_PER_TANK;
-    overlay = (
-      <div className="pointer-events-none absolute bottom-[3%] -translate-x-1/2" style={{ left: `${PLANT_SLOTS_X[slot]}%` }}>
-        {/* key={stage}: a new stage remounts it, which replays the "pop". */}
-        <div key={plant.stage} className="fish-grow">
-          <PlantSprite look={plantLook(plant.id)} stage={plant.stage} wilted={growing.wilted && !counts} width={40} />
-        </div>
-      </div>
-    );
-    const next = toNextStage(plant.minutes);
-    caption = !counts
-      ? `Growth counts from ${PLANT_MIN_MINUTES} minutes of notes.`
-      : `${PLANT_STAGE_LABEL[plant.stage]} · ${next ?? "it matures when you finish!"}`;
+    // This session's own plant, growing through the stages as the minutes
+    // pass, in the spot it's planted in when the session ends.
+    const spot = growingSpot(garden, fishCount);
+    index = spot.tank;
+    const stage = plantStageFor(minutes);
+    growingPlant = { lookId: session.id ?? "legacy", stage, wilted: false, slot: spot.slot % PLANTS_PER_TANK };
+    const next = toNextStage(minutes);
+    caption =
+      minutes < PLANT_MIN_MINUTES
+        ? `A seed in the sand. It sprouts at ${PLANT_MIN_MINUTES} minutes.`
+        : `${PLANT_STAGE_LABEL[stage]} · ${next ?? "it's planted when you finish!"}`;
   } else {
     // The new fish joins the tank that has room: the newest, or a new one if it's full.
     index = Math.floor(fishCount / TANK_CAPACITY);
@@ -88,7 +70,7 @@ export function RunningTank({
           skinOf={skinOf}
           decorations={decorations}
           scene={scene}
-          overlay={overlay}
+          growing={growingPlant}
           brood={brood}
         />
       </div>

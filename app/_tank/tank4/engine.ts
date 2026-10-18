@@ -9,8 +9,12 @@
 // - A full tank spreads out: each fish mostly patrols its own stretch.
 // - The running screen's egg → eyed egg → fry sits on the sand; the fry
 //   swims out of its shell and stays close by.
-// - Taps: hitTest() checks the fish's current on-screen body, with at least a
-//   44 px wide target.
+// - Mature plants (and the running screen's growing one) stand in their spots
+//   on the sand and sway from the base up; decorations sit on the sand behind
+//   them (the bubbler bubbles). Both are the app's own SVG drawings, rendered
+//   hidden by tank-canvas.tsx and read in through `art`.
+// - Taps: hitTest() checks the fish's current on-screen body (and, when asked,
+//   plants and decorations), with at least a 44 px wide target.
 
 import type * as PX from "pixi.js";
 import type { BroodStage } from "@/lib/brood";
@@ -23,6 +27,9 @@ import { type Common, destroyRig, drawExtras, drawRig, makeRig, type Rig, type R
 import {
   ANEMONE_AT,
   backgroundSvg,
+  GLOWS,
+  STREAKS,
+  streakSvg,
   BLADES,
   bladeLine,
   bladeSvg,
@@ -45,21 +52,41 @@ import {
   type XY,
 } from "./scenery";
 import { type Box, smoothPath } from "./side-view";
-import { createBank, dprFor, type FishTex, NoWebGL, seedOf } from "./textures";
+import { createBank, dprFor, type FishTex, NoWebGL, seedOf, svgDataUrl } from "./textures";
 
 type Pixi = typeof PX;
 
 // What lives in the tank. `key` is what a tap reports ("fish:<id>", "nautilus").
 export type TankFish = { key: string; id: string; species: SpeciesId | "nautilus"; rarity: Rarity | null };
 
+// A plant on the sand: `art` names its drawing (see ArtSource). `pop` changes
+// when it should replay its little "grow" pop (the growing plant's stage).
+export type TankPlant = {
+  key: string; // what a tap reports ("plant:<id>"), or "growing"
+  art: string;
+  slot: number; // 0…5, its spot on the sand
+  width: number; // world units (the drawing is 40 wide)
+  wilted: boolean;
+  sway: { seconds: number; phase: number };
+  tappable: boolean;
+  pop: string;
+};
+// A placed decoration: x 0–100 % across, y 0 (front) … 1 (back) of the sand.
+export type TankDecor = { key: string; art: string; x: number; y: number; width: number; selected: boolean; bubbles: boolean };
+// The drawings for plants and decorations, as SVG markup at a given size (and
+// optional viewBox, to give a plant's leaves room).
+export type ArtSource = (key: string) => { aspect: number; svg: (w: number, h: number, viewBox?: string) => string } | null;
+export type HitKinds = { fish?: boolean; plants?: boolean; decorations?: boolean };
+
 export type Engine = {
   frame: (dt: number) => void;
   still: () => void;
   setFish: (list: TankFish[]) => Promise<void>;
+  setScenery: (scenery: { plants: TankPlant[]; decorations: TankDecor[] }) => Promise<void>;
   setBrood: (stage: BroodStage | null) => Promise<void>;
   setLook: (skin: SkinId) => Promise<void>;
   setSelected: (key: string | null) => void;
-  hitTest: (clientX: number, clientY: number) => string | null;
+  hitTest: (clientX: number, clientY: number, kinds?: HitKinds) => string | null;
   dispose: () => void;
 };
 
@@ -71,11 +98,22 @@ const EGG_AT = { x: 62, y: 272 };
 const EGG_WIDTH = 52;
 const FRY_HOME = { x: 74, y: TANK.y0 + 4, z: 22 };
 
+// Plants' spots along the sand (% from the left), low in the tank, below the
+// fish lanes. Decorations stand on the sand: y = 0 (front) … 1 (back) maps to
+// this band, as % up from the bottom. (The same as the still picture's.)
+export const PLANT_SLOTS_X = [9, 25, 41, 58, 74, 90];
+const PLANT_BASE_Y = 289;
+const PLANT_VIEW = { x: -16, y: -4, w: 72, h: 64 }; // the 40 × 60 drawing, with room for its leaves
+const PLANT_ROOT = { x: 20, y: 58 }; // its base, in drawing units
+const SAND_BOTTOM = 2;
+const SAND_DEPTH = 14;
+const DECOR_SCALE = 1.1; // a decoration's width in world units per px of its drawing
+
 export async function createEngine(
   P: Pixi,
   canvas: HTMLCanvasElement,
   host: HTMLElement,
-  options: { skin: SkinId; onContextLost: () => void; onContextRestored: () => void },
+  options: { skin: SkinId; art: ArtSource; onContextLost: () => void; onContextRestored: () => void },
 ): Promise<Engine> {
   if (!P.isWebGLSupported()) throw new NoWebGL("WebGL isn't available");
 
@@ -180,7 +218,12 @@ export async function createEngine(
   );
   for (const r of blades) if (r.b.layer === "back") mid.addChild(r.rope);
 
-  // the session's egg, on the sand
+  // decorations (behind), plants, then the session's egg, all on the sand
+  const decorLayer = new P.Container();
+  decorLayer.sortableChildren = true;
+  world.addChild(decorLayer);
+  const plantLayer = new P.Container();
+  world.addChild(plantLayer);
   const broodLayer = new P.Container();
   world.addChild(broodLayer);
   const shadowLayer = new P.Container();
@@ -210,11 +253,32 @@ export async function createEngine(
   for (const r of blades) if (r.b.layer === "front") front.addChild(r.rope);
   world.addChild(front);
 
+  // River's drifting current and Deep's glowing specks (shown by the skin).
+  const streaks = await Promise.all(
+    STREAKS.map(async (st, i) => {
+      const s = new P.Sprite(await bank.svg(streakSvg(st.len), { x: -2, y: 0, w: st.len + 4, h: 6 }, 2));
+      s.y = st.y;
+      world.addChild(s);
+      return { s, ...st, offset: i * 137 };
+    }),
+  );
+  const glows = GLOWS.map(([x, y, r], i) => {
+    const s = new P.Sprite(dotTex);
+    s.anchor.set(0.5);
+    s.position.set(x, y);
+    s.scale.set(r * 1.4);
+    s.tint = 0xbfe3ff;
+    world.addChild(s);
+    return { s, phase: i * 0.9 };
+  });
+
   const applyLook = () => {
     for (const { s, alpha } of strips) s.alpha = alpha * look.caustics;
     for (const r of blades) r.rope.tint = look.plantTint;
     for (const d of dots) d.tint = look.speck;
     for (const r of rays) r.s.visible = look.rays > 0;
+    for (const st of streaks) st.s.visible = look.streaks;
+    for (const g of glows) g.s.visible = look.glows;
     app.renderer.background.color = look.water[1];
   };
   applyLook();
@@ -299,6 +363,131 @@ export async function createEngine(
     }
   }
 
+  // ---------- plants and decorations ----------
+  type PlantRig = { p: TankPlant; mesh: PX.MeshPlane; base: Float32Array; h: number; w: number; popAt: number; x: number };
+  type DecorRig = { d: TankDecor; sprite: PX.Sprite; glow: PX.Sprite; bubbles: PX.Sprite[]; w: number; h: number; x: number; y: number };
+  let plants: PlantRig[] = [];
+  let decor: DecorRig[] = [];
+  let sceneryToken = 0;
+  const artTex = new Map<string, Promise<PX.Texture | null>>();
+
+  function textureOf(key: string, w: number, viewBox?: { x: number; y: number; w: number; h: number }) {
+    const id = `${key}@${w}`;
+    let tex = artTex.get(id);
+    if (!tex) {
+      tex = (async () => {
+        const a = options.art(key);
+        if (!a) return null;
+        const res = bank.res;
+        const aspect = viewBox ? viewBox.w / viewBox.h : a.aspect;
+        const W = Math.ceil(w * res);
+        const H = Math.ceil((w / aspect) * res);
+        const vb = viewBox ? `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}` : undefined;
+        return bank.image(svgDataUrl(a.svg(W, H, vb)), { x: 0, y: 0, w, h: w / aspect }, res);
+      })();
+      artTex.set(id, tex);
+    }
+    return tex;
+  }
+
+  async function setScenery(next: { plants: TankPlant[]; decorations: TankDecor[] }) {
+    const token = ++sceneryToken;
+    const plantTex = await Promise.all(next.plants.map((p) => textureOf(p.art, p.width * (PLANT_VIEW.w / 40), PLANT_VIEW)));
+    const decorTex = await Promise.all(next.decorations.map((d) => textureOf(d.art, d.width * DECOR_SCALE)));
+    if (token !== sceneryToken || gone) return;
+
+    // Plants: reuse a plant whose drawing didn't change, so its sway (and pop) carries on.
+    const kept = new Map(plants.map((r) => [r.p.key, r]));
+    plants = next.plants.flatMap((p, i) => {
+      const tex = plantTex[i];
+      if (!tex) return [];
+      const old = kept.get(p.key);
+      if (old && old.p.art === p.art && old.p.slot === p.slot) {
+        kept.delete(p.key);
+        old.popAt = old.p.pop !== p.pop ? t : old.popAt;
+        old.p = p;
+        return [old];
+      }
+      const w = p.width * (PLANT_VIEW.w / 40);
+      const h = w * (PLANT_VIEW.h / PLANT_VIEW.w);
+      const mesh = new P.MeshPlane({ texture: tex, verticesX: 3, verticesY: 9 });
+      const root = { x: ((PLANT_ROOT.x - PLANT_VIEW.x) / PLANT_VIEW.w) * w, y: ((PLANT_ROOT.y - PLANT_VIEW.y) / PLANT_VIEW.h) * h };
+      mesh.pivot.set(root.x, root.y);
+      const x = (PLANT_SLOTS_X[p.slot % PLANT_SLOTS_X.length] / 100) * 400;
+      mesh.position.set(x, PLANT_BASE_Y);
+      mesh.tint = p.wilted ? 0xcfc8ad : 0xffffff; // wilted: duller (never dead)
+      plantLayer.addChild(mesh);
+      const popAt = old && old.p.pop !== p.pop ? t : -9;
+      return [{ p, mesh, base: new Float32Array(mesh.geometry.positions), h, w, popAt, x }];
+    });
+    for (const r of kept.values()) r.mesh.destroy();
+
+    for (const r of decor) {
+      r.sprite.destroy();
+      r.glow.destroy();
+      r.bubbles.forEach((b) => b.destroy());
+    }
+    decor = next.decorations.flatMap((d, i) => {
+      const tex = decorTex[i];
+      if (!tex) return [];
+      const scale = 1 - 0.2 * d.y; // further back = a little smaller
+      const w = d.width * DECOR_SCALE * scale;
+      const h = (tex.height / tex.width) * w;
+      const x = (d.x / 100) * 400;
+      const y = 300 - 3 * (SAND_BOTTOM + d.y * SAND_DEPTH);
+      const glow = new P.Sprite(common.glow);
+      glow.anchor.set(0.5);
+      glow.position.set(x, y - h / 2);
+      glow.scale.set((w * 0.85) / 10, (h * 0.85) / 10);
+      glow.visible = d.selected;
+      glow.alpha = 0.85;
+      const sprite = new P.Sprite(tex);
+      sprite.anchor.set(0.5, 1);
+      sprite.position.set(x, y);
+      sprite.width = w;
+      sprite.height = h;
+      const z = Math.round((1 - d.y) * 1000); // front ones on top
+      glow.zIndex = z;
+      sprite.zIndex = z + 1;
+      const bubbles = d.bubbles
+        ? [0, 1, 2].map(() => {
+            const b = new P.Sprite(dotTex);
+            b.anchor.set(0.5);
+            b.zIndex = z + 2;
+            decorLayer.addChild(b);
+            return b;
+          })
+        : [];
+      decorLayer.addChild(glow, sprite);
+      return [{ d, sprite, glow, bubbles, w, h, x, y }];
+    });
+    render();
+  }
+
+  function drawScenery() {
+    for (const r of plants) {
+      // sway: the base stays put, the top moves most (like the seagrass)
+      const sway = resting ? 0 : Math.sin((2 * Math.PI * t) / r.p.sway.seconds + r.p.sway.phase * 6.28) * r.w * 0.06;
+      const pos = r.mesh.geometry.positions;
+      for (let i = 0; i < pos.length; i += 2) {
+        const up = 1 - r.base[i + 1] / r.h; // 0 at the bottom of the texture, 1 at the top
+        pos[i] = r.base[i] + sway * Math.pow(Math.max(0, up), 1.6);
+        pos[i + 1] = r.base[i + 1];
+      }
+      r.mesh.geometry.getBuffer("aPosition").update();
+      const k = resting ? 1 : Math.min(1, (t - r.popAt) / 0.7);
+      r.mesh.scale.set(k >= 1 ? 1 : 0.6 + 0.4 * (1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2)));
+    }
+    for (const r of decor) {
+      r.bubbles.forEach((b, i) => {
+        const k = resting ? 0.3 + i * 0.3 : ((t / 2.1 + i / 3) % 1);
+        b.position.set(r.x + (i - 1) * 1.5 + Math.sin(k * 6 + i) * 1.2, r.y - r.h * 0.17 - k * 40);
+        b.scale.set(0.9 - i * 0.15);
+        b.alpha = 0.9 * (1 - k);
+      });
+    }
+  }
+
   // ---------- the brood (running screen) ----------
   const eggScale = EGG_WIDTH / EGG_BOX.w;
   const eggGlow = new P.Sprite(common.glow);
@@ -363,6 +552,15 @@ export async function createEngine(
       dots[i].x = p.x;
       dots[i].y = p.y;
     });
+    if (look.streaks) {
+      for (const st of streaks) {
+        const span = 440 + st.len;
+        st.s.x = -20 - st.len + ((t * st.speed + st.offset) % span);
+        st.s.alpha = 0.5 + 0.5 * Math.sin((t * st.speed + st.offset) / 40);
+      }
+    }
+    if (look.glows) glows.forEach((g) => (g.s.alpha = resting ? 0.6 : 0.35 + 0.35 * Math.sin(t * 1.3 + g.phase)));
+    drawScenery();
     if (brood.stage) {
       egg.rotation = 0.08 * brood.wobble * Math.sin(t * 9);
       eggGlow.alpha = 0.4 + (resting ? 0 : 0.1 * Math.sin(t * 1.5));
@@ -459,19 +657,39 @@ export async function createEngine(
       selected = key;
       render();
     },
-    hitTest: (clientX, clientY) => {
+    setScenery,
+    hitTest: (clientX, clientY, kinds = { fish: true, plants: true }) => {
       const r = host.getBoundingClientRect();
       const s = world.scale.x || 1;
       const p = { x: (clientX - r.left - world.x) / s, y: (clientY - r.top - world.y) / s };
       const min = TAP_RADIUS_PX / s;
-      // front-most first; the first one within reach wins
-      const order = [...rigs].sort((a, b) => b.group.zIndex - a.group.zIndex);
-      let best: { key: string; d: number } | null = null;
-      for (const rig of order) {
-        const d = distToLine(p, rig.hit) - Math.max(min, rig.hitR);
-        if (d <= 0 && (!best || d < best.d - min)) best = { key: rig.key, d };
+      // Fish first (they swim in front), front-most first; the first one within reach wins.
+      if (kinds.fish) {
+        const order = [...rigs].sort((a, b) => b.group.zIndex - a.group.zIndex);
+        let best: { key: string; d: number } | null = null;
+        for (const rig of order) {
+          const d = distToLine(p, rig.hit) - Math.max(min, rig.hitR);
+          if (d <= 0 && (!best || d < best.d - min)) best = { key: rig.key, d };
+        }
+        if (best) return best.key;
       }
-      return best?.key ?? null;
+      if (kinds.plants) {
+        for (const pl of plants) {
+          if (!pl.p.tappable) continue;
+          const top = PLANT_BASE_Y - pl.h * 0.85;
+          const half = Math.max(min, pl.w * 0.3);
+          if (Math.abs(p.x - pl.x) <= half && p.y >= top - min / 2 && p.y <= PLANT_BASE_Y + min / 2) return pl.p.key;
+        }
+      }
+      if (kinds.decorations) {
+        // front ones first
+        for (const d of [...decor].sort((a, b) => a.d.y - b.d.y)) {
+          const half = Math.max(min, d.w / 2);
+          const h = Math.max(min * 2, d.h);
+          if (Math.abs(p.x - d.x) <= half && p.y <= d.y + min / 2 && p.y >= d.y - h) return d.d.key;
+        }
+      }
+      return null;
     },
     dispose: () => {
       gone = true;

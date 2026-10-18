@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { RARITIES, RARITY_LABEL, speciesById } from "@/lib/species";
-import { MATURE_MINUTES, PLANT_STAGE_LABEL, deriveGarden, type Garden } from "@/lib/plants";
+import { MATURE_MINUTES, PLANT_MIN_MINUTES, deriveGarden, type Garden } from "@/lib/plants";
 import { SKIN_UNLOCKS, formatHours, nextSkin, skinUnlocked } from "@/lib/economy";
 import { useSessions } from "@/lib/sessions-data";
 import { useEconomy } from "@/lib/use-economy";
@@ -161,14 +161,13 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
       </Section>
 
       {!study && garden && (
-        <Section title="Plants" note={`Notes minutes grow one plant at a time. It matures at ${formatDuration(MATURE_MINUTES * 60)}.`}>
+        <Section
+          title="Plants"
+          note={`One plant per notes session of ${PLANT_MIN_MINUTES}+ min; the longer the session, the bigger it grows (mature at ${formatDuration(MATURE_MINUTES * 60)}).`}
+        >
           <Tiles>
-            <Tile label="Matured" value={String(garden.matured.length)} sub="In your tanks" />
-            <Tile
-              label="Growing now"
-              value={PLANT_STAGE_LABEL[garden.growing.stage]}
-              sub={`${garden.growing.minutes} of ${MATURE_MINUTES} min${garden.growing.wilted ? " · a little wilted" : ""}`}
-            />
+            <Tile label="Grown" value={String(garden.plants.length)} sub="In your tanks" />
+            <Tile label="Mature" value={String(garden.plants.filter((p) => p.stage === "mature").length)} sub={`From ${formatDuration(MATURE_MINUTES * 60)} sessions`} />
           </Tiles>
         </Section>
       )}

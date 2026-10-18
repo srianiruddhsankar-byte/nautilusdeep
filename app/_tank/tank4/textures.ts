@@ -145,6 +145,9 @@ export function createBank(P: Pixi, res: number) {
   const fish = (sp: Swimmer) => once(`fish:${sp}`, () => makeFish(sp));
 
   return {
+    res,
+    // any image (an SVG data URL or a painting) → a texture covering `box`
+    image: async (src: string, box: Box, r = res) => keep(await imageTexture(P, src, box, r)),
     fish,
     silhouette: (sp: Swimmer) => once(`sil:${sp}`, () => makeSilhouette(sp)),
     egg: (stage: "eggs" | "eyed" | "hatched") => once(`egg:${stage}`, () => svg(eggSvg(stage), EGG_BOX)),

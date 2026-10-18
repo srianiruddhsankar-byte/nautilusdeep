@@ -1,73 +1,50 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { plantLook } from "@/lib/plant-look";
-import { PLANT_MIN_MINUTES, PLANT_STAGE_LABEL, toNextStage, type Garden } from "@/lib/plants";
+import { MATURE_MINUTES, PLANT_MIN_MINUTES, PLANT_STAGE_LABEL, nextPlantStage, type Garden } from "@/lib/plants";
+import { formatDuration } from "@/lib/stats";
 import type { Result } from "@/lib/timer";
 import { PlantSprite } from "./plant-sprite";
 
-// What this notes session did for the plant, shown on its result screen. The
-// garden already includes this session (it's queued before the result shows).
+// The plant this notes session grew, shown on its result screen: one plant per
+// session, as big as the session was long. The garden already includes this
+// session (it's queued before the result shows).
 export function ResultPlant({ result, garden }: { result: Result; garden: Garden | null }) {
-  if (!garden) return <p className="text-sm text-muted">Checking on your plant…</p>;
-  const { growing } = garden;
-  const growth = result.id ? garden.bySession.get(result.id) : undefined;
-
   if (result.outcome === "failed") {
-    return (
-      <Shown id={growing.id} stage={growing.stage} wilted>
-        No growth this time, so your plant looks a little wilted. Your next notes session perks it up.
-      </Shown>
-    );
+    return <p className="max-w-xs text-sm text-muted">No plant this time. The next notes session starts fresh.</p>;
   }
-
-  if (!growth?.counted) {
+  const minutes = Math.floor(result.focusMs / 60_000);
+  if (minutes < PLANT_MIN_MINUTES) {
     return (
       <p className="max-w-xs text-sm text-muted">
-        Under {PLANT_MIN_MINUTES} minutes, so no growth this time. Plants grow from {PLANT_MIN_MINUTES} minutes of notes.
+        Under {PLANT_MIN_MINUTES} minutes, so no plant this time. Your minutes and coins still count. A plant grows
+        from {PLANT_MIN_MINUTES} minutes of notes.
       </p>
     );
   }
+  if (!garden) return <p className="text-sm text-muted">Planting…</p>;
+  const plant = result.id ? garden.bySession.get(result.id) : undefined;
+  if (!plant) return null;
 
-  const matured = growth.matured[growth.matured.length - 1];
-  if (matured) {
-    return (
-      <Shown id={matured.id} stage="mature">
-        <span className="font-semibold text-success">
-          Your plant matured! It&apos;s in Tank {matured.tank + 1}.
-        </span>
-        {growing.minutes > 0 && <> A new seed has started with {growing.minutes} min.</>}
-      </Shown>
-    );
-  }
-
-  const next = toNextStage(growing.minutes);
-  return (
-    <Shown id={growing.id} stage={growing.stage}>
-      <span className="font-semibold">+{growth.addedMinutes} min of growth</span>
-      {next && <> · {next}</>}
-      <span className="block text-muted">{PLANT_STAGE_LABEL[growing.stage]}</span>
-    </Shown>
-  );
-}
-
-function Shown({
-  id,
-  stage,
-  wilted = false,
-  children,
-}: {
-  id: string | null;
-  stage: Parameters<typeof PlantSprite>[0]["stage"];
-  wilted?: boolean;
-  children: ReactNode;
-}) {
+  const next = nextPlantStage(plant.minutes);
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="tank-bob">
-        <PlantSprite look={plantLook(id ?? "fresh-seed")} stage={stage} wilted={wilted} width={52} />
+        <div className="fish-grow">
+          <PlantSprite look={plantLook(plant.id)} stage={plant.stage} width={52} />
+        </div>
       </div>
-      <p className="max-w-xs text-sm">{children}</p>
+      <p className="title-card">{PLANT_STAGE_LABEL[plant.stage]}</p>
+      <p className="max-w-xs text-sm">
+        Planted in Tank {plant.tank + 1}.{" "}
+        {next ? (
+          <span className="text-muted">
+            Longer sessions grow bigger plants: {formatDuration(MATURE_MINUTES * 60)} grows a mature one.
+          </span>
+        ) : (
+          <span className="font-semibold text-success">Fully grown.</span>
+        )}
+      </p>
     </div>
   );
 }
