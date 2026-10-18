@@ -60,7 +60,8 @@ const ITEMS: { page: NavPage; href: string; label: string; icon: ReactNode }[] =
 export function BottomNav({ active }: { active: NavPage }) {
   return (
     <>
-      <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] shrink-0" />
+      {/* The body already pads the home bar area (globals.css). */}
+      <div aria-hidden className="h-18 shrink-0" />
       <nav
         aria-label="Main"
         className="bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"

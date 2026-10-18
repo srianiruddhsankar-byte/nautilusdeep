@@ -98,6 +98,15 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
   - Why parked: the phone keyboard's built-in mic may already be enough.
   - Revisit: only if it isn't.
 
+## Installed app
+
+- **Open the app offline.** The service worker (Phase 10a) caches only build files and pictures, never pages,
+  so opening the installed app with no connection shows the phone's "offline" page.
+  - Why parked: pages are made per signed-in user; caching them risks showing a stale or wrong account and is
+    the usual way installed apps get stuck on an old version. Sessions already save offline once the app is open.
+  - Revisit: if testers often open the app with no signal (e.g. on the underground); start with one cached
+    "You're offline" page, not cached real pages.
+
 ## Fairness
 
 - **Move fish roll and coin calc server-side if the app goes public or gets leaderboards.** Today the browser

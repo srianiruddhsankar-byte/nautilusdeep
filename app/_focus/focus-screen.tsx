@@ -539,7 +539,7 @@ function RunningView({
     // - landscape (laptops, phones turned sideways): the tank takes most of the
     //   screen, with the time and controls in a column beside it.
     <div className="fixed inset-0 z-30 overflow-y-auto bg-paper">
-      <div className="mx-auto grid min-h-full w-full max-w-md grid-rows-[auto_auto_1fr] gap-5 p-4 landscape:max-w-7xl landscape:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] landscape:grid-rows-[1fr_1fr] landscape:gap-x-8">
+      <div className="safe-pad mx-auto grid min-h-full w-full max-w-md grid-rows-[auto_auto_1fr] gap-5 landscape:max-w-7xl landscape:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] landscape:grid-rows-[1fr_1fr] landscape:gap-x-8">
         {/* What's running, and the time. */}
         <div
           className="rise-in flex flex-col items-center gap-3 landscape:col-start-2 landscape:row-start-1 landscape:self-end"

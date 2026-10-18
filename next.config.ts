@@ -17,11 +17,21 @@ function fishArtFiles() {
   }
 }
 
+// Which deploy this is (lib/build-id.ts): Vercel's deployment id, else the
+// commit. BUILD_ID=… overrides it, to test the "New version" toast locally.
+const buildId =
+  process.env.BUILD_ID || process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "local";
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   env: {
     NEXT_PUBLIC_FISH_ART: fishArtFiles(),
+    NEXT_PUBLIC_BUILD_ID: buildId,
+  },
+  // The service worker must never come from a cache, or updates would stall.
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] }];
   },
   turbopack: {
     rules: {

@@ -127,6 +127,17 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+  /* The page is drawn edge to edge (viewport-fit=cover in app/layout.tsx), so
+     the installed app keeps content clear of the notch, the rounded corners
+     and the home bar here. 0 everywhere else. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Fixed full-screen layers (the running screen) ignore the body's padding:
+   16 px, or more where the notch / home bar needs it. */
+.safe-pad {
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 }
 
 /* In-page links (Help's contents) glide, unless reduced motion is on. */

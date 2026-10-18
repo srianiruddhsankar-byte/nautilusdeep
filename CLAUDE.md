@@ -138,6 +138,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
   script in `app/layout.tsx` that sets `<html data-theme>` before the first paint. `app/help/appearance.tsx` —
   the setting, in Help → Account
 - `app/not-found.tsx` — the 404 page (signed-in only: signed out, proxy.ts sends unknown paths to /login)
+- `app/_pwa/` — the installed app (Phase 10a): `art.ts` (the icon SVG, the icon list, iPhone splash sizes),
+  `pwa-setup.tsx` (registers `public/sw.js?v=<build>` in production; checks `/version` and offers "New version
+  available · Refresh", never while a session runs). `app/icons/[file]/route.tsx` draws every icon / splash PNG
+  at build time. `app/manifest.ts`, `app/version/route.ts`, `lib/build-id.ts` (set in `next.config.ts`).
+  `public/sw.js` caches ONLY `/_next/static` (cache first) and `/icons`, `/fish` (refreshed in the background);
+  pages, `/auth`, Supabase and Google always go to the network. `proxy.ts` skips the manifest, worker, icons and
+  `/version` (the manifest is fetched without cookies). Safe areas: `viewport-fit=cover`, the body pads
+  `env(safe-area-inset-*)`, fixed full screens use `.safe-pad`. Help → Account has "Install the app"
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
