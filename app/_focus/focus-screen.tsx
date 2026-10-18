@@ -28,8 +28,12 @@ import {
   LEAVE_GRACE_MS,
   MAX_PAUSE_MS,
   SESSION_TYPE_LABEL,
+  canContinue,
   canPause,
   cancelWindowRemainingMs,
+  continueSession,
+  continueWindowRemainingMs,
+  CONTINUE_WINDOW_MS,
   checkInState,
   checkSession,
   confirmCheckIn,
@@ -40,15 +44,19 @@ import {
   isNotes,
   isOpenFocus,
   isPaused,
+  partStartedAt,
   pauseRemainingMs,
   pressStop,
   startPause,
+  withChain,
   type Result,
   type Session,
   type SessionAmbience,
   type SessionEnd,
+  type SessionUpdate,
   type Status,
 } from "@/lib/timer";
+import { describeParts } from "@/lib/session-parts";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
 import { StatsLine } from "../_stats/stats-line";
@@ -59,6 +67,7 @@ import { RunningTank } from "../_tank/running-tank";
 import { SKINS } from "../_tank/skins";
 import { Coin, Tank } from "../_tank/tank";
 import { Button, buttonClass } from "../_ui/button";
+import { Field, NumberField } from "../_ui/field";
 import { ProgressBar, Skeleton } from "../_ui/feedback";
 import { AlarmOverlay } from "./alarm-overlay";
 import { SetupForm } from "./setup-form";
@@ -69,12 +78,18 @@ import { TodayTasks } from "./today-tasks";
 // Every way a session ends goes through here.
 // - Cancelled (first 10 s): the session just disappears. Nothing is queued or
 //   saved, no bone, no result screen: straight back to setup.
+// - Updated: it carries on, changed (a stopwatch part stopped into its break, or
+//   a cancelled continuation back in the break).
 // - Ended: the row is queued for saving BEFORE the result is shown, so nothing
 //   can end without being saved, and the result screen itself never saves (a
 //   refresh there can't save twice).
-function finish(end: SessionEnd, withAlarm = false) {
+function finish(end: SessionEnd | SessionUpdate, withAlarm = false) {
   if (end.status === "cancelled") {
     save({ session: null, result: null });
+    return;
+  }
+  if (end.status === "updated") {
+    save({ session: end.session, result: null });
     return;
   }
   endWith(end.result, withAlarm);
@@ -209,7 +224,8 @@ export function FocusScreen() {
         onStart={(s) => {
           unlockAudio(); // this runs inside the Start tap, which phones require for sound
           // The id is generated here, once, and becomes the database row's id.
-          save({ session: { ...s, id: crypto.randomUUID() }, result: null });
+          // withChain: when its time is up it can be continued (Continue session).
+          save({ session: withChain({ ...s, id: crypto.randomUUID() }), result: null });
         }}
       />
       <BottomNav active="home" />
@@ -245,6 +261,7 @@ function useSessionClock(active: boolean): number | null {
   useEffect(() => {
     if (!active) return;
     let lastPhase: number | null = null;
+    let wasWaiting: boolean | null = null; // in the break where you can continue
     let promptedFor: number | null = null; // the check-in we've already chimed for
     let wasPaused = false;
     let lastRing = 0; // the "alarm" check-in style rings again every few seconds
@@ -257,8 +274,11 @@ function useSessionClock(active: boolean): number | null {
       setNow(t);
 
       const check = checkSession(session, t);
+      if (check.status === "updated") return finish(check);
       if (check.status !== "running") {
-        const finished = check.status === "ended" && check.result.endedBy === "finished";
+        // A continuable session already rang when its time was up; when its
+        // break runs out it just ends, quietly.
+        const finished = check.status === "ended" && check.result.endedBy === "finished" && !session.chain;
         return finish(check, isVisible() && finished);
       }
 
@@ -266,6 +286,11 @@ function useSessionClock(active: boolean): number | null {
       // (a hidden page can't be trusted to play sound, and you'd come back to a
       // screen that's already moved on).
       const status = getStatus(session, t);
+      // A timer part's time is up: the break where you can continue begins.
+      if (status.waiting && wasWaiting === false && session.mode === "timer" && isVisible()) {
+        startAlarm({ title: "Time's up", detail: `Take a break, or continue within ${CONTINUE_WINDOW_MS / 60_000} minutes.` });
+      }
+      wasWaiting = status.waiting;
       if (status.phaseIndex !== lastPhase) {
         if (lastPhase !== null && isVisible()) startAlarm(phaseAlarm(status));
         lastPhase = status.phaseIndex;
@@ -317,6 +342,7 @@ function useSessionClock(active: boolean): number | null {
       }
       // Don't ring for phases that ended while away.
       lastPhase = getStatus(session, t).phaseIndex;
+      wasWaiting = getStatus(session, t).waiting;
       setNow(t);
     }
 
@@ -390,15 +416,17 @@ function RunningView({
     return () => clearTimeout(id);
   }, [confirming]);
 
-  const isFocus = status.kind === "focus";
+  const waiting = status.waiting; // the break after a part, where you can continue
+  const isFocus = status.kind === "focus" && !waiting;
   const isCycle = session.mode === "cycle";
   const open = isOpenFocus(session);
   // The cycle's last phase is a long break: every block is banked, so "Finish" is safe.
   const finalBreak = isFinalBreak(session, now);
+  const continuable = canContinue(session, now);
   // First 10 s: the button is "Cancel" (computed from the start time, so it's right after a refresh).
   const cancelSeconds = Math.ceil(cancelWindowRemainingMs(session, now) / 1000);
   const cancellable = cancelSeconds > 0;
-  const needsConfirm = !cancellable && session.mode !== "stopwatch" && !finalBreak;
+  const needsConfirm = !cancellable && session.mode !== "stopwatch" && !finalBreak && !waiting;
 
   function stop() {
     if (needsConfirm && !confirming) return setConfirming(true);
@@ -407,8 +435,8 @@ function RunningView({
     // Honour what the button showed: a tap on "Cancel" cancels even if it lands a
     // moment after the 10 s mark (up to 1 s late).
     const t =
-      cancellable && Date.now() < current.startedAt + CANCEL_WINDOW_MS + 1000
-        ? current.startedAt
+      cancellable && Date.now() < partStartedAt(current) + CANCEL_WINDOW_MS + 1000
+        ? partStartedAt(current)
         : Date.now();
     // pressStop: cancel in the first 10 s, otherwise a normal stop (a stop during
     // the long break counts as a full finish).
@@ -425,23 +453,34 @@ function RunningView({
           : "Long break";
   }
 
-  // The task name replaces the generic label; a cycle keeps its block line under it.
+  if (waiting) label = "Break";
+
+  // The task name replaces the generic label; a cycle keeps its block line under
+  // it. In the break you can continue in, "Break" leads and the task follows.
   const task = session.task ?? null;
-  const heading = task ?? label;
-  const subheading = task && isCycle ? label : null;
+  const heading = waiting ? label : (task ?? label);
+  const subheading = waiting ? task : task && isCycle ? label : null;
   const notes = isNotes(session);
 
   // Countdowns round up so "0:01" shows until the very end, then "0:00".
-  const time =
-    status.remainingMs === null
+  const windowMs = continuable ? continueWindowRemainingMs(session, now) : 0;
+  const time = waiting
+    ? formatClock(Math.ceil(windowMs / 1000) * 1000)
+    : status.remainingMs === null
       ? formatClock(status.elapsedMs)
       : formatClock(Math.ceil(status.remainingMs / 1000) * 1000);
 
-  const losesWholeSession = !isCycle || status.focusBlock === 1;
+  // Only the first block (or part) loses the whole session; later ones only themselves.
+  const losesWholeSession = !(isCycle || session.chain) || status.focusBlock === 1;
+  const piece = isCycle ? "block" : "part";
   const paused = isPaused(session, now);
-  const progress = progressOf(session, status);
+  const progress = waiting ? null : progressOf(session, status);
   const hint = paused
     ? "Paused. You can leave the app; the timer is stopped and nothing counts until you resume."
+    : waiting
+    ? "Nice work. This break doesn't count as study time, and it's safe to leave the app. Continue to keep the session going, or finish it."
+    : finalBreak && continuable
+    ? "Last break. Every block is banked. Continue for another set, or finish."
     : finalBreak
     ? "Last break. Every block is banked. Tap Finish whenever you're ready."
     : !isFocus
@@ -449,21 +488,24 @@ function RunningView({
       : open
         ? "Open Focus: you can use other apps on this device."
         : `Stay on this screen. Leaving for more than ${LEAVE_GRACE_MS / 1000} s ends ${
-            losesWholeSession ? "the session" : "this block"
+            losesWholeSession ? "the session" : `this ${piece}`
           }.`;
 
   let stopLabel = session.mode === "stopwatch" ? "Stop" : isCycle ? "End session" : "Give up";
-  if (finalBreak) stopLabel = "Finish";
+  if (finalBreak || waiting) stopLabel = "Finish";
   if (cancellable) stopLabel = `Cancel · ${cancelSeconds}`;
   if (confirming) {
     stopLabel = !isFocus
       ? "Tap again to end"
       : losesWholeSession
         ? "Tap again to end the session"
-        : "Tap again: this block won't count";
+        : `Tap again: this ${piece} won't count`;
   }
   // Calm in every state: never red. The confirm step only darkens the border.
-  const stopClass = finalBreak
+  // Continue is the one primary action when it's offered; Finish is then calm.
+  const stopClass = continuable
+    ? buttonClass("outline", "lg")
+    : finalBreak
     ? buttonClass("primary", "lg")
     : cancellable
       ? buttonClass("secondary", "lg")
@@ -506,6 +548,7 @@ function RunningView({
             >
               {time}
             </p>
+            {waiting && <p className="text-sm text-muted">left to continue</p>}
             {progress && (
               <div className="w-full max-w-xs pt-3">
                 <ProgressBar {...progress} muted={paused} />
@@ -544,8 +587,13 @@ function RunningView({
             )
           )}
           {cancellable && (
-            <p className="text-center text-sm text-muted">Started by accident? Cancel now and nothing is saved.</p>
+            <p className="text-center text-sm text-muted">
+              {session.chain && session.chain.parts.length > 1
+                ? "Continued by accident? Cancel now to go back to the break."
+                : "Started by accident? Cancel now and nothing is saved."}
+            </p>
           )}
+          {continuable && <ContinuePanel session={session} windowMs={windowMs} />}
           <button
             type="button"
             onClick={stop}
@@ -582,6 +630,9 @@ function ResultView({
           {notes && ` · ${SESSION_TYPE_LABEL.notes}`}
         </p>
         {result.task && <p className="max-w-full truncate text-sm text-muted">{result.task}</p>}
+        {result.parts && result.parts.length > 1 && (
+          <p className="max-w-xs text-sm text-muted">{describeParts(result.parts, notes ? "notes" : "study")}</p>
+        )}
         <h2 className="title-page">{title}</h2>
         <p className="max-w-xs text-muted">{detail}</p>
       </div>
@@ -606,11 +657,64 @@ function ResultView({
 
       {/* One main action. Mark done is there, but quieter. */}
       <div className="mt-auto flex w-full flex-col items-center gap-3">
-        {result.task && <MarkDone taskName={result.task} onDone={onTaskDone} />}
+        {tasksOf(result).map((name) => (
+          <MarkDone key={name} taskName={name} onDone={onTaskDone} />
+        ))}
         <Button variant="primary" size="lg" onClick={() => save({ session: null, result: null })}>
           New session
         </Button>
       </div>
+    </div>
+  );
+}
+
+// Every task a session worked on (a continued one can switch), for Mark done:
+// the counted blocks' tasks, and the one you were on at the end.
+function tasksOf(result: Result): string[] {
+  const names = [...(result.parts ?? []).map((p) => (p.type === "focus" ? (p.task ?? null) : null)), result.task];
+  const seen = new Set<string>();
+  return names.filter((n): n is string => {
+    if (!n || seen.has(n.toLowerCase())) return false;
+    seen.add(n.toLowerCase());
+    return true;
+  });
+}
+
+// The break after a part: Continue (the one main action) keeps the session
+// going, the same again by default. "Change" lets you pick another length (a
+// timer) or task; Deep / Open Focus and Study / Notes stay as they are.
+function ContinuePanel({ session, windowMs }: { session: Session; windowMs: number }) {
+  const lastFocus = [...session.phases].reverse().find((p) => p.kind === "focus");
+  const [changing, setChanging] = useState(false);
+  const [minutes, setMinutes] = useState(String(lastFocus?.ms ? Math.round(lastFocus.ms / 60_000) : 25));
+  const [task, setTask] = useState(session.task ?? "");
+  const isTimer = session.mode === "timer";
+
+  function go() {
+    const current = getSnapshot().session;
+    if (!current) return;
+    const change = changing ? { task, ...(isTimer && { minutes: Number(minutes) }) } : {};
+    const next = continueSession(current, Date.now(), change);
+    if (next !== current) save({ session: next, result: null });
+  }
+
+  return (
+    <div className="flex w-full flex-col items-center gap-2">
+      {changing && (
+        <div className="flex w-full flex-col gap-3 rounded-card bg-card p-4 shadow-card">
+          {isTimer && <NumberField label="Minutes" value={minutes} onChange={setMinutes} />}
+          <Field label="Task (optional)" value={task} onChange={(e) => setTask(e.target.value)} placeholder="No task" />
+        </div>
+      )}
+      <Button variant="primary" size="lg" onClick={go}>
+        Continue
+      </Button>
+      <Button variant="quiet" size="sm" onClick={() => setChanging(!changing)} aria-expanded={changing}>
+        {changing ? "Keep it the same" : isTimer ? "Change length or task" : "Change task"}
+      </Button>
+      <span className="sr-only" aria-live="polite">
+        {Math.ceil(windowMs / 60_000)} minutes left to continue
+      </span>
     </div>
   );
 }
@@ -795,21 +899,30 @@ function describe(r: Result): { title: string; detail: string } {
     };
   }
   if (r.endedBy === "finished") {
+    const continued = r.parts !== null && r.mode !== "cycle";
     return {
       title: "Session complete",
-      detail: r.mode === "cycle" ? "You finished the whole set." : "Time's up. Nice focus!",
+      detail: continued
+        ? "Every part counts. Nice focus!"
+        : r.mode === "cycle"
+          ? "You finished the whole set."
+          : r.mode === "stopwatch"
+            ? "Stopwatch stopped."
+            : "Time's up. Nice focus!",
     };
   }
   if (r.mode === "stopwatch") return { title: "Session complete", detail: "Stopwatch stopped." };
 
-  // A cycle that ended early but had banked blocks: the checkpoints are kept.
+  // A cycle (or continued session) that ended early but had banked blocks:
+  // the checkpoints are kept.
+  const piece = r.mode === "cycle" ? "block" : "part";
   return {
     title: "Session ended",
     detail:
       r.endedBy === "left"
-        ? "You left during a focus block, so only that block doesn't count."
+        ? `You left during a focus ${piece}, so only that ${piece} doesn't count.`
         : r.lostMs > 0
-          ? "You ended it mid-block, so only that block doesn't count."
-          : "You ended it during a break, so every block counts.",
+          ? `You ended it mid-${piece}, so only that ${piece} doesn't count.`
+          : `You ended it during a break, so every ${piece} counts.`,
   };
 }

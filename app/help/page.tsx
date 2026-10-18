@@ -7,7 +7,7 @@ import { PLANTS_PER_TANK, PLANT_STAGES } from "@/lib/plants";
 import { formatDuration } from "@/lib/stats";
 import { EYED_AT, HATCH_AT } from "@/lib/brood";
 import { NAUTILUS, ODDS, RARITIES, RARITY_LABEL, SPECIES } from "@/lib/species";
-import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, LEAVE_GRACE_MS, MAX_PAUSE_MS } from "@/lib/timer";
+import { CANCEL_WINDOW_MS, CHECK_IN_GRACE_MS, CONTINUE_WINDOW_MS, LEAVE_GRACE_MS, MAX_PAUSE_MS } from "@/lib/timer";
 import { BottomNav, PageHeader } from "../_nav/bottom-nav";
 import { Card as PaperCard } from "../_ui/card";
 import { Skeleton } from "../_ui/feedback";
@@ -103,10 +103,30 @@ export default function HelpPage() {
         </p>
       </Card>
 
+      <Card title="Continue a session">
+        <Points>
+          <li>
+            When a session&apos;s time is up (or you stop a stopwatch), it goes into a break. For{" "}
+            {CONTINUE_WINDOW_MS / 60_000} minutes you can tap <b>Continue</b> to keep going, the same again or with
+            another length or task. Deep or Open Focus and Study or Notes stay the same.
+          </li>
+          <li>
+            It all counts as one session: one egg (its odds use all the study time together), one entry in your
+            stats, and history shows each part, like &ldquo;12 min study · 10 min break · 12 min study&rdquo;.
+          </li>
+          <li>Breaks never count as study time, coins or streaks, and it&apos;s safe to leave the app during one.</li>
+          <li>
+            Tap <b>Finish</b>, or let the {CONTINUE_WINDOW_MS / 60_000} minutes run out, and the session ends where
+            its last part did. Giving up a later part loses only that part, like a block in a cycle.
+          </li>
+          <li>Continued by accident? The new part has its own {CANCEL}-second cancel, back to the break.</li>
+        </Points>
+      </Card>
+
       <Card title="Pause (Deep Focus)">
         <Points>
           <li>
-            Once per session (once per cycle set), you can pause for up to {MAX_PAUSE_MS / 60_000} minutes. The button
+            Once per session (a cycle or a continued session still gets one), you can pause for up to {MAX_PAUSE_MS / 60_000} minutes. The button
             appears under the timer after the first {CANCEL} seconds.
           </li>
           <li>While paused you can leave the app. The timer stands still and paused time doesn&apos;t count: no minutes, coins or growth.</li>

@@ -10,8 +10,9 @@ import { hasNautilus, hatch, isSpeciesId, speciesById, type Rarity, type Species
 export const FISH_MIN_MINUTES = 5; // below this, no fish (stops stopwatch farming)
 export const TANK_CAPACITY = 10;
 
-// The columns the app reads back (fish, stats, recent list). `species` is
-// missing on rows queued in this browser before species existed.
+// The columns the app reads back (fish, stats, recent list). `species` and
+// `parts` are missing on rows queued in this browser before they existed;
+// `parts` is read with readParts (lib/session-parts.ts), never trusted as is.
 export type SessionFacts = Pick<
   SessionRow,
   | "id"
@@ -25,7 +26,7 @@ export type SessionFacts = Pick<
   | "task_name"
   | "target_minutes"
   | "cycle_name"
-> & { species?: string | null };
+> & { species?: string | null; parts?: unknown };
 
 export type Fish = {
   id: string; // = the session id

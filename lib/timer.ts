@@ -4,6 +4,7 @@
 
 import type { AmbienceChoice } from "./ambience-logic.ts";
 import { blocksFromSettings, expandBlocks, type CycleBlock } from "./cycle-blocks.ts";
+import type { SessionPart } from "./session-parts.ts";
 import { cleanTaskName } from "./task-name.ts";
 
 export const LEAVE_GRACE_MS = 15_000;
@@ -12,6 +13,8 @@ export const CANCEL_WINDOW_MS = 10_000;
 // Night mode: how long a "Still studying?" check-in waits for a tap.
 export const CHECK_IN_GRACE_MS = 2 * 60_000;
 const MINUTE = 60_000;
+// Continue session: how long the break after a session waits for "Continue".
+export const CONTINUE_WINDOW_MS = 15 * MINUTE;
 
 export type Mode = "timer" | "stopwatch" | "cycle";
 export type PhaseKind = "focus" | "shortBreak" | "longBreak";
@@ -74,7 +77,17 @@ export type Session = {
   // The one pause (Deep Focus only). endedAt null = still paused (it ends by
   // itself after MAX_PAUSE_MS). Missing = not used yet.
   pause?: { startedAt: number; endedAt: number | null } | null;
+  // Continue session: present on sessions started since it exists (older ones
+  // simply end, as before). See "Continuing" below.
+  chain?: Chain;
 };
+
+// Continuing turns a session into a chain, like a cycle: part, break, part…
+// Each part remembers where its phases begin, its task (it can switch), when it
+// began (its own 10-second cancel), and the phases from before it was added, so
+// a cancelled continuation goes back to the break exactly as it was.
+export type ChainPart = { startedAt: number; firstPhase: number; task: string | null; before: Phase[] | null };
+export type Chain = { parts: ChainPart[]; set: Phase[] }; // set: what one part runs (a cycle repeats its whole set)
 
 export type SessionAmbience = { sound: AmbienceChoice; volume: number; paused: boolean };
 
@@ -102,12 +115,18 @@ export type Result = {
   task: string | null;
   targetMinutes: number | null;
   cycleName: string | null;
+  // The pieces of a continued session or a cycle (null for one plain session).
+  // Only what counts: a lost last part and any break after the last block are left out.
+  parts: SessionPart[] | null;
 };
 
 // What happened to a session. Only "ended" produces a Result (which gets saved);
-// "cancelled" means the session simply disappears.
+// "cancelled" means the session simply disappears; "updated" means it carries
+// on changed (a stopwatch part stopped into its break, or a cancelled
+// continuation back in the break).
 export type SessionEnd = { status: "cancelled" } | { status: "ended"; result: Result };
-export type Check = { status: "running" } | SessionEnd;
+export type SessionUpdate = { status: "updated"; session: Session };
+export type Check = { status: "running" } | SessionEnd | SessionUpdate;
 
 // Sessions saved before focus modes existed have no focusMode: treat them as Deep.
 export function isOpenFocus(session: Session): boolean {
@@ -285,6 +304,7 @@ export type Status = {
   focusBlock: number; // 1-based number of the current (or just finished) focus block
   totalBlocks: number;
   finished: boolean; // every phase is over
+  waiting: boolean; // …and it's the break where you can continue (Continue session)
 };
 
 export function getStatus(session: Session, now: number): Status {
@@ -304,6 +324,7 @@ export function getStatus(session: Session, now: number): Status {
     focusBlock: all.slice(0, index + 1).filter((s) => s.kind === "focus").length,
     totalBlocks: countFocusBlocks(session),
     finished,
+    waiting: finished && isWaitingS(session, t),
   };
 }
 
@@ -351,14 +372,29 @@ export function bankedFocus(session: Session, at: number) {
 
 // Time left to cancel (0 once the first 10 s are over). Based on the start
 // timestamp, so it's right after a refresh too.
+// A continuation has its own 10 s, from when you tapped Continue.
 export function cancelWindowRemainingMs(session: Session, now: number): number {
-  return Math.max(0, session.startedAt + CANCEL_WINDOW_MS - now);
+  return Math.max(0, partStartedAt(session) + CANCEL_WINDOW_MS - now);
 }
 
-// The end button: Cancel during the first 10 s, otherwise a normal stop
-// (Give up / Stop / End session / Finish).
-export function pressStop(session: Session, now: number): SessionEnd {
-  if (cancelWindowRemainingMs(session, now) > 0) return { status: "cancelled" };
+// When the current part began (the session's start, unless it was continued).
+export function partStartedAt(session: Session): number {
+  return session.chain?.parts.at(-1)?.startedAt ?? session.startedAt;
+}
+
+// The end button: Cancel during the first 10 s (a cancelled continuation goes
+// back to the break), Stop on a continuable stopwatch (its break begins),
+// otherwise a normal stop (Give up / End session / Finish).
+export function pressStop(session: Session, now: number): SessionEnd | SessionUpdate {
+  if (cancelWindowRemainingMs(session, now) > 0) {
+    return isContinuation(session) ? { status: "updated", session: undoContinue(session) } : { status: "cancelled" };
+  }
+  if (session.chain) {
+    const status = getStatus(session, now);
+    if (!status.finished && status.kind === "focus" && session.phases[status.phaseIndex].ms === null) {
+      return { status: "updated", session: closeFocus(session, now) };
+    }
+  }
   return { status: "ended", result: endSession(session, "stopped", now) };
 }
 
@@ -477,9 +513,11 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   let focusMs: number;
   let blocksCompleted: number;
 
-  if (session.mode === "cycle") {
+  if (session.mode === "cycle" || session.chain) {
     // Checkpoints: finished blocks are banked, the unfinished one is lost.
     // Nothing banked yet (still in the first block) means the session failed.
+    // A continuable session works the same way: each part is a block (a timer
+    // part counts once it reaches zero, a stopwatch part once you Stop it).
     const banked = bankedS(session, atS);
     focusMs = banked.ms;
     blocksCompleted = banked.blocks;
@@ -508,6 +546,7 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
     task: session.task ?? null,
     targetMinutes: session.targetMinutes ?? null,
     cycleName: session.mode === "cycle" ? (session.cycleName ?? null) : null,
+    parts: partsOf(session, lastBankedEndS(session, atS)),
   };
 }
 
@@ -519,6 +558,8 @@ function endAtLastCheckIn(session: Session): Result {
   const endAtS = toSession(session, end);
   const isCycle = session.mode === "cycle";
   const banked = bankedS(session, endAtS);
+  // a continued timer or stopwatch counts up to the confirmation, like a plain one
+  const blocks = isCycle ? banked.blocks : session.chain ? countFocusBlocks(session) : 1;
   return {
     id: session.id,
     mode: session.mode,
@@ -530,12 +571,13 @@ function endAtLastCheckIn(session: Session): Result {
     plannedMs: plannedFocusMs(session),
     focusMs: isCycle ? banked.ms : focusBetweenS(session, session.startedAt, endAtS),
     lostMs: 0, // the time asleep isn't "lost focus": it was never focus
-    blocksCompleted: isCycle ? banked.blocks : 1,
+    blocksCompleted: blocks,
     totalBlocks: countFocusBlocks(session),
     sessionType: isNotes(session) ? "notes" : "study",
     task: session.task ?? null,
     targetMinutes: session.targetMinutes ?? null,
     cycleName: isCycle ? (session.cycleName ?? null) : null,
+    parts: partsOf(session, isCycle ? lastBankedEndS(session, endAtS) : endAtS),
   };
 }
 
@@ -551,15 +593,170 @@ export function checkSession(session: Session, now: number): Check {
 
   if (failAt !== null && (missed === null || failAt <= missed)) {
     // Left during the first 10 s and didn't come back in time: an accidental
-    // start, so it's a cancel (no record, no bone), not a failure.
-    if (session.awaySince! < session.startedAt + CANCEL_WINDOW_MS) return { status: "cancelled" };
+    // start, so it's a cancel (no record, no bone), not a failure. A cancelled
+    // continuation goes back to the break.
+    if (session.awaySince! < partStartedAt(session) + CANCEL_WINDOW_MS) {
+      return isContinuation(session) ? { status: "updated", session: undoContinue(session) } : { status: "cancelled" };
+    }
     return { status: "ended", result: endSession(session, "left", failAt) };
   }
   if (missed !== null) return { status: "ended", result: endSession(session, "checkin", missed) };
-  if (nowS >= endS(session)) {
+  if (nowS >= endS(session) && !isWaitingS(session, nowS)) {
     return { status: "ended", result: endSession(session, "finished", now) };
   }
   return { status: "running" };
+}
+
+// ---------- Continuing ----------
+//
+// A session started since Continue exists doesn't end when its time is up: it
+// goes into a break, like a cycle. For 15 minutes after its last focus block
+// (or until a cycle's final long break is over, if that's longer) you can
+// Continue (another part: the same again, or with a different length or task;
+// Deep / Open Focus and Study / Notes stay) or Finish. If the window runs out,
+// it ends by itself, as if you'd tapped Finish: the break after the last block
+// never counts, and the session ends where its last block did.
+// Everything else works as in a cycle: breaks are free to leave, finished
+// parts are banked, and failing a part loses only that part (failing the
+// first part loses the session, as always).
+
+export function withChain(session: Session): Session {
+  return {
+    ...session,
+    chain: { parts: [{ startedAt: session.startedAt, firstPhase: 0, task: session.task ?? null, before: null }], set: session.phases },
+  };
+}
+
+function isContinuation(session: Session): boolean {
+  return (session.chain?.parts.length ?? 0) > 1;
+}
+
+// The end of the last focus block (session time), or Infinity while a
+// stopwatch part runs.
+function lastFocusEndS(session: Session): number {
+  const focus = spans(session).filter((s) => s.kind === "focus");
+  return focus[focus.length - 1].end;
+}
+
+// When the chance to continue runs out (session time), or null (not continuable).
+function windowEndS(session: Session): number | null {
+  if (!session.chain) return null;
+  const last = lastFocusEndS(session);
+  return last === Infinity ? null : Math.max(endS(session), last + CONTINUE_WINDOW_MS);
+}
+
+function isWaitingS(session: Session, nowS: number): boolean {
+  const until = windowEndS(session);
+  return until !== null && nowS >= endS(session) && nowS < until;
+}
+
+// Continue is offered once every focus block is over: in the break after a
+// part (or a cycle's final long break), until the window runs out.
+export function canContinue(session: Session, now: number): boolean {
+  const until = windowEndS(session);
+  if (until === null || isPaused(session, now)) return false;
+  const nowS = toSession(session, now);
+  return nowS >= lastFocusEndS(session) && nowS < until;
+}
+
+// Time left to tap Continue (0 when it can't be).
+export function continueWindowRemainingMs(session: Session, now: number): number {
+  const until = windowEndS(session);
+  if (until === null || !canContinue(session, now)) return 0;
+  return Math.max(0, toReal(session, until, now) - now);
+}
+
+// A stopwatch part's Stop: its focus block ends now and the break begins.
+function closeFocus(session: Session, now: number): Session {
+  const nowS = toSession(session, now);
+  const all = spans(session);
+  const i = all.findIndex((s) => nowS < s.end);
+  if (i === -1 || session.phases[i].ms !== null) return session;
+  const phases = session.phases.map((p, j) => (j === i ? { ...p, ms: Math.max(0, nowS - all[i].start) } : p));
+  return { ...session, phases };
+}
+
+export type ContinueChange = { minutes?: number; task?: string };
+
+// Another part, starting now. The break so far becomes a break phase (a final
+// long break still running ends here). A timer part runs the minutes you pick
+// (the last part's length by default); a stopwatch part is another stopwatch;
+// a cycle runs its whole set again. The task carries on unless you change it.
+export function continueSession(session: Session, now: number, change: ContinueChange = {}): Session {
+  if (!session.chain || !canContinue(session, now)) return session;
+  const nowS = toSession(session, now);
+  const all = spans(session);
+  const last = all[all.length - 1];
+  const phases = session.phases.map((p) => ({ ...p }));
+  if (last.end > nowS) phases[phases.length - 1] = { ...phases[phases.length - 1], ms: nowS - last.start };
+  else if (nowS > last.end) phases.push({ kind: "shortBreak", ms: nowS - last.end });
+
+  const firstPhase = phases.length;
+  if (session.mode === "timer") {
+    const lastFocus = [...session.phases].reverse().find((p) => p.kind === "focus")!;
+    const minutes = change.minutes !== undefined && isValidMinutes(change.minutes) ? change.minutes : null;
+    phases.push({ kind: "focus", ms: minutes !== null ? minutes * MINUTE : lastFocus.ms });
+  } else {
+    phases.push(...session.chain.set.map((p) => ({ ...p })));
+  }
+
+  const task = change.task !== undefined ? cleanTaskName(change.task) : (session.task ?? null);
+  return {
+    ...session,
+    phases,
+    task,
+    awaySince: null,
+    chain: {
+      ...session.chain,
+      parts: [...session.chain.parts, { startedAt: now, firstPhase, task, before: session.phases }],
+    },
+  };
+}
+
+// A continuation cancelled in its first 10 s: back to the break, as it was.
+function undoContinue(session: Session): Session {
+  const chain = session.chain!;
+  const part = chain.parts[chain.parts.length - 1];
+  const parts = chain.parts.slice(0, -1);
+  return {
+    ...session,
+    phases: part.before ?? session.phases,
+    task: parts[parts.length - 1].task,
+    awaySince: null,
+    chain: { ...chain, parts },
+  };
+}
+
+// Where the counted study ends (session time) when finished blocks are banked:
+// the end of the last finished block, or the start if none.
+function lastBankedEndS(session: Session, atS: number): number {
+  const done = spans(session).filter((s) => s.kind === "focus" && s.end <= atS);
+  return done.length ? done[done.length - 1].end : session.startedAt;
+}
+
+// The pieces for history: blocks and breaks up to `creditEndS`, each block
+// with its part's task. Only for cycles and continued sessions.
+function partsOf(session: Session, creditEndS: number): SessionPart[] | null {
+  if (session.mode !== "cycle" && !isContinuation(session)) return null;
+  const chainParts = session.chain?.parts ?? [];
+  const out: { type: "focus" | "break"; ms: number; task: string | null }[] = [];
+  spans(session).forEach((s, i) => {
+    if (s.start >= creditEndS) return;
+    const ms = Math.min(s.end, creditEndS) - s.start;
+    if (s.kind === "focus") {
+      const owner = [...chainParts].reverse().find((p) => p.firstPhase <= i);
+      out.push({ type: "focus", ms, task: owner ? owner.task : (session.task ?? null) });
+    } else {
+      const prev = out[out.length - 1];
+      if (prev?.type === "break") prev.ms += ms;
+      else out.push({ type: "break", ms, task: null });
+    }
+  });
+  while (out.length && out[out.length - 1].type === "break") out.pop();
+  const parts = out
+    .filter((p) => p.ms >= 1000)
+    .map((p) => (p.type === "focus" ? { type: p.type, seconds: Math.floor(p.ms / 1000), task: p.task } : { type: p.type, seconds: Math.floor(p.ms / 1000) }));
+  return parts.length ? parts : null;
 }
 
 // ---------- Display helpers ----------

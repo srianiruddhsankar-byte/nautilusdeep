@@ -2,6 +2,7 @@ import type { SessionFacts } from "./fish.ts";
 import { addDays, dayKey, formatDay, startOfWeek, type DayKey } from "./stats.ts";
 import { taskKey } from "./task-name.ts";
 import type { Session } from "./timer.ts";
+import { focusByTask } from "./session-parts.ts";
 
 // Everything the app works out from the task list. Pure: the clock and the
 // time zone are arguments, like the stats.
@@ -93,12 +94,15 @@ export function doneHistory(tasks: Task[], rows: SessionFacts[]): DoneTask[] {
   for (const t of done) byName.set(taskKey(t.name), [...(byName.get(taskKey(t.name)) ?? []), t]);
 
   for (const row of rows) {
-    if (!row.task_name || row.outcome === "failed") continue;
+    if (row.outcome === "failed") continue;
     const started = Date.parse(row.started_at);
-    const completion = byName.get(taskKey(row.task_name))?.find((t) => Date.parse(t.done_at!) >= started);
-    if (!completion) continue;
-    completion.focusSeconds += row.focus_seconds;
-    completion.sessions++;
+    // a continued session can count toward several tasks, each with its own blocks
+    for (const part of focusByTask(row)) {
+      const completion = byName.get(taskKey(part.name))?.find((t) => Date.parse(t.done_at!) >= started);
+      if (!completion) continue;
+      completion.focusSeconds += part.seconds;
+      completion.sessions++;
+    }
   }
   return done.reverse(); // newest first
 }

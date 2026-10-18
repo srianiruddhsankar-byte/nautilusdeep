@@ -99,6 +99,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): 3 chimes + vibration every 4 s,
   stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
+- `lib/session-parts.ts` — a continued session's / cycle's pieces (`sessions.parts`): read, describe, time per task
 - `app/design-preview/` — Phase 9 design preview (dev only: 404 in production, not in the nav). One tank runs at
   a time (the others show a Play button and aren't mounted)
 - `app/_ui/` — the shared design-system components (see "Design system"): `button.tsx` (`Button`, `ButtonLink`,
@@ -188,6 +189,24 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   leave rule is off during it and back on after; Night mode check-ins can't come due or run out. It ends on
   Resume or by itself after 5 min (a gentle "Pause over" alarm if on screen). Stored on the running session as
   `pause: { startedAt, endedAt }`, so refreshes and hidden pages work. Ambience and the tank scene stop for it.
+
+- **Continue session**: every session started since it exists (`withChain` at Start; older ones end as
+  before) goes into a BREAK when its time is up (a timer reaching zero, a stopwatch's Stop, or a cycle's
+  final long break). For 15 min after its last focus block (`CONTINUE_WINDOW_MS`, or until a cycle's final
+  long break ends if that's longer) you can Continue or Finish; when the window runs out it ends by itself,
+  quietly. It works like a cycle (`lib/timer.ts`, "Continuing"):
+  - Continue adds a part: a timer runs the last length or a new one, a stopwatch another stopwatch, a cycle
+    its whole set again. The task can change; Deep / Open Focus and Study / Notes can't.
+  - Each part is a block: finished parts are banked, failing a later part loses only that part (partial, no
+    bone), failing the first part fails the session. Breaks are free to leave and never count toward time,
+    coins or streaks. One pause per session in total. A continuation has its own 10-second cancel, which
+    goes back to the break exactly as it was (`before`).
+  - Saved as ONE row when the chain ends: `ended_at` = the end of the last counted block (never the break
+    after it); one fish (odds from the total), one plant, one session in stats. `sessions.parts` (jsonb,
+    migration `20261020120000_session_parts.sql`) keeps the pieces in order with each block's task, also
+    for cycles; null = one plain session. `lib/session-parts.ts`: `readParts` (never trust the column),
+    `describeParts` ("12 min study · 10 min break · 12 min study"), `focusByTask` (time per task, done
+    history), `focusSpans` (time of day). Tested in `lib/continue.test.ts` and `lib/session-parts.test.ts`.
 
 ### App structure (Phase 6)
 - The running screen covers the whole window (`fixed`, no header or nav). Portrait: time, a compact tank (about a

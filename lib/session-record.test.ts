@@ -55,6 +55,7 @@ describe("toRow", () => {
       target_minutes: null,
       cycle_name: null,
       species: "blue_damselfish", // hatched at the end: tier roll 0 (common), pick 1
+      parts: null,
     });
   });
 
@@ -133,6 +134,7 @@ describe("session type, task and target", () => {
       task_name: null,
       target_minutes: null,
       cycle_name: null,
+      parts: null,
     });
   });
 

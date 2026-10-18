@@ -3,6 +3,7 @@ import { rarityRank, speciesById, type Rarity, type SpeciesId } from "./species.
 import { compareToTarget } from "./notes.ts";
 import { taskKey } from "./task-name.ts";
 import type { SessionType } from "./timer.ts";
+import { focusByTask, focusSpans } from "./session-parts.ts";
 
 // Stats are DERIVED from the sessions table, like the fish. Pure: the clock
 // (`now`) and the user's time zone are arguments, so tests can pin both.
@@ -258,15 +259,17 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     longestSeconds = Math.max(longestSeconds, seconds);
     focusMode[row.focus_mode] += seconds;
     modes[row.mode].seconds += seconds;
-    spreadOverHours(hours, start, Date.parse(row.ended_at), seconds, timeZone);
+    // A continued session's breaks are skipped: only its study blocks fill hours.
+    for (const span of focusSpans(row)) spreadOverHours(hours, span.start, span.end, span.seconds, timeZone);
 
-    if (row.task_name) {
-      const key = taskKey(row.task_name);
-      const task = tasks.get(key) ?? { name: row.task_name, seconds: 0, sessions: 0, lastStart: start };
-      task.seconds += seconds;
+    // A continued session can switch tasks: each gets its own blocks' time.
+    for (const part of focusByTask(row)) {
+      const key = taskKey(part.name);
+      const task = tasks.get(key) ?? { name: part.name, seconds: 0, sessions: 0, lastStart: start };
+      task.seconds += part.seconds;
       task.sessions++;
       if (start >= task.lastStart) {
-        task.name = row.task_name;
+        task.name = part.name;
         task.lastStart = start;
       }
       tasks.set(key, task);
