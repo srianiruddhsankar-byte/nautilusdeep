@@ -147,6 +147,12 @@ The owner is a student learning to code: explain what you do and why, briefly.
   pages, `/auth`, Supabase and Google always go to the network. `proxy.ts` skips the manifest, worker, icons and
   `/version` (the manifest is fetched without cookies). Safe areas: `viewport-fit=cover`, the body pads
   `env(safe-area-inset-*)`, fixed full screens use `.safe-pad`. Help → Account has "Install the app"
+- Install card: `lib/install-logic.ts` (pure: `iosBrowser` from the user agent, `hasFinishedSession`,
+  `showInstallCard`; tested), `lib/install.ts` (catches `beforeinstallprompt` as soon as the root layout loads,
+  `useInstall`, `promptInstall`, dismissed / installed flags in localStorage, forever),
+  `app/_pwa/install-card.tsx` (Home's "Get Nautilus as an app", at the bottom: only after a finished session, never
+  once dismissed / installed, in the installed app or where installing doesn't work), `app/_pwa/install-steps.tsx`
+  (the iPhone steps sheet per browser, `ShareIcon`)
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)

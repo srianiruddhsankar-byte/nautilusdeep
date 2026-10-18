@@ -16,6 +16,7 @@ import { deriveAquarium, type Aquarium } from "@/lib/fish";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { compareToTarget } from "@/lib/notes";
 import { deriveGarden, type Garden } from "@/lib/plants";
+import { hasFinishedSession } from "@/lib/install-logic";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import { coinsFor } from "@/lib/economy";
 import { updatePrefs } from "@/lib/prefs-store";
@@ -62,6 +63,7 @@ import type { SessionFacts } from "@/lib/fish";
 import { useClock } from "@/lib/use-clock";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
+import { InstallAppCard } from "../_pwa/install-card";
 import { StatsLine } from "../_stats/stats-line";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
@@ -244,6 +246,7 @@ export function FocusScreen() {
             changeScreen(() => save({ session, result: null }));
           }}
         />
+        <InstallAppCard finishedSession={hasFinishedSession(rows)} />
       </div>
       <BottomNav active="home" />
     </>

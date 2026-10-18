@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { BUILD_ID } from "@/lib/build-id";
 import { getSnapshot, subscribe } from "@/lib/focus-storage";
+import "@/lib/install"; // starts listening for Chrome's install event on every page
 import { isToastShowing, toast } from "../_ui/toast";
 
 // Rendered once, in the root layout. Two jobs:

@@ -1,25 +1,16 @@
 "use client";
 
-import { useSyncExternalStore, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { useInstall } from "@/lib/install";
+import { ShareIcon } from "../_pwa/install-steps";
 import { Card } from "../_ui/card";
 
 // Help → "Install the app": add Deep Nautilus to the home screen, where it opens
-// full screen like an app. Inside the installed app it just says so.
-
-const STANDALONE = "(display-mode: standalone)";
-
-function subscribe(onChange: () => void) {
-  const query = window.matchMedia(STANDALONE);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-// iPhone's own flag covers older iOS versions.
-const isInstalled = () =>
-  window.matchMedia(STANDALONE).matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+// full screen like an app. Inside the installed app it just says so. (Home's
+// "Get Nautilus as an app" card, app/_pwa/install-card.tsx, is the quick version.)
 
 export function InstallCard() {
-  const installed = useSyncExternalStore(subscribe, isInstalled, () => false);
+  const installed = useInstall().standalone;
 
   return (
     <Card as="section" aria-labelledby="install-title" className="gap-3 leading-relaxed">
@@ -33,7 +24,8 @@ export function InstallCard() {
           <p>Add Deep Nautilus to your home screen: it opens full screen, like any other app.</p>
           <Steps title="iPhone (Safari)">
             <li>
-              Tap the <b>Share</b> button (the square with an arrow; on newer iPhones it&apos;s inside the{" "}
+              Tap the <b>Share</b> button{" "}
+              <ShareIcon className="inline size-[1.1em] align-[-0.15em] text-primary" /> (the square with an arrow; on newer iPhones it&apos;s inside the{" "}
               <b>•••</b> menu).
             </li>
             <li>
