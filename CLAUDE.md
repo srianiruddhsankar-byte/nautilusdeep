@@ -479,7 +479,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Animated tanks (any canvas / WebGL / requestAnimationFrame scene) default to 30 fps, cap the pixel ratio at 2,
   and pause when the tab is hidden, the window loses focus or the tank is off screen. Only one animated tank
   runs per page.
-- Installable PWA + push reminders come in Phase 10. Friends and Google Calendar features are not planned yet.
+- Installable PWA + "Time's up" pushes came in Phase 10 (task reminders parked). Friends and Google Calendar features are not planned yet.
 
 ### Push notifications (Phase 10b)
 - Scheduler: Supabase pg_cron every 15 s calls the Edge Function `send-push` only when `timer_pushes_due()`
@@ -489,7 +489,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   TTL 10 min + topic = session id, deletes devices reported gone. Migrations `20261021120000_push.sql` and
   `20261021120100_push_schedule.sql` (committed with placeholders; real values only in the SQL Editor).
 - `push_subscriptions`: one row per endpoint, filed under whoever signed in last (`save_push_subscription`,
-  security definer); switches `times_up`, `task_reminders` (10b-2), the only updatable columns. Per device:
+  security definer); switches `times_up`, `task_reminders` (unused: task reminders are parked), the only updatable columns. Per device:
   the switch is in localStorage and mirrored here. Signing out deletes this device's row and unsubscribes.
 - `timer_pushes`: a running session's upcoming alerts (`key` = "end:N" / "pause", `send_at`, title, body,
   `sent_at`). The app replaces the whole list (`replace_timer_pushes`, runs as the user under RLS, one request,
@@ -561,9 +561,10 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
     new species / nautilus, quiet ending, buy → place, settling decorations, ticks) committed. E2 navigation
     and polish (tab transitions, presses, open/close, skeleton fades, stats animating in once) + the
     Appearance setting (requested with it).
-- Phase 10: PWA (installable) + task reminder notifications.
+- Phase 10 (done): PWA (installable) + push notifications.
   - 10a (done): installable app; install card on Home (done).
-  - 10b-1 (committed, Supabase set up; test after deploy): push infrastructure + "Time's up". 10b-2: task reminders.
+  - 10b-1 (done; test after deploy): push infrastructure + "Time's up".
+  - 10b-2 task reminders: parked in IDEAS.md (revisit after friends testing).
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?
   If they say "cool" and never return, rethink — don't just add features.

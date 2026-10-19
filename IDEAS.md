@@ -115,8 +115,8 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
 - **Spaced repetition reminders**: after studying a topic, "revisit this topic" reminders after 1, 3, 7 and
   21 days, built on tasks + push notifications (each reminder is a task with a due date). Not flashcards:
   NotebookLM already handles studying the content itself.
-  - Why parked: needs task reminders and push notifications (Phase 10b) to exist first.
-  - Revisit: after Phase 10.
+  - Why parked: needs task reminders (parked, see "Installed app") to exist first.
+  - Revisit: with task reminders.
 - **Subtasks and priorities**.
   - Why parked: tasks stay simple (title, optional due date, done).
   - Revisit: only if testers ask.
@@ -141,8 +141,11 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
     features" under Deliberately rejected).
   - Revisit: only if the app ever goes native.
 
-- **Task reminders** (push): a notification for a task's due date. Batch 10b-2, next: the
-  `push_subscriptions.task_reminders` switch is already there.
+- **Task reminders** (push): a notification for a task's due date. Was batch 10b-2.
+  - Why parked: we don't know yet whether friends will use Tasks at all, and reminders are a new kind of
+    notification to get right (see "Notification spam" under Problems). The push infrastructure from 10b-1 and
+    the `push_subscriptions.task_reminders` switch are already there, so it only needs the reminders themselves.
+  - Revisit: after friends testing (Phase 11), if friends actually use Tasks and ask for reminders.
 
 - **Night-mode check-in pushes**: "Still studying?" as a notification when the app isn't on screen.
   - Why parked (10b-1): the check-in exists for falling asleep; a notification that wakes you up to tap it is
@@ -176,6 +179,87 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
   fake coins with devtools.
   - Why parked: it's a personal app for a few friends, with nothing to compete over, so cheating only fools yourself.
   - Revisit: if the app goes public, or if any shared or comparing features are ever added.
+
+## Problems
+
+Problems students hit with study apps, so we can check Deep Nautilus against them. Nothing here is being built;
+each one has a possible direction and a status (open / partly handled / handled).
+
+Principle: **time spent in the app should never compete with time spent studying.**
+
+1. **Drop-off after 1–2 weeks**: the novelty wears off and nothing pulls you back.
+   - Direction: one gentle reminder at a time you choose, a weekly recap, the tank changing over time, the calm
+     companion. Phase 11 measures this.
+   - Status: open. Related: "Monthly and yearly recaps", "The tank changes through the year", "Calm companion".
+2. **The app becomes procrastination**: you check one thing and 30 min later you haven't studied, or you spend
+   ages entering tasks.
+   - Direction: keep "low effort to start", make task entry very fast, and have the app push you into a session,
+     not around the app.
+   - Status: partly handled: one-tap Start on Home with the remembered setup; tasks are title + optional date;
+     no rewards for app activity; decorating must never take longer than studying.
+3. **Tracks time, not learning**: half-asleep studying counts the same as real focus.
+   - Direction: an optional one-tap "how focused were you?" or a one-line "what I learned" after a session.
+   - Status: open. Partly handled: Night mode stops credit at the last check-in. Related: "Spaced repetition
+     reminders".
+4. **Notification spam** ("Don't lose your streak!").
+   - Direction: at most one nudge a day, off by default, never guilt-driven.
+   - Status: partly handled: the only push today is "Time's up" for a running session, off until you turn it on.
+     Keep it this way if task reminders (parked) or any nudges arrive.
+5. **Unreliable timers**: timers that drift, stop in the background or lose sessions.
+   - Direction: keep timing timestamp-based and covered by tests.
+   - Status: handled: elapsed time is computed from stored timestamps, never counted ticks, so background
+     throttling, hidden pages and refreshes give the same answer (`lib/timer.ts`, tested). Gap: the timestamps
+     come from the device clock, so changing the clock mid-session could skew one.
+6. **One method doesn't fit everyone** (Pomodoro vs 90-min deep work).
+   - Direction: let people pick their own rhythm.
+   - Status: handled: timer, stopwatch, premade cycles (Pomodoro, 50/10, Deep work), saved custom cycles and
+     Continue session. Related: "Drag-and-drop cycle builder".
+7. **Too many apps that don't talk** (flashcards, Notion, Google Calendar, ChatGPT).
+   - Direction: don't replace them; export and connect instead (see 18).
+   - Status: open. Related: "To-do integration"; deliberately not flashcards ("Spaced repetition reminders").
+8. **Social pressure and comparison** (a friend did 13 h, you did 30 min).
+   - Direction: no leaderboards ever; show "studying now", not totals; friends' stats private by default.
+   - Status: partly handled: no friends features exist, and leaderboards are rejected. Related: "Friends + focus
+     rooms".
+9. **Study rooms with strangers feel pointless.**
+   - Direction: friends-only or invite-only rooms.
+   - Status: open. Related: "Friends + focus rooms".
+10. **"Why not just Google Meet with friends?"**
+    - Direction: rooms must be lower effort than a call: no camera or mic, just quiet presence and everyone's
+      tank / timer. If that's not enough of a reason, don't build rooms.
+    - Status: open. Decide this before building "Friends + focus rooms".
+11. **Rigid planners break when you miss one thing.**
+    - Direction: flexible plans that reshuffle missed tasks automatically; "plan for today" over perfect schedules.
+    - Status: partly handled: missed tasks simply move to Overdue, nothing breaks. Related: "Planner".
+12. **Stats that say nothing useful.**
+    - Direction: plain-language insights ("You focus best in the mornings", "You've studied more this week than
+      last").
+    - Status: open. The data is already there (time of day, last 7 days in `lib/stats.ts`); only the sentences
+      are missing.
+13. **Rewards get boring after a year** (full tanks, every rare fish caught).
+    - Direction: new things that come slowly. Careful: not a game.
+    - Status: partly handled: skins unlock up to 150 h, the nautilus at 100 h, Legendary fish are rare. Related:
+      "Depth levels", "The tank changes through the year", "More special creatures like the nautilus".
+14. **Battery drain from sounds and animations.**
+    - Direction: a possible low-power mode (still tank, no ambience).
+    - Status: partly handled: the tank runs at 30 fps, caps the pixel ratio at 2, pauses when hidden, unfocused
+      or off screen, and reduced motion shows one still frame; ambience is optional and off by default.
+15. **Phone storage full.**
+    - Direction: keep the app small (a PWA, small assets).
+    - Status: handled for now: no native app to install, sounds are generated (no audio files), and the worker
+      caches only build files and pictures. Keep it that way when adding paintings or recordings.
+16. **No Wi-Fi.**
+    - Direction: sessions should never be lost offline.
+    - Status: partly handled: finished sessions save to an offline queue and upload later. Opening the app with
+      no connection doesn't work yet (see "Open the app offline").
+17. **Weak sound / music library.**
+    - Direction: better ambience sounds.
+    - Status: partly handled: 5 generated water sounds. Related: "Revisit ambience", "Real music tracks", "More
+      ambient sounds".
+18. **Data export**: your data is stuck in the app.
+    - Direction: export your data (CSV / JSON), and send tasks and exams to Google Calendar without retyping
+      (a calendar file or a subscribe link).
+    - Status: open. Sessions are stored as raw records, so an export is straightforward.
 
 ## Deliberately rejected (and why)
 
