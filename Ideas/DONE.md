@@ -92,3 +92,10 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
   - Done in: Phase 10a
 - **I-065 · "Time's up" push notifications** · `Reusable`.
   - Done in: Phase 10b-1
+- **I-084 · Appearance: light / dark mode** · `Reusable`: System, Light or Dark, in Help → Account, saved on the
+  device and applied before the first paint (no flash).
+  - Done in: Phase 9, Stage E2 (2026-10-18)
+- **I-085 · Motion** · `Reusable`: calm animations everywhere: screens cross-fading, the result screen counting
+  up, streak / new species / nautilus moments, ticks popping, tab changes, sheets opening, stats animating in
+  once per app open; all instant or a plain fade with reduced motion.
+  - Done in: Phase 9, Stage E (E1 and E2, finished 2026-10-18)

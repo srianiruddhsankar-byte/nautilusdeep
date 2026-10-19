@@ -25,7 +25,7 @@ The `Ideas/` folder has three files:
 8. **`Reusable`** marks ideas that would work in other apps, not just Deep Nautilus.
 9. This folder is edited outside Claude Code (see CLAUDE.md). Claude Code never edits it.
 
-**Next free IDs: I-066 · P-019**
+**Next free IDs: I-086 · P-028**
 
 ## Background: the earlier concept
 
@@ -33,6 +33,40 @@ The `Ideas/` folder has three files:
 completing tasks grows a pond, with history, badges and recaps. It was designed as a free, ad-supported product.
 Deep Nautilus is timer-first and for personal use instead. Ideas from it that were adopted are in CLAUDE.md; the
 rest are below.
+
+## Starting, bad days & feelings
+
+Most people don't fail at studying, they fail at starting. See "Who we're building for" in PROBLEMS.md for the
+feelings and moments behind these.
+
+- **I-074 · "Just start" button** · `Reusable`: one tap for a tiny session ("Just 10 minutes"), for the moments
+  you're procrastinating and want to feel better. When the 10 minutes end, Continue (I-063) lets you keep going
+  if you've found your rhythm. Small enough that saying no feels silly.
+  - Status: Parked
+  - Why parked: one-tap Start already exists; this is a framing on top of it, and it needs Phase 11 to show
+    whether starting is the real blocker.
+  - Revisit: Phase 9 Stage D (Home rebuild) or after Phase 11.
+  - Related: P-002, P-024, I-063, I-078
+- **I-077 · Make studying feel like play**: the owner wants studying to feel like a game you'd actually want to
+  open.
+  - Status: Parked, needs a decision. This clashes with the principle "the tank is not a game" (no quests,
+    farming or complex economy). The calm version already exists: the hatch roulette, the Sea life index,
+    skins and the nautilus. Decide what "play" means without turning it into a game.
+  - Revisit: after Phase 11, using what testers say is fun.
+  - Related: P-013, P-020, I-009
+- **I-078 · Bad-day mode** · `Reusable`: on a day you feel tired, low or overwhelmed, the app asks for less: a
+  smaller goal ("10 minutes counts today"), a kind line, maybe a breathing minute first (I-079). Never makes
+  you feel lazy for having a bad day.
+  - Status: Parked
+  - Why parked: the tone has to be exactly right (same as the calm companion, I-010).
+  - Revisit: with I-010, after Phase 11.
+  - Related: I-010, I-074, I-079
+- **I-079 · Calm the mind before a session** · `Reusable`: an optional one-minute box breathing (4 in, 4 hold,
+  4 out, 4 hold) with the tank's water moving in time, before Start or when you feel overwhelmed.
+  - Status: Parked
+  - Why parked: it must stay optional and short, never a step before studying ("low effort to start").
+  - Revisit: after Phase 11, or with I-078.
+  - Related: I-078
 
 ## Cycles
 
@@ -93,6 +127,28 @@ rest are below.
   - Why parked: the tone has to be exactly right, and it needs real usage to know which moments matter.
   - Revisit: after Phase 11 (friends testing).
   - Related: P-001
+
+- **I-081 · Recall check after a session** · `Reusable`: an optional prompt at the end: "Without looking, what
+  do you remember?" (one line, or just "a lot / some / not much"). Turns rereading into testing yourself.
+  - Status: Parked
+  - Why parked: it must stay one tap or skippable, never a chore after every session.
+  - Revisit: after Phase 11.
+  - Related: P-003, P-025, I-022
+- **I-082 · Phone-check counter** · `Reusable`: count the quick leaves (under the 15 s that fail Deep Focus)
+  and show them as a quiet stat ("you checked your phone 3 times"), so you notice the habit. Neutral, never
+  scolding.
+  - Status: Parked
+  - Why parked: has to be framed so it informs without guilt; needs the leave events to be stored.
+  - Revisit: after Phase 11.
+  - Related: P-026, P-012
+- **I-083 · Time vs marks** · `Reusable`: after a test, note your mark against the task or topic, and see how much
+  time you'd put in before it. Answers "does studying more actually help my marks?", for the moment after a
+  bad test.
+  - Status: Parked
+  - Why parked: it's close to subject tags (I-034, rejected as an extra step); it must work from task names
+    and stay optional.
+  - Revisit: after Phase 11, if testers ask what their time is getting them.
+  - Related: I-034, I-076, P-020
 
 ## Tank & creatures
 
@@ -174,6 +230,26 @@ rest are below.
   - Why parked: needs task reminders (I-028) to exist first.
   - Revisit: with I-028.
   - Related: P-003, P-007
+- **I-075 · "What should I study?"** · `Reusable`: when you don't know what to do, one tap suggests a task:
+  something due soon, an exam coming up, or a topic you haven't touched in a long time.
+  - Status: Parked
+  - Why parked: needs exam dates (I-076) and topic history to give good suggestions.
+  - Revisit: with I-021 / I-076.
+  - Related: I-021, I-022, I-076
+- **I-076 · Exam dates + syllabus, and "am I falling behind?"** · `Reusable`: add an exam with its date and its
+  topics; tick topics off as you study them, and see whether you're on track for the days left. Builds on the
+  planner (I-021).
+  - Status: Parked
+  - Why parked: same as I-021: it bends "keep tasks simple", and we don't know if testers would plan here.
+  - Revisit: with I-021, after Phase 11.
+  - Related: I-021, I-075, I-022
+- **I-080 · Your study materials on a task** · `Reusable`: attach a link to a task (a Drive PDF, a YouTube
+  lecture, a NotebookLM notebook) so one tap opens it as the session starts. The smallest way to have "one
+  app" without replacing the others.
+  - Status: Parked
+  - Why parked: tasks stay simple for now; one optional link field is the most it should add.
+  - Revisit: after Phase 11, if testers jump between apps to find their material.
+  - Related: P-007, P-023, I-024
 - **I-023 · Subtasks and priorities**.
   - Status: Parked
   - Why parked: tasks stay simple (title, optional due date, done).
@@ -245,6 +321,92 @@ rest are below.
   - Status: Parked
   - Why parked: it's a personal app for a few friends, with nothing to compete over, so cheating only fools yourself.
   - Revisit: if the app goes public, or if any shared or comparing features are ever added.
+
+## Help, first use & trust
+
+Questions a normal person has before downloading, on first open, and before trusting the app with their
+time. "Answers today" are what the app does now (from CLAUDE.md and the code, Oct 2026); check them with Claude
+Code before writing them into the app. Today's Help page only explains how things work (sessions, tank,
+rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
+
+- **I-066 · "What it is" in one sentence + before-you-download answers** · `Reusable`: one line that says what
+  the app does, shown on the login page, plus a few short answers for someone deciding whether to try it.
+  - Questions: What does it do? How is it different from other study apps? Do other people use it? Android,
+    iPhone, laptop? How much space? Who made it? Are there ads? Can I add friends?
+  - Answers today: a web app, so it works in any browser on Android, iPhone and laptop, and installs like an app
+    without an app store; tiny, since sounds are generated and there's nothing to download (P-015); made by
+    one student for himself and friends; no ads, ever (I-037); no friends features yet (I-032). "Do others use
+    it?" can only be answered honestly after Phase 11.
+  - Status: Parked
+  - Why parked: the login page and Help get rebuilt in Phase 9 Stage D anyway.
+  - Revisit: Phase 9 Stage D. The one-liner needs writing first.
+  - Related: P-020
+- **I-067 · Reorganise Help: short answers first, details after** · `Reusable`: split Help into "Questions"
+  (short FAQ answers, grouped: Getting started · During a session · Your progress · Privacy) and "How it works"
+  (today's cards), so it answers questions without getting crowded. Each answer is one or two lines and links
+  to the full card.
+  - Status: Parked
+  - Why parked: it needs the answers from I-066, I-068, I-069 and I-071 written first.
+  - Revisit: Phase 9 Stage D (every page rebuilt), so the redesign happens once.
+  - Related: I-066, I-068, I-069, I-071
+- **I-068 · First-open guidance** · `Reusable`: answer the first-time questions on the screens themselves, not in
+  Help: why Google sign-in, what to tap first, whether setup can be skipped.
+  - Answers today: Google sign-in so your progress follows you to any device with no password to remember;
+    tap Start (no setup needed, one tap); everything in "Change" can be set later.
+  - Status: Parked
+  - Why parked: "low effort to start" already holds; this is only words on the login page and Home.
+  - Revisit: Phase 9 Stage D, or sooner if Phase 11 testers get stuck on the first screen.
+- **I-069 · "What if…" answers for interruptions** · `Reusable`: short, honest answers about real life
+  interrupting a session.
+  - Questions and answers today:
+    - An important call: in Deep Focus, more than 15 s away fails the session or block. A study fish dies (+1
+      bone, no coins); a notes session grows nothing and leaves no bone. Plants never die. Banked cycle blocks
+      and continued parts are kept. Open Focus never fails for leaving.
+    - The restroom: in Deep Focus, tap Pause (once per session, up to 5 min, paused time doesn't count). In
+      Open Focus, just go: the timer keeps running and counts.
+    - The screen turning off: Deep Focus keeps the screen awake for the whole session; locking it yourself
+      counts as leaving. In Open Focus the screen can sleep and the time stays right.
+    - The battery dying: everything already finished is saved to your account and can't be lost. The session
+      that was running is likely to end as failed in Deep Focus (it counts as leaving); check what happens in
+      Open Focus.
+  - Status: Parked
+  - Why parked: writing these honestly shows the call case is harsh (see P-019); decide that first.
+  - Revisit: with P-019, before Phase 11.
+  - Related: P-019, I-039, I-073
+- **I-070 · Show the end goal** · `Reusable`: make it clear what you're working towards: skins unlock up to
+  150 h, the nautilus arrives at 100 h, fill the Sea life index. A quiet "next: River skin at 30 h" line, not
+  a progress bar to grind.
+  - Status: Parked
+  - Why parked: must stay a quiet measure of real work, not a game; overlaps with depth levels (I-009).
+  - Revisit: with I-009, after Phase 11.
+  - Related: I-009, I-058, I-061, P-001
+- **I-071 · Trust & privacy answers** · `Reusable`: plain answers to "What data do you collect? Is it safe? If I
+  delete my account, is it gone? If I change phone, is my progress saved? Do you sell my data?"
+  - Answers today: your Google name, email and picture, plus your sessions, tasks, cycles, decorations and
+    push settings; stored with Supabase, each person can only read their own rows; never sold, no ads, not
+    shared. A new phone keeps everything (it's tied to your Google account), except settings saved on the
+    device (setup, Appearance) and any session that hadn't uploaded yet. Deleting today = emailing the owner.
+  - Fix with it: the privacy page only mentions sessions and push; it should also list tasks, cycles,
+    decorations and skins.
+  - Status: Parked
+  - Why parked: belongs with the Help reorganisation (I-067).
+  - Revisit: with I-067. Fix the privacy page wording before Phase 11, since friends will be signing in.
+  - Related: I-072, P-018
+- **I-072 · Delete my account in the app** · `Reusable`: a button in Help → Account that deletes your account
+  and all your data, after one confirm.
+  - Status: Parked
+  - Why parked: today deletion is by email, which is fine for a few friends; a real delete needs a server-side
+    function (users can't delete their own rows by design).
+  - Revisit: before the app goes beyond friends.
+  - Related: I-071, P-018
+- **I-073 · "Was that a call?" late pause**: if you come back after leaving Deep Focus and haven't used your
+  pause yet, offer to count the time away as your one pause (still max 5 min, not credited), instead of
+  failing.
+  - Status: Parked
+  - Why parked: it must not become a loophole. It uses the same once-per-session, 5-minute limits as Pause, but
+    needs thought on how the failure is undone after the fact.
+  - Revisit: with P-019, after real use shows how often calls kill sessions.
+  - Related: P-019, I-039, I-030
 
 ## Deliberately rejected (and why)
 
