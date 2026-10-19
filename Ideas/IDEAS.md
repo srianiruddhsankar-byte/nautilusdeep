@@ -25,7 +25,7 @@ The `Ideas/` folder has three files:
 8. **`Reusable`** marks ideas that would work in other apps, not just Deep Nautilus.
 9. This folder is edited outside Claude Code (see CLAUDE.md). Claude Code never edits it.
 
-**Next free IDs: I-086 · P-028**
+**Next free IDs: I-090 · P-038**
 
 ## Background: the earlier concept
 
@@ -152,6 +152,22 @@ feelings and moments behind these.
 
 ## Tank & creatures
 
+- **I-086 · Short sessions still count toward the next fish or plant**: 12 minutes of notes grows nothing
+  today (a plant needs 15), and a study session under 5 minutes makes no fish. Carry those minutes forward so
+  they help the next plant or fish, instead of feeling wasted.
+  - Status: Parked
+  - Why parked: it reverses a deliberate rule ("minutes never add up across sessions", and under 5 min = no fish
+    to stop farming). Needs a design that can't be farmed with lots of tiny sessions.
+  - Revisit: after Phase 11, if testers say short sessions feel wasted.
+  - Related: P-032, I-055
+- **I-087 · Fair, open roulette** · `Reusable`: show the odds for your session length in plain words, never let
+  coins buy a roll, and maybe a gentle guarantee (e.g. a new species after a long run of repeats).
+  - Status: Parked
+  - Why parked: the roulette is new; the guarantee needs care so it doesn't change fish already caught (species
+    are saved on the session, so it only affects future hatches).
+  - Revisit: after Phase 11, if testers call it unfair or gambling-like.
+  - Related: P-033, I-060
+
 - **I-011 · Freshwater species come back with water types**: guppy, neon tetra, zebrafish, goldfish,
   (freshwater) angelfish and discus were in the first species list but were swapped for saltwater ones, because
   tanks don't have water types yet and every species is saltwater for now.
@@ -183,6 +199,13 @@ feelings and moments behind these.
   - Revisit: with real species / water types (I-012).
 
 ## Sounds and video
+
+- **I-088 · Quiet alarm for libraries** · `Reusable`: a choice for the end-of-block alarm: chime (today),
+  vibrate only, or silent (screen pulse only), like Night mode's check-in styles already have.
+  - Status: Parked
+  - Why parked: small, but it's a new setting; it should live in the new Settings page (I-089).
+  - Revisit: Phase 9 Stage D with I-089, or sooner if a tester gets caught out in a library.
+  - Related: P-035, I-054, I-089
 
 - **I-016 · Revisit ambience** · `Reusable`: Rain is weak and some static remains in the generated sounds.
   Consider real recordings instead (Freesound CC0 / Pixabay), looped and crossfaded.
@@ -332,11 +355,13 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
 - **I-066 · "What it is" in one sentence + before-you-download answers** · `Reusable`: one line that says what
   the app does, shown on the login page, plus a few short answers for someone deciding whether to try it.
   - Questions: What does it do? How is it different from other study apps? Do other people use it? Android,
-    iPhone, laptop? How much space? Who made it? Are there ads? Can I add friends?
+    iPhone, laptop? How much space? Who made it? Are there ads? Can I add friends? Is it the same on phone and
+    laptop? Does it eat my battery? What does "Deep Nautilus" mean?
   - Answers today: a web app, so it works in any browser on Android, iPhone and laptop, and installs like an app
     without an app store; tiny, since sounds are generated and there's nothing to download (P-015); made by
-    one student for himself and friends; no ads, ever (I-037); no friends features yet (I-032). "Do others use
-    it?" can only be answered honestly after Phase 11.
+    one student for himself and friends; no ads, ever (I-037); no friends features yet (I-032). Same account and
+    progress on phone and laptop, with a layout made for each. Battery: the tank pauses whenever it's off screen
+    and sounds are off by default (P-014). "Do others use it?" can only be answered honestly after Phase 11.
   - Status: Parked
   - Why parked: the login page and Help get rebuilt in Phase 9 Stage D anyway.
   - Revisit: Phase 9 Stage D. The one-liner needs writing first.
@@ -407,6 +432,14 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     needs thought on how the failure is undone after the fact.
   - Revisit: with P-019, after real use shows how often calls kill sessions.
   - Related: P-019, I-039, I-030
+- **I-089 · Separate Settings and Account pages** · `Reusable`: today Appearance, notifications, installing,
+  your email and sign-out all live under Help → Account. Split them: **Settings** (Appearance, notifications,
+  sounds, install the app), **Account** (email, privacy, sign out, delete account, I-072), and **Help** only
+  explains things.
+  - Status: Parked
+  - Why parked: belongs with the Help reorganisation (I-067), so the pages and the nav are redesigned once.
+  - Revisit: Phase 9 Stage D.
+  - Related: I-067, I-072, I-071
 
 ## Deliberately rejected (and why)
 

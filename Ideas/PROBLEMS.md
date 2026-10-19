@@ -119,7 +119,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Related: I-026, I-044
 - **P-017 · Weak sound / music library.**
   - Direction: better ambience sounds.
-  - Status: partly handled: 5 generated water sounds.
+  - Status: partly handled: 5 generated water sounds. Owner, Oct 2026: none of them feel nice yet.
   - Related: I-016, I-017, I-018, I-059
 - **P-018 · Data export**: your data is stuck in the app.
   - Direction: export your data (CSV / JSON), and send tasks and exams to Google Calendar without retyping
@@ -178,3 +178,55 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Status: handled in the app: fish, coins and plants only come at the end of a session, never before. The
     app can't stop real-life rewards (a snack, a scroll) taken early.
   - Related: I-056
+- **P-028 · "Is this even an app?"**: it's a website you have to install, most people don't know how, and an
+  uninstalled app gets lost among 40 open tabs.
+  - Direction: make installing obvious and worth it, and explain it in one line ("works like an app, no app
+    store needed").
+  - Status: partly handled: the install card on Home and the iPhone install steps (I-064).
+  - Related: I-064, I-066
+- **P-029 · Too much to understand**: modes, fish, bones, plants, coins, skins, cycles, Night mode…
+  - Direction: learn one thing at a time; everything beyond Start should be discoverable later, not explained
+    up front.
+  - Status: open.
+  - Related: I-066, I-067, I-068
+- **P-030 · Too many decisions before starting**: Deep or Open Focus, Study or Notes, how many minutes, timer or
+  cycle.
+  - Direction: good defaults, remembered choices, and one tap to start; choosing should be optional.
+  - Status: partly handled: Start is one tap with the remembered setup, and every choice sits behind "Change".
+    A first-time user still meets them.
+  - Related: P-002, I-074, I-068
+- **P-031 · Writing notes isn't the same as studying**: people zone out while writing and don't understand what
+  they write down.
+  - Direction: needs a decision. CLAUDE.md says "Study and Notes sessions are both studying"; this questions
+    that principle. Options: keep counting notes the same, or nudge notes towards understanding (a recall check
+    after a notes session, I-081).
+  - Status: open, needs a decision.
+  - Related: P-025, I-081, I-050
+- **P-032 · Short sessions feel wasted**: 12 minutes of notes and no plant (plants start at 15 min).
+  - Direction: show what you still earned (minutes, coins, the streak day), or carry the minutes forward (I-086).
+  - Status: partly handled: the minutes and coins still count; only the plant is missing.
+  - Related: I-086, I-055
+- **P-033 · The roulette can feel like gambling, or unfair.**
+  - Direction: no money and no buying rolls ever; show the odds openly; maybe a gentle guarantee (I-087).
+  - Status: partly handled: rolls can't be bought, longer study only improves the odds, and the running screen
+    says when the odds improve next.
+  - Related: I-087, I-060
+- **P-034 · Watching an egg is like watching paint dry.**
+  - Direction: the egg is a small part of the screen; your other fish swim around it, which is calming.
+  - Status: partly handled: the running screen shows your real tank. A brand-new user with no fish yet only has
+    the egg to watch.
+  - Related: I-038, I-060
+- **P-035 · The alarm rings in a library and everyone hears it.**
+  - Direction: a vibrate-only or silent alarm choice (I-088).
+  - Status: open. On iPhone the silent switch mutes the app's sounds; on Android the chime plays.
+  - Related: I-088
+- **P-036 · Coins might not buy anything cool enough.**
+  - Direction: ask in Phase 11 whether decorations make people want to earn coins; if not, rethink what coins
+    are for instead of adding more items.
+  - Status: open.
+  - Related: I-056, I-057, P-013
+- **P-037 · People don't know what "Deep Nautilus" means.**
+  - Direction: one line on the login page or in the about answers: a nautilus is a deep-sea creature, and the
+    one in your tank arrives at 100 hours.
+  - Status: open.
+  - Related: I-066, I-061
