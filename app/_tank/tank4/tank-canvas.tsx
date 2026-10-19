@@ -3,6 +3,7 @@
 import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { BroodStage } from "@/lib/brood";
 import type { SkinId } from "@/lib/economy";
+import { startCanvas } from "@/lib/canvas-life";
 import { plantLook } from "@/lib/plant-look";
 import type { PlantStage } from "@/lib/plants";
 import { DecorationSprite } from "../decoration-sprite";
@@ -20,7 +21,10 @@ import { useReducedMotion, useTankLoop } from "./tank-loop";
 //   is off screen (tank-loop.ts). Reduced motion: the fish rest, nothing moves.
 // - The GPU can drop the canvas (a "lost context", e.g. after sleep): if it
 //   isn't back within 3 s the whole tank is rebuilt on a fresh canvas. Without
-//   WebGL at all, the Tank shows its still-image fallback instead.
+//   WebGL at all, or if it can't start, the Tank shows its still-image
+//   fallback instead.
+// - Every build gets its own new canvas, removed when the tank stops (also
+//   when Next hides the page): never more than one live WebGL context.
 
 export type TankStatus = "loading" | "ready" | "fallback";
 export type TankHandle = { hitTest: (clientX: number, clientY: number, kinds?: HitKinds) => string | null };
@@ -58,7 +62,7 @@ export function TankCanvas({
   onStatus: (status: TankStatus) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const slot = useRef<HTMLDivElement>(null); // where each build's own canvas goes
   const engine = useRef<Engine | null>(null);
   const art = useRef<HTMLDivElement>(null);
   const [generation, setGeneration] = useState(0);
@@ -78,15 +82,19 @@ export function TankCanvas({
     latest.current = { fish, brood, skin, selected, still, onStatus, scenery };
   });
 
-  // Build (and rebuild after a lost context).
+  // Build (and rebuild after a lost context), on a brand-new canvas every
+  // time: Next hides a page you leave and shows the same DOM again when you
+  // come back, and a canvas whose context was destroyed can't be reused
+  // (lib/canvas-life.ts). The canvas goes into `slot`; leaving removes it.
   useEffect(() => {
     if (generation > MAX_REBUILDS) {
       latest.current.onStatus("fallback");
       return;
     }
-    let gone = false;
-    let built: Engine | null = null;
+    const where = slot.current;
+    if (!where) return;
     let rebuild: ReturnType<typeof setTimeout> | undefined;
+    latest.current.onStatus("loading"); // the still picture shows until it's drawn
 
     // The hidden drawings below, as SVG markup (the bubbler's bubbles are left
     // out: the engine makes real rising ones).
@@ -108,11 +116,18 @@ export function TankCanvas({
       };
     };
 
-    (async () => {
-      const [P, { createEngine }] = await Promise.all([import("pixi.js"), import("./engine")]);
-      if (gone || !canvas.current || !host.current) return;
-      try {
-        built = await createEngine(P, canvas.current, host.current, {
+    const stop = startCanvas({
+      create: () => {
+        const c = document.createElement("canvas");
+        c.className = "block h-full w-full";
+        where.appendChild(c);
+        return c;
+      },
+      remove: (c) => c.remove(),
+      build: async (c, stopped) => {
+        const [P, { createEngine }] = await Promise.all([import("pixi.js"), import("./engine")]);
+        if (stopped() || !host.current) throw new Error("left before it started");
+        const built = await createEngine(P, c, host.current, {
           skin: latest.current.skin,
           art: source,
           onContextLost: () => {
@@ -127,30 +142,33 @@ export function TankCanvas({
             latest.current.onStatus("ready");
           },
         });
-        if (gone) return built.dispose();
-        await built.setFish(latest.current.fish);
-        await built.setBrood(latest.current.brood);
-        await built.setScenery(latest.current.scenery);
-        if (gone) return;
+        try {
+          await built.setFish(latest.current.fish);
+          await built.setBrood(latest.current.brood);
+          await built.setScenery(latest.current.scenery);
+        } catch (error) {
+          built.dispose();
+          throw error;
+        }
+        return built;
+      },
+      ready: (built) => {
         built.setSelected(latest.current.selected);
         if (latest.current.still) built.still();
         engine.current = built;
         setLost(false);
         latest.current.onStatus("ready");
-      } catch (error) {
-        if (gone) return;
+      },
+      failed: (error) => {
         console.warn("Tank: using the still picture.", error);
-        built?.dispose();
-        built = null;
         latest.current.onStatus("fallback");
-      }
-    })();
+      },
+    });
 
     return () => {
-      gone = true;
       clearTimeout(rebuild);
-      built?.dispose();
       engine.current = null;
+      stop();
     };
   }, [generation]);
 
@@ -185,7 +203,7 @@ export function TankCanvas({
 
   return (
     <div ref={host} className="pointer-events-none absolute inset-0" aria-hidden>
-      <canvas key={generation} ref={canvas} className={`block h-full w-full ${lost ? "invisible" : ""}`} />
+      <div ref={slot} className={`absolute inset-0 ${lost ? "invisible" : ""}`} />
       <div ref={art} hidden>
         {[...new Map(plants.map((p) => [plantArt(p), p])).entries()].map(([key, p]) => (
           <div key={key} data-art={key}>

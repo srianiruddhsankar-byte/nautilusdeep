@@ -202,6 +202,37 @@ export const dprFor = (w: number, h: number) =>
 
 export class NoWebGL extends Error {}
 
+// The WebGL context for a tank, made here rather than by Pixi so a dead one
+// is caught first: on a lost context Pixi's start-up shader test loops forever
+// and freezes the whole app. Lost or missing → NoWebGL (the still picture).
+// The attributes are the ones Pixi would ask for itself.
+// Every context opened here is released with closeContext (after Pixi's
+// destroy, or when a build fails), so `open` is the live count.
+const open = new Set<WebGLRenderingContext | WebGL2RenderingContext>();
+
+export function openContext(canvas: HTMLCanvasElement, alpha: boolean): WebGL2RenderingContext {
+  const attrs: WebGLContextAttributes = { alpha, premultipliedAlpha: true, antialias: false, stencil: true, powerPreference: "low-power" };
+  const gl = canvas.getContext("webgl2", attrs) ?? canvas.getContext("webgl", attrs);
+  if (!gl || gl.isContextLost()) throw new NoWebGL("No live WebGL context");
+  open.add(gl);
+  logLive();
+  return gl as WebGL2RenderingContext; // Pixi takes WebGL 1 here too (its type just says 2)
+}
+
+export function closeContext(gl: WebGLRenderingContext | WebGL2RenderingContext) {
+  if (!open.delete(gl)) return;
+  if (!gl.isContextLost()) gl.getExtension("WEBGL_lose_context")?.loseContext(); // frees the GPU's slot now
+  logLive();
+}
+
+// Dev only: how many tank WebGL contexts are live (the tank's and the result
+// screen's together). It should never be above 1. Also on window.__tankContexts.
+function logLive() {
+  if (process.env.NODE_ENV === "production") return;
+  (window as { __tankContexts?: number }).__tankContexts = open.size;
+  console.info(`Tank: ${open.size} live WebGL context${open.size === 1 ? "" : "s"}`);
+}
+
 // 0 … 1 from an id, so two of a kind don't flap in step.
 export const seedOf = (id: string) => (hashString(`${id}:pose`) % 1000) / 1000;
 

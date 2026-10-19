@@ -11,7 +11,7 @@ import { speciesById, NAUTILUS, type Rarity } from "@/lib/species";
 import { createFish, rest, step, type SwimSpec } from "@/lib/swim";
 import { EGG_BOX, FRY } from "./brood-art";
 import { type Common, destroyRig, drawExtras, drawRig, makeRig, type Rig, settle } from "./rigs";
-import { createBank, dprFor, NoWebGL, seedOf, type Swimmer } from "./textures";
+import { closeContext, createBank, dprFor, NoWebGL, openContext, seedOf, type Swimmer } from "./textures";
 
 type Pixi = typeof PX;
 
@@ -31,18 +31,40 @@ const ease = (k: number) => k * k * (3 - 2 * k);
 // the reveal's "pop": overshoots a little, like cubic-bezier(.34, 1.56, .64, 1)
 const pop = (k: number) => 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);
 
-export async function createMini(
+type MiniOptions = { ink: () => number; onContextLost: () => void };
+
+// `canvas` must be brand new (mini-canvas.tsx makes one per build). A build
+// that fails part way destroys what it started, like the tank's (engine.ts).
+export async function createMini(P: Pixi, canvas: HTMLCanvasElement, host: HTMLElement, options: MiniOptions): Promise<Mini> {
+  if (!P.isWebGLSupported()) throw new NoWebGL("WebGL isn't available");
+  const gl = openContext(canvas, true);
+  const app = new P.Application();
+  try {
+    return await buildMini(P, app, gl, canvas, host, options);
+  } catch (error) {
+    try {
+      app.destroy({ removeView: false }, { children: true });
+    } catch {
+      // it never got far enough to have anything to destroy
+    }
+    closeContext(gl);
+    throw error;
+  }
+}
+
+async function buildMini(
   P: Pixi,
+  app: PX.Application,
+  gl: WebGL2RenderingContext,
   canvas: HTMLCanvasElement,
   host: HTMLElement,
-  options: { ink: () => number; onContextLost: () => void },
+  options: MiniOptions,
 ): Promise<Mini> {
-  if (!P.isWebGLSupported()) throw new NoWebGL("WebGL isn't available");
-  const app = new P.Application();
   const r0 = host.getBoundingClientRect();
   const dpr = dprFor(r0.width, r0.height);
   await app.init({
     canvas,
+    context: gl,
     width: Math.max(1, r0.width),
     height: Math.max(1, r0.height),
     resolution: dpr,
@@ -216,6 +238,7 @@ export async function createMini(
       ro.disconnect();
       canvas.removeEventListener("webglcontextlost", onLost);
       app.destroy({ removeView: false }, { children: true });
+      closeContext(gl);
       bank.destroy();
     },
   };

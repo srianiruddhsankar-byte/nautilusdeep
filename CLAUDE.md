@@ -68,15 +68,17 @@ The owner is a student learning to code: explain what you do and why, briefly.
   reads the plant and decoration drawings in as textures, so each has ONE drawing. `tank.css`: animation +
   reduced-motion rules
 - `app/_tank/tank4/` — **Tank 4**, the tank everywhere (PixiJS, WebGL, loaded only when a tank is on screen):
-  - `tank-canvas.tsx` (`TankCanvas`: builds the engine, follows the props, rebuilds after a lost GPU context,
-    reports "fallback" without WebGL; renders the plant / decoration drawings hidden and passes their SVG in),
+  - `tank-canvas.tsx` (`TankCanvas`: builds the engine on a NEW canvas each start via `startCanvas`
+    (`lib/canvas-life.ts`, tested), follows the props, rebuilds after a lost GPU context, reports "fallback"
+    without WebGL or if it can't start; renders the plant / decoration drawings hidden and passes their SVG in),
     `tank-loop.ts` (30 fps; stops when hidden, unfocused or off screen; reduced motion = one still frame)
   - `engine.ts` (the scene: one merged background texture + small cropped strips, plants that sway from the base
     (MeshPlane), decorations, the egg / fry, fish; `hitTest` for fish, plants and decorations with a 44 px minimum)
   - `rigs.ts` (ROPE fish bent along the swim spine at full length, sideways U-curl turns with a mirror dissolve;
     PUPPETS turning parts around joints), `puppets.ts` (manta, seahorse, nautilus drawn here; puffer, lionfish,
     sunfish cut from their art), `fish-art.ts` (every species in body space + how it swims; the one place to
-    tune their look), `side-view.ts` (art → one side drawing, or parts), `textures.ts` (every drawing → texture;
+    tune their look), `side-view.ts` (art → one side drawing, or parts), `textures.ts` (every drawing → texture; `openContext` / `closeContext`: the only way a tank gets a WebGL
+    context, refusing a lost one, with a dev-only live count in the console and `window.__tankContexts`;
     make a `CanvasSource` at resolution 1 and THEN set `.resolution`, or a float pixel size clears the canvas),
     `scenery.ts` (each skin's colours and own scenery, seagrass, anemone, specks), `brood-art.ts`, `art-files.ts`
     (paintings: `public/fish/<species id>.png` replaces a species' drawing, listed by `next.config.ts` at dev
@@ -174,6 +176,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `params`, `searchParams`, `cookies()` are async — `await` them.
 - Server-side auth checks: use `supabase.auth.getUser()` / `getClaims()`, never trust `getSession()`.
 - Cache Components is on: anything reading cookies/searchParams/the clock must sit inside `<Suspense>`.
+- Cache Components also HIDES a page you leave (React `<Activity>`, up to 3 routes) instead of unmounting it:
+  effects clean up and run again on the SAME DOM when you come back. Anything holding a browser resource (a
+  WebGL canvas) must make a fresh one on every start. Never start Pixi on a canvas whose context was lost: its
+  start-up shader test loops forever and freezes the whole app (`lib/canvas-life.ts`, `openContext`).
   The server `createClient()` calls `await connection()` because Supabase reads `Date.now()`.
 - New Supabase tables are NOT exposed to the Data API automatically: each migration needs an explicit
   `grant ... to authenticated` (only the operations used), on top of RLS policies.

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { startCanvas } from "@/lib/canvas-life";
 import type { Mini, MiniScene } from "./mini";
 import { useReducedMotion, useTankLoop } from "./tank-loop";
 
@@ -12,7 +13,7 @@ import { useReducedMotion, useTankLoop } from "./tank-loop";
 
 export function MiniCanvas({ scene, className, fallback }: { scene: MiniScene; className: string; fallback: ReactNode }) {
   const host = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const slot = useRef<HTMLDivElement>(null); // where each build's own canvas goes
   const mini = useRef<Mini | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const still = useReducedMotion();
@@ -21,36 +22,50 @@ export function MiniCanvas({ scene, className, fallback }: { scene: MiniScene; c
     latest.current = { scene, still };
   });
 
+  // A brand-new canvas every time it starts (also when Next shows a hidden
+  // page again): a canvas whose context was destroyed can't be reused
+  // (lib/canvas-life.ts). It goes into `slot`; stopping removes it.
   useEffect(() => {
-    let gone = false;
-    let built: Mini | null = null;
-    (async () => {
-      const [P, { createMini }] = await Promise.all([import("pixi.js"), import("./mini")]);
-      if (gone || !canvas.current || !host.current) return;
-      try {
-        const h = host.current;
-        built = await createMini(P, canvas.current, h, {
+    const where = slot.current;
+    const h = host.current;
+    if (!where || !h) return;
+    setStatus("loading");
+    const stop = startCanvas({
+      create: () => {
+        const c = document.createElement("canvas");
+        c.className = "absolute inset-0 block h-full w-full";
+        where.appendChild(c);
+        return c;
+      },
+      remove: (c) => c.remove(),
+      build: async (c, stopped) => {
+        const [P, { createMini }] = await Promise.all([import("pixi.js"), import("./mini")]);
+        if (stopped()) throw new Error("left before it started");
+        const built = await createMini(P, c, h, {
           ink: () => colourOf(getComputedStyle(h).color),
           onContextLost: () => setStatus("fallback"),
         });
-        if (gone) return built.dispose();
-        await built.show(latest.current.scene);
-        if (gone) return;
+        try {
+          await built.show(latest.current.scene);
+        } catch (error) {
+          built.dispose();
+          throw error;
+        }
+        return built;
+      },
+      ready: (built) => {
         if (latest.current.still) built.still();
         mini.current = built;
         setStatus("ready");
-      } catch (error) {
-        if (gone) return;
+      },
+      failed: (error) => {
         console.warn("Result: using the plain drawing.", error);
-        built?.dispose();
-        built = null;
         setStatus("fallback");
-      }
-    })();
+      },
+    });
     return () => {
-      gone = true;
-      built?.dispose();
       mini.current = null;
+      stop();
     };
   }, []);
 
@@ -70,7 +85,7 @@ export function MiniCanvas({ scene, className, fallback }: { scene: MiniScene; c
 
   return (
     <div ref={host} className={`text-ink ${className}`} aria-hidden>
-      {status !== "fallback" && <canvas ref={canvas} className={`absolute inset-0 block h-full w-full ${status === "ready" ? "" : "invisible"}`} />}
+      <div ref={slot} className={`absolute inset-0 ${status === "ready" ? "" : "invisible"}`} />
       {status !== "ready" && <div className="absolute inset-0 flex items-center justify-center">{fallback}</div>}
     </div>
   );

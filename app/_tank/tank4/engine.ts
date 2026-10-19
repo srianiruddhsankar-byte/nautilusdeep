@@ -52,7 +52,7 @@ import {
   type XY,
 } from "./scenery";
 import { type Box, smoothPath } from "./side-view";
-import { createBank, dprFor, type FishTex, NoWebGL, seedOf, svgDataUrl } from "./textures";
+import { closeContext, createBank, dprFor, type FishTex, NoWebGL, openContext, seedOf, svgDataUrl } from "./textures";
 
 type Pixi = typeof PX;
 
@@ -122,15 +122,36 @@ const DECOR_SCALE = 1.1; // a decoration's width in world units per px of its dr
 const SETTLE_SECONDS = 0.6; // a placed decoration settling onto the sand
 const SETTLE_DROP = 16; // world units it falls from
 
-export async function createEngine(
+type EngineOptions = { skin: SkinId; art: ArtSource; onContextLost: () => void; onContextRestored: () => void };
+
+// `canvas` must be brand new (tank-canvas.tsx makes one per build). If the
+// build fails part way, everything it started is destroyed before the error
+// goes on, so a failure never leaves a WebGL context behind.
+export async function createEngine(P: Pixi, canvas: HTMLCanvasElement, host: HTMLElement, options: EngineOptions): Promise<Engine> {
+  if (!P.isWebGLSupported()) throw new NoWebGL("WebGL isn't available");
+  const gl = openContext(canvas, false);
+  const app = new P.Application();
+  try {
+    return await buildEngine(P, app, gl, canvas, host, options);
+  } catch (error) {
+    try {
+      app.destroy({ removeView: false }, { children: true });
+    } catch {
+      // it never got far enough to have anything to destroy
+    }
+    closeContext(gl);
+    throw error;
+  }
+}
+
+async function buildEngine(
   P: Pixi,
+  app: PX.Application,
+  gl: WebGL2RenderingContext,
   canvas: HTMLCanvasElement,
   host: HTMLElement,
-  options: { skin: SkinId; art: ArtSource; onContextLost: () => void; onContextRestored: () => void },
+  options: EngineOptions,
 ): Promise<Engine> {
-  if (!P.isWebGLSupported()) throw new NoWebGL("WebGL isn't available");
-
-  const app = new P.Application();
   const size = () => {
     const r = host.getBoundingClientRect();
     return { w: Math.max(1, r.width), h: Math.max(1, r.height) };
@@ -139,6 +160,7 @@ export async function createEngine(
   let dpr = dprFor(first.w, first.h);
   await app.init({
     canvas,
+    context: gl,
     width: first.w,
     height: first.h,
     resolution: dpr,
@@ -724,6 +746,7 @@ export async function createEngine(
       canvas.removeEventListener("webglcontextlost", onLost);
       canvas.removeEventListener("webglcontextrestored", onRestored);
       app.destroy({ removeView: false }, { children: true });
+      closeContext(gl);
       bank.destroy();
     },
   };
