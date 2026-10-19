@@ -1,15 +1,16 @@
 import { ImageResponse } from "next/og";
 import { THEME_COLOR } from "@/lib/theme-script";
-import { ICONS, SPLASHES, iconSvg, type IconKind } from "../../_pwa/art";
+import { BADGE, ICONS, SPLASHES, badgeSvg, iconSvg, type IconKind } from "../../_pwa/art";
 
 // /icons/<file>: the installed app's PNGs (app/_pwa/art.ts lists them). All are
 // made at build time from the SVG drawing, then served as static files.
 
 export function generateStaticParams() {
-  return [...ICONS, ...SPLASHES].map(({ file }) => ({ file }));
+  return [...ICONS, BADGE, ...SPLASHES].map(({ file }) => ({ file }));
 }
 
-const dataUri = (kind: IconKind) => `data:image/svg+xml;base64,${Buffer.from(iconSvg(kind)).toString("base64")}`;
+const svgUri = (svg: string) => `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+const dataUri = (kind: IconKind) => svgUri(iconSvg(kind));
 
 export async function GET(_request: Request, { params }: RouteContext<"/icons/[file]">) {
   const { file } = await params;
@@ -20,6 +21,15 @@ export async function GET(_request: Request, { params }: RouteContext<"/icons/[f
     return new ImageResponse(<img src={dataUri(icon.kind)} width={icon.size} height={icon.size} alt="" />, {
       width: icon.size,
       height: icon.size,
+    });
+  }
+
+  if (file === BADGE.file) {
+    // white on transparent: the notification badge (see badgeSvg)
+    // eslint-disable-next-line @next/next/no-img-element -- drawn by ImageResponse, not a page
+    return new ImageResponse(<img src={svgUri(badgeSvg())} width={BADGE.size} height={BADGE.size} alt="" />, {
+      width: BADGE.size,
+      height: BADGE.size,
     });
   }
 

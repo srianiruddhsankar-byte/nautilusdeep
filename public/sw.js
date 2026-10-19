@@ -92,12 +92,17 @@ self.addEventListener("push", (event) => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const homeOnScreen = windows.some((w) => w.visibilityState === "visible" && new URL(w.url).pathname === "/");
       if (homeOnScreen) return;
+      const tag = data.tag || "deep-nautilus";
+      // An older alert for this session is closed first: Android treats an
+      // update to a notification already in the shade as quiet (it buzzes but
+      // doesn't pop on screen), while a new one can pop.
+      for (const old of await self.registration.getNotifications({ tag })) old.close();
       await self.registration.showNotification(data.title || "Deep Nautilus", {
         body: data.body || "",
-        tag: data.tag || "deep-nautilus",
-        renotify: true, // a newer alert for the same session buzzes again
-        icon: "/icons/icon-192.png",
-        badge: "/icons/icon-192.png",
+        tag,
+        renotify: true, // buzzes even if one with this tag is still showing
+        icon: "/icons/icon-192.png", // the large picture, in colour
+        badge: "/icons/badge-96.png", // the status bar: Android uses only its shape (white on transparent)
         data: { url: data.url || "/" },
       });
     })(),

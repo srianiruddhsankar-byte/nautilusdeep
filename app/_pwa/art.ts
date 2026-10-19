@@ -50,6 +50,35 @@ export const ICONS = [
   { file: "apple-touch-icon.png", kind: "apple", size: 180 },
 ] as const satisfies readonly { file: string; kind: IconKind; size: number }[];
 
+// The notification badge: Android's status bar draws only a badge's shape (its
+// transparency), in white. So it's the same nautilus as a white silhouette on
+// transparent, with the shell's stripes cut out so it still reads at 24 px.
+// Not a home screen icon (kept out of the manifest).
+export const BADGE = { file: "badge-96.png", size: 96 } as const;
+
+export function badgeSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+<defs>
+<mask id="cut">
+<rect width="96" height="96" fill="#fff"/>
+<g transform="translate(48 50) scale(1.8) translate(-24 -20)" stroke="#000" stroke-width="2.4" stroke-linecap="round" fill="none">
+<path d="M8 8 Q12 14 10 20"/><path d="M15 4 Q18 11 16 18"/><path d="M23 4 Q24 10 21 16"/><path d="M4 16 Q9 20 8 26"/>
+<circle cx="34" cy="17" r="1.6" fill="#000" stroke="none"/>
+</g>
+</mask>
+</defs>
+<g mask="url(#cut)" fill="#fff">
+<g transform="translate(48 50) scale(1.8) translate(-24 -20)">
+<g stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none">
+<path d="M34 22 Q41 22 46 25"/><path d="M34 24 Q40 27 44 31"/><path d="M33 26 Q37 31 40 35"/><path d="M34 20 Q41 18 45 19"/>
+</g>
+<path d="M30 12 Q40 13 39 21 Q38 27 32 28 Z"/>
+<circle cx="19" cy="20" r="17"/>
+</g>
+</g>
+</svg>`;
+}
+
 // iPhone splash screens (shown while the installed app opens). iOS only uses
 // one whose size matches the screen exactly, so each iPhone shape is listed:
 // width × height in points, and the pixel ratio. Missing a model just means a
