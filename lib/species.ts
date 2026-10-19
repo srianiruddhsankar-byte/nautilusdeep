@@ -30,7 +30,7 @@ export type Species = {
   fact: string;
 };
 
-// All saltwater for now (tanks don't have water types yet; on the ideas list).
+// All saltwater for now (tanks don't have water types yet: I-012 in Ideas/IDEAS.md).
 // ORDER MATTERS inside each tier: the roll picks by position. Add new species at
 // the end of their tier (and to the migration's check constraint), never reorder.
 export const SPECIES = [

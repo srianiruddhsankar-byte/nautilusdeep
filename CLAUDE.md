@@ -24,7 +24,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - No leaderboards. Any future friends features are about encouragement, not ranking.
 - Web-first: no features that require native iPhone/Android apps.
 - Feature test: a new feature must help organise work, finish work, make progress rewarding, or make progress
-  visible. Otherwise it goes on the ideas list.
+  visible. Otherwise it goes on the ideas list (`Ideas/IDEAS.md`).
 - UI/UX every phase: each phase organises and polishes the screens it touches, and new features are designed
   with the future layout in mind. Phase 9 is still the big polish pass.
 - Ideas rule: any idea that isn't built goes on the ideas list with why and when to revisit. The list lives in
@@ -386,8 +386,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
     end of their tier AND to the `sessions_species_check` constraint in a new migration.
 - Result screen: a calm ~2.5 s reveal (silhouettes flicking past and slowing, then the fish in colour with name,
   rarity and fact). Tap to skip; reduced motion shows it straight away.
-- Legendary fish glow gold with sparkles; Epic fish have a soft white glow. Drawings are simple for now (the
-  realistic redesign comes later, on the ideas list).
+- Legendary fish glow gold with sparkles; Epic fish have a soft white glow. The art was redrawn as Tank 4 in
+  Phase 9 Stage C (I-038, in `Ideas/DONE.md`).
 - **The nautilus** (the namesake) is NOT in the roulette: at 100 total credited hours (study + notes, same total
   as skins) it lives in your newest tank, tappable, with its own "The namesake" section at the top of the index.
 - **Sea life index** (`/sea-life`): the namesake, then every species grouped by rarity. Caught: colour, name, fact,
@@ -550,9 +550,9 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Phase 8 (in progress): ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files),
   plus Shop as a bottom-bar tab.
   - Pulled forward from "later": fish species with a rarity roulette, the Sea life index and the nautilus
-    (simple drawings; the realistic redesign and water types are still later).
+    (simple drawings at first, redrawn in Phase 9 Stage C; water types are still parked, I-012).
 - Phase 9 (in progress): professional UI/UX redesign, visual only (no new features; Continue session was added
-  on request between Stage C batches). Includes the tank/scene redesign (moved here from the ideas list). Stages: A design direction (3 options on `/design-preview`), B design
+  on request between Stage C batches). Includes the tank/scene redesign (I-038, now in `Ideas/DONE.md`). Stages: A design direction (3 options on `/design-preview`), B design
   system (tokens + shared components, rules written here), C tank and scene art, D every page rebuilt
   phone-first, E motion. The owner approves each stage before the next.
   - Stage A (done): UI = Paper Tide (C); tank = Tank 4 (PixiJS rope-mesh fish), built in Stage C.
@@ -570,8 +570,9 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Phase 10 (done): PWA (installable) + push notifications.
   - 10a (done): installable app; install card on Home (done).
   - 10b-1 (done; test after deploy): push infrastructure + "Time's up".
-  - 10b-2 task reminders: parked on the ideas list (revisit after friends testing).
+  - 10b-2 task reminders: parked as I-028 in `Ideas/IDEAS.md` (revisit after friends testing).
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?
   If they say "cool" and never return, rethink — don't just add features.
-- Later: see the ideas list (`Ideas/IDEAS.md`).
+- Later: see `Ideas/IDEAS.md` (parked ideas) and `Ideas/PROBLEMS.md` (student problems); built ideas are recorded
+  in `Ideas/DONE.md`.
