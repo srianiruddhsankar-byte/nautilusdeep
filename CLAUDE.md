@@ -27,8 +27,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
   visible. Otherwise it goes on the ideas list.
 - UI/UX every phase: each phase organises and polishes the screens it touches, and new features are designed
   with the future layout in mind. Phase 9 is still the big polish pass.
-- Ideas rule: any idea that isn't built goes on the ideas list with why and when to revisit. The list lives at
-  `Ideas/IDEAS.md` and is edited outside Claude Code: never edit it; mention such ideas to the owner instead.
+- Ideas rule: any idea that isn't built goes on the ideas list with why and when to revisit. The list lives in
+  `Ideas/` (`IDEAS.md` not built yet, `DONE.md` built, `PROBLEMS.md` student problems) and is edited outside
+  Claude Code: never edit any file in `Ideas/`; mention such ideas to the owner instead.
 
 ## Stack
 - Next.js 16 (App Router), TypeScript, Tailwind CSS v4
