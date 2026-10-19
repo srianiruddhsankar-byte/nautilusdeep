@@ -14,6 +14,7 @@ import { Skeleton } from "../_ui/feedback";
 import { Page, TabContent } from "../_ui/page";
 import { Account } from "./account";
 import { InstallCard } from "./install";
+import { NotificationsCard } from "./notifications";
 
 export const metadata: Metadata = {
   title: "How it works – Deep Nautilus",
@@ -333,6 +334,7 @@ export default function HelpPage() {
 
         <GroupHeading id="account" />
         <InstallCard />
+        <NotificationsCard />
         {/* Reads the login cookie, so it streams in per request. */}
         <Suspense fallback={<Skeleton className="h-40 rounded-card" />}>
           <Account />

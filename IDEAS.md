@@ -141,6 +141,25 @@ instead. Ideas from it that were adopted are in CLAUDE.md; the rest are below.
     features" under Deliberately rejected).
   - Revisit: only if the app ever goes native.
 
+- **Task reminders** (push): a notification for a task's due date. Batch 10b-2, next: the
+  `push_subscriptions.task_reminders` switch is already there.
+
+- **Night-mode check-in pushes**: "Still studying?" as a notification when the app isn't on screen.
+  - Why parked (10b-1): the check-in exists for falling asleep; a notification that wakes you up to tap it is
+    a different feature, and in Deep Focus you can't be away anyway. Open Focus + Night mode is the only real case.
+  - Revisit: if testers use Open Focus with Night mode and miss check-ins they'd have answered.
+
+- **"Come back, Deep Focus is about to fail"** warning a few seconds after leaving.
+  - Why parked: the 15 s grace is too short for a server round trip (the check runs every 15 s), and a buzz to
+    pull you back risks feeling guilt-driven. It would need a longer grace or a local notification, which the
+    web doesn't offer.
+  - Revisit: if the leave grace period is lengthened after real use.
+
+- **A push when the Continue window closes** ("Your session ended at 45 min").
+  - Why parked: ending quietly is on purpose (every part is already banked; nothing is lost), so there's
+    nothing to act on.
+  - Revisit: if testers are confused about where a session went after a long break.
+
 ## Friends
 
 - **Friends + focus rooms**: add friends, see who's studying right now, and study rooms ("study servers")

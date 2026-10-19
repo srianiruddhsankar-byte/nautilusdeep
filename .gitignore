@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# deno install leftover (the Edge Function has its own lock)
+/deno.lock

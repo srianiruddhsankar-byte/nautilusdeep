@@ -35,6 +35,11 @@ export default function PrivacyPage() {
           As you use the app, we may store your focus sessions (start and end times, mode, and whether they were
           completed) to show you your stats.
         </p>
+        <p>
+          If you turn on notifications, we store your device&apos;s push address (from your browser) and, while a session
+          runs, when its blocks and breaks end, so we can notify you. Notifications are delivered through your
+          browser&apos;s push service (for example Google or Apple). Signing out removes the device.
+        </p>
       </Section>
 
       <Section title="How we use it">

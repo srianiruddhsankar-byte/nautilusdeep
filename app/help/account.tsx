@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "../_ui/button";
 import { Card } from "../_ui/card";
 import { AppearanceSetting } from "./appearance";
+import { SignOutButton } from "./sign-out";
 
 async function signOut() {
   "use server";
@@ -30,11 +30,7 @@ export async function Account() {
         <span className="text-muted">Signed in as </span>
         <span className="font-semibold break-all">{user.email}</span>
       </p>
-      <form action={signOut}>
-        <Button type="submit" variant="outline" className="w-full">
-          Sign out
-        </Button>
-      </form>
+      <SignOutButton signOut={signOut} />
     </Card>
   );
 }

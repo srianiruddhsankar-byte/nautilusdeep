@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CHECK_IN_ALARM_EVERY_MS,
+  PAUSE_OVER_ALARM,
   SESSION_DONE_ALARM,
+  TIMES_UP_ALARM,
   checkInAlert,
   phaseAlarm,
   startAlarm,
@@ -20,6 +22,8 @@ import { hasFinishedSession } from "@/lib/install-logic";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
 import { coinsFor } from "@/lib/economy";
 import { updatePrefs } from "@/lib/prefs-store";
+import { refreshThisDevice } from "@/lib/push";
+import { startTimerPushSync } from "@/lib/timer-pushes";
 import { toRow } from "@/lib/session-record";
 import { useSessions } from "@/lib/sessions-data";
 import { useEconomy } from "@/lib/use-economy";
@@ -34,7 +38,6 @@ import {
   cancelWindowRemainingMs,
   continueSession,
   continueWindowRemainingMs,
-  CONTINUE_WINDOW_MS,
   checkInState,
   checkSession,
   confirmCheckIn,
@@ -77,6 +80,7 @@ import { Field, NumberField } from "../_ui/field";
 import { ProgressBar, Skeleton } from "../_ui/feedback";
 import { changeScreen, step, useLoadFade } from "../_ui/motion";
 import { AlarmOverlay } from "./alarm-overlay";
+import { PushOffer } from "./push-offer";
 import { NautilusMoment, StreakMoment } from "./result-moments";
 import { SetupForm } from "./setup-form";
 import { VolumeSlider } from "./setup-form";
@@ -135,6 +139,13 @@ export function FocusScreen() {
 
   // Upload any sessions that couldn't be saved earlier, and keep retrying.
   useEffect(() => startSync(), []);
+
+  // "Time's up" notifications: keep the server's list of upcoming alerts in step
+  // with the session, and re-file this device under whoever is signed in.
+  useEffect(() => {
+    void refreshThisDevice();
+    return startTimerPushSync();
+  }, []);
 
   // Phones only play sound after a tap. Start does this, but after a refresh
   // mid-session there's been no tap yet: any tap on the page unlocks it again.
@@ -306,9 +317,12 @@ function useSessionClock(active: boolean): number | null {
       // (a hidden page can't be trusted to play sound, and you'd come back to a
       // screen that's already moved on).
       const status = getStatus(session, t);
-      // A timer part's time is up: the break where you can continue begins.
-      if (status.waiting && wasWaiting === false && session.mode === "timer" && isVisible()) {
-        startAlarm({ title: "Time's up", detail: `Take a break, or continue within ${CONTINUE_WINDOW_MS / 60_000} minutes.` });
+      // The last focus block's time is up (a timer, or a cycle that ends with a
+      // focus block): the break where you can continue begins. A stopwatch part
+      // ends with your own Stop, so it doesn't ring.
+      if (status.waiting && wasWaiting === false && session.mode !== "stopwatch" && isVisible()) {
+        const final = session.phases[session.phases.length - 1];
+        if (final.kind === "focus") startAlarm(TIMES_UP_ALARM);
       }
       wasWaiting = status.waiting;
       if (status.phaseIndex !== lastPhase) {
@@ -319,7 +333,7 @@ function useSessionClock(active: boolean): number | null {
       // The pause ran out by itself (not Resume): say so, since the leave rule is back on.
       const pausedNow = isPaused(session, t);
       if (wasPaused && !pausedNow && session.pause?.endedAt === null && isVisible()) {
-        startAlarm({ title: "Pause over", detail: "The timer is running again." });
+        startAlarm(PAUSE_OVER_ALARM);
       }
       wasPaused = pausedNow;
 
@@ -597,6 +611,7 @@ function RunningView({
           style={step(2)}
           className="rise-in flex w-full flex-col items-center gap-2 self-end landscape:col-start-2 landscape:row-start-2 landscape:self-start"
         >
+          <PushOffer cancelWindow={cancellable} />
           <p key={hint} className="swap-in max-w-xs text-center text-sm text-muted">
             {hint}
           </p>

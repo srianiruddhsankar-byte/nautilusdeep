@@ -1,6 +1,10 @@
 import { useSyncExternalStore } from "react";
 import { playCheckInAlarm, playCheckInChime, playChimes, stopVibrating, vibrate } from "./feedback";
-import type { CheckInStyle, Status } from "./timer";
+import type { Alarm } from "./alarm-text";
+import type { CheckInStyle } from "./timer";
+
+// The words live in lib/alarm-text.ts (shared with the push notifications).
+export { PAUSE_OVER_ALARM, SESSION_DONE_ALARM, TIMES_UP_ALARM, phaseAlarm, type Alarm } from "./alarm-text";
 
 // The end-of-block alarm: 3 chimes plus a vibration, repeated every few
 // seconds until you tap "Got it", and never longer than a minute. The overlay
@@ -11,8 +15,6 @@ export const CHIMES_PER_RING = 3;
 export const RING_EVERY_MS = 4_000;
 export const ALARM_MAX_MS = 60_000;
 const VIBRATION = [300, 150, 300, 150, 300]; // buzz-pause-buzz-pause-buzz (ms)
-
-export type Alarm = { title: string; detail: string };
 
 let current: Alarm | null = null;
 let repeat: ReturnType<typeof setInterval> | null = null;
@@ -57,20 +59,6 @@ export function stopAlarm() {
 export function useAlarm(): Alarm | null {
   return useSyncExternalStore(subscribe, () => current, () => null);
 }
-
-// What the alarm says when a cycle moves on to its next phase (`status` is the
-// NEW phase). Calm and short: what just ended, what's next.
-export function phaseAlarm(status: Status): Alarm {
-  if (status.kind === "focus") {
-    return { title: "Break's over", detail: `Focus ${status.focusBlock} of ${status.totalBlocks} has started.` };
-  }
-  if (status.kind === "longBreak") {
-    return { title: "Focus block done", detail: "Long break. Every block is banked." };
-  }
-  return { title: "Focus block done", detail: "Short break. You can leave the app." };
-}
-
-export const SESSION_DONE_ALARM: Alarm = { title: "Session complete", detail: "Nice focus." };
 
 // Night mode's "Still studying?" has its own sounds, never the block alarm:
 // chime = one soft falling bell (vibrate = the same + a short buzz), alarm = an

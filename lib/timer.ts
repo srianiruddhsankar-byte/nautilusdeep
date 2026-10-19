@@ -281,6 +281,14 @@ function endS(session: Session): number {
   return all[all.length - 1].end;
 }
 
+// When each phase that has an end finishes, in real time (as things stand at
+// `now`, for a pause still going). For the push notifications' schedule.
+export function phaseEndsAt(session: Session, now: number): { index: number; kind: PhaseKind; at: number }[] {
+  return spans(session).flatMap((s, index) =>
+    s.end === Infinity ? [] : [{ index, kind: s.kind, at: toReal(session, s.end, now) }],
+  );
+}
+
 export function countFocusBlocks(session: Session): number {
   return session.phases.filter((p) => p.kind === "focus").length;
 }
@@ -486,6 +494,12 @@ function missedS(session: Session): number | null {
   if (due === null) return null;
   const deadline = due + CHECK_IN_GRACE_MS;
   return deadline < endS(session) ? deadline : null;
+}
+
+// When (real time) an unanswered check-in would end the session, or null.
+export function missedCheckInAt(session: Session, now: number): number | null {
+  const missed = missedS(session);
+  return missed === null ? null : toReal(session, missed, now);
 }
 
 // Tapping "Still studying?" (or "Got it" on a phase alarm): credit now runs to here.

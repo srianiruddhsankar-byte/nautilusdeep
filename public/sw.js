@@ -12,6 +12,9 @@
 //   get stuck on an old version), /auth, /version, and every other site,
 //   including Supabase (data + sign-in) and Google. The offline save queue
 //   (lib/save-queue.ts) keeps working exactly as before.
+//
+// It also shows the "Time's up" push notifications (sent by the Supabase Edge
+// Function supabase/functions/send-push), and opens Home when one is tapped.
 
 const STATIC = "dn-static-v1";
 const PICTURES = "dn-pictures-v1";
@@ -71,6 +74,52 @@ async function refreshInBackground(event, request) {
   }
   return fresh;
 }
+
+// ---------- Push notifications ----------
+
+// A push: { title, body, tag, url }. If Home is on screen, its own alarm is
+// already ringing, so no notification. (The app also takes alerts off the
+// server while Home is visible; this covers the moments in between.)
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const homeOnScreen = windows.some((w) => w.visibilityState === "visible" && new URL(w.url).pathname === "/");
+      if (homeOnScreen) return;
+      await self.registration.showNotification(data.title || "Deep Nautilus", {
+        body: data.body || "",
+        tag: data.tag || "deep-nautilus",
+        renotify: true, // a newer alert for the same session buzzes again
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        data: { url: data.url || "/" },
+      });
+    })(),
+  );
+});
+
+// Tapping it opens Home: an open window is brought forward, else a new one.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const open = windows.find((w) => new URL(w.url).origin === self.location.origin);
+      if (open) {
+        if (new URL(open.url).pathname !== "/" && "navigate" in open) await open.navigate(url).catch(() => {});
+        return open.focus();
+      }
+      return self.clients.openWindow(url);
+    })(),
+  );
+});
 
 // Deletes the oldest entries (a cache lists them in the order they were added).
 async function trim(name, max) {

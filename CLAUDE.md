@@ -115,7 +115,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
   while a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
 - `app/_focus/today-tasks.tsx` — Home's "Today" card. `app/_focus/task-status.tsx` — "In progress" badge, "Mark done"
 - `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): 3 chimes + vibration every 4 s,
-  stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay
+  stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay.
+  The words (`phaseAlarm`, "Time's up", "Pause over", "Session complete") live in pure `lib/alarm-text.ts`,
+  shared with the push notifications
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
 - `lib/session-parts.ts` — a continued session's / cycle's pieces (`sessions.parts`): read, describe, time per task
 - `app/design-preview/` — Phase 9 design preview (dev only: 404 in production, not in the nav): Paper Tide around
@@ -153,9 +155,19 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `app/_pwa/install-card.tsx` (Home's "Get Nautilus as an app", at the bottom: only after a finished session, never
   once dismissed / installed, in the installed app or where installing doesn't work), `app/_pwa/install-steps.tsx`
   (the iPhone steps sheet per browser, `ShareIcon`)
+- Push notifications (Phase 10b-1, "Time's up"; see "Push notifications" below): `lib/push-schedule.ts` (pure:
+  `sessionAlerts`, `pushPlan`, `pushSupport`, `showPushOffer`; tested), `lib/push.ts` (this device: `usePush`,
+  `turnOnTimesUp` / `turnOffTimesUp`, `refreshThisDevice`, `forgetThisDevice` on sign-out, the switch + "Not now"
+  in localStorage), `lib/timer-pushes.ts` (`startTimerPushSync`, run by Home: rewrites the session's list with
+  fetch keepalive), `app/_pwa/push-sheet.tsx` (the note before the browser prompt; unblock steps),
+  `app/_focus/push-offer.tsx` (the running screen's offer), `app/help/notifications.tsx` (Help → Account switch),
+  `app/help/sign-out.tsx`. `public/sw.js` shows the push (not while Home is on screen) and opens Home on tap.
+  Server: `supabase/functions/send-push/index.ts` (Deno, pasted into the dashboard; excluded from tsc / eslint)
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
-- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.local.example`)
+- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+  (see `.env.local.example`). Supabase Edge Function secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (ONLY
+  there), `VAPID_SUBJECT`, `CRON_SECRET` (also in Vault as `push_cron_secret`, with `project_url`)
 
 ## Next.js 16 / Supabase gotchas
 - Middleware is now `proxy.ts` with an exported `proxy` function (Node runtime).
@@ -463,6 +475,33 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   runs per page.
 - Installable PWA + push reminders come in Phase 10. Friends and Google Calendar features are not planned yet.
 
+### Push notifications (Phase 10b)
+- Scheduler: Supabase pg_cron every 15 s calls the Edge Function `send-push` only when `timer_pushes_due()`
+  (Vercel Hobby cron runs once a day, too rare). The function: `claim_due_pushes()` (service role only; marks
+  due rows sent in one statement with `skip locked`, so overlapping checks never double-send; newest per
+  session; never older than 10 min; never for a session already in `sessions`), sends with urgency high +
+  TTL 10 min + topic = session id, deletes devices reported gone. Migrations `20261021120000_push.sql` and
+  `20261021120100_push_schedule.sql` (committed with placeholders; real values only in the SQL Editor).
+- `push_subscriptions`: one row per endpoint, filed under whoever signed in last (`save_push_subscription`,
+  security definer); switches `times_up`, `task_reminders` (10b-2), the only updatable columns. Per device:
+  the switch is in localStorage and mirrored here. Signing out deletes this device's row and unsubscribes.
+- `timer_pushes`: a running session's upcoming alerts (`key` = "end:N" / "pause", `send_at`, title, body,
+  `sent_at`). The app replaces the whole list (`replace_timer_pushes`, runs as the user under RLS, one request,
+  per-session advisory lock; sent keys are never re-added) whenever the stored session changes, the page is
+  hidden / shown, or every 5 s while Home is open. Only while Time's up is on for this device.
+- What's on the list (`pushPlan`) mirrors the in-app alarm: each phase end of a cycle, "Time's up" when the last
+  focus block of a continuable session ends (a timer, or a cycle ending in focus), "Session complete" for
+  pre-Continue sessions, "Pause over" (a pause is assumed to last its full 5 min). Stopwatch Stop and a final
+  long break running out never ring. Never anything after a missed check-in's deadline.
+- Deep Focus: nothing from the moment you'd fail if you left NOW (`leaveFailureTime` from `awaySince ?? now`):
+  the server never holds a focus-end alert during focus, only "Break's over" in a break, "Pause over" when
+  paused, so a lost request can't cause a false "Focus done". Leaving in the last 15 s of a block adds it.
+- While Home is on screen, alerts due within 30 s are taken off the server (the in-app alarm rings; iPhones
+  cancel subscriptions whose pushes show nothing). The service worker also skips showing while Home is visible.
+- Permission: never before a first Start. The running screen offers it (after the cancel window; Not now is
+  remembered); Turn on → the note → the browser prompt. iPhone outside the installed app: install steps, no
+  prompt. Blocked: Help explains unblocking. Push only works in production (the worker isn't registered in dev).
+
 ## Roadmap
 - Phase 1 (done): project setup + Google login, protected home page saying "Hi, [name]", sign-out, public `/privacy`.
 - Phase 2 (done): timer, stopwatch and cycle modes with leave detection and localStorage restore; Deep/Open Focus.
@@ -517,6 +556,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
     and polish (tab transitions, presses, open/close, skeleton fades, stats animating in once) + the
     Appearance setting (requested with it).
 - Phase 10: PWA (installable) + task reminder notifications.
+  - 10a (done): installable app; install card on Home (done).
+  - 10b-1 (committed, Supabase set up; test after deploy): push infrastructure + "Time's up". 10b-2: task reminders.
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?
   If they say "cool" and never return, rethink — don't just add features.
