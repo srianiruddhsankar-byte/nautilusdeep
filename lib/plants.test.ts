@@ -67,10 +67,10 @@ describe("stages", () => {
 });
 
 describe("one plant per notes session", () => {
-  test("its length sets how far it grew", () => {
+  test("its length sets the stage it starts at", () => {
     const g = deriveGarden([notes(20), notes(45), notes(90), notes(150)]);
     assert.deepEqual(
-      g.plants.map((p) => [p.stage, p.minutes]),
+      g.plants.map((p) => [p.startStage, p.minutes]),
       [
         ["sprout", 20],
         ["young", 45],
@@ -101,6 +101,57 @@ describe("one plant per notes session", () => {
     assert.equal(g.plants[0].id, r.id);
     assert.equal(g.plants[0].plantedAt, r.ended_at);
     assert.equal(g.bySession.get(r.id), g.plants[0]);
+  });
+});
+
+describe("each session helps the oldest unfinished plant grow", () => {
+  test("one stage per session, oldest first, never its own plant", () => {
+    const [a, b, c] = [notes(20), notes(20), notes(20)];
+    const g = deriveGarden([a, b, c]);
+    // b moved a up (sprout → young); c moved a up again (young → full).
+    assert.deepEqual(
+      g.plants.map((p) => [p.stage, p.boosts]),
+      [
+        ["full", 2],
+        ["sprout", 0],
+        ["sprout", 0],
+      ],
+    );
+    assert.equal(g.boostedBySession.get(c.id)?.plant.id, a.id);
+    assert.equal(g.boostedBySession.get(c.id)?.to, "full");
+    assert.equal(g.boostedBySession.get(a.id), undefined); // nothing older to help
+  });
+
+  test("mature plants are skipped; the next oldest gets the help", () => {
+    const g = deriveGarden([notes(150), notes(20), notes(20)]);
+    assert.deepEqual(
+      g.plants.map((p) => p.stage),
+      ["mature", "young", "sprout"],
+    );
+  });
+
+  test("a sprout reaches mature after three later sessions, then help moves on", () => {
+    const g = deriveGarden([notes(15), notes(15), notes(15), notes(15), notes(15), notes(15)]);
+    assert.equal(g.plants[0].stage, "mature");
+    assert.equal(g.plants[0].boosts, 3);
+    assert.equal(g.plants[1].stage, "full"); // sessions 5 and 6 helped plant 2
+  });
+
+  test("short, failed and study sessions help nothing", () => {
+    const g = deriveGarden([notes(20), notes(14), notes(60, { outcome: "failed", focus_seconds: 0 }), study(60)]);
+    assert.equal(g.plants[0].stage, "sprout");
+    assert.equal(g.boostedBySession.size, 0);
+  });
+
+  test("help never moves a plant: tanks and slots stay put", () => {
+    const g = deriveGarden([notes(20), ...fishes(11), notes(20)]);
+    assert.deepEqual(
+      g.plants.map((p) => [p.tank, p.slot, p.stage]),
+      [
+        [0, 0, "young"],
+        [1, 0, "sprout"],
+      ],
+    );
   });
 });
 

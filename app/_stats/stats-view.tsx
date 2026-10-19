@@ -2,7 +2,7 @@
 
 import { useContext, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { RARITIES, RARITY_LABEL, speciesById } from "@/lib/species";
-import { MATURE_MINUTES, PLANT_MIN_MINUTES, deriveGarden, type Garden } from "@/lib/plants";
+import { PLANT_MIN_MINUTES, deriveGarden, type Garden } from "@/lib/plants";
 import { SKIN_UNLOCKS, formatHours, nextSkin, skinUnlocked } from "@/lib/economy";
 import { useSessions } from "@/lib/sessions-data";
 import { useEconomy } from "@/lib/use-economy";
@@ -188,11 +188,11 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
       {!study && garden && (
         <Section
           title="Plants"
-          note={`One plant per notes session of ${PLANT_MIN_MINUTES}+ min; the longer the session, the bigger it grows (mature at ${formatDuration(MATURE_MINUTES * 60)}).`}
+          note={`Every notes session of ${PLANT_MIN_MINUTES}+ min plants something new (bigger for longer sessions) and helps an old plant grow.`}
         >
           <Tiles>
             <Tile label="Grown" value={String(garden.plants.length)} sub="In your tanks" />
-            <Tile label="Mature" value={String(garden.plants.filter((p) => p.stage === "mature").length)} sub={`From ${formatDuration(MATURE_MINUTES * 60)} sessions`} />
+            <Tile label="Mature" value={String(garden.plants.filter((p) => p.stage === "mature").length)} sub="Fully grown" />
           </Tiles>
         </Section>
       )}

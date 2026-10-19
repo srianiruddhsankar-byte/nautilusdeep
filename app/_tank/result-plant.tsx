@@ -1,15 +1,15 @@
 "use client";
 
 import { plantLook } from "@/lib/plant-look";
-import { MATURE_MINUTES, PLANT_MIN_MINUTES, PLANT_STAGE_LABEL, nextPlantStage, type Garden } from "@/lib/plants";
-import { formatDuration } from "@/lib/stats";
+import { PLANT_MIN_MINUTES, PLANT_STAGE_LABEL, nextPlantStage, type Garden } from "@/lib/plants";
 import type { Result } from "@/lib/timer";
 import { step } from "../_ui/motion";
 import { PlantSprite } from "./plant-sprite";
 
 // The plant this notes session grew, shown on its result screen: one plant per
-// session, as big as the session was long. The garden already includes this
-// session (it's queued before the result shows).
+// session, starting as big as the session was long, plus the older plant the
+// session helped grow. The garden already includes this session (it's queued
+// before the result shows).
 export function ResultPlant({ result, garden }: { result: Result; garden: Garden | null }) {
   if (result.outcome === "failed") {
     return <p className="max-w-xs text-sm text-muted">No plant this time. The next notes session starts fresh.</p>;
@@ -28,6 +28,7 @@ export function ResultPlant({ result, garden }: { result: Result; garden: Garden
   if (!plant) return null;
 
   const next = nextPlantStage(plant.minutes);
+  const helped = garden.boostedBySession.get(plant.id);
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="tank-bob">
@@ -41,13 +42,16 @@ export function ResultPlant({ result, garden }: { result: Result; garden: Garden
       <p className="rise-in max-w-xs text-sm" style={step(4)}>
         Planted in Tank {plant.tank + 1}.{" "}
         {next ? (
-          <span className="text-muted">
-            Longer sessions grow bigger plants: {formatDuration(MATURE_MINUTES * 60)} grows a mature one.
-          </span>
+          <span className="text-muted">Later notes sessions help it keep growing.</span>
         ) : (
           <span className="font-semibold text-success">Fully grown.</span>
         )}
       </p>
+      {helped && (
+        <p className="rise-in max-w-xs text-sm text-muted" style={step(5)}>
+          Also helped an older plant grow: it&apos;s now a {PLANT_STAGE_LABEL[helped.to].toLowerCase()}.
+        </p>
+      )}
     </div>
   );
 }

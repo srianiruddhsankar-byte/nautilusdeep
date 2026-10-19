@@ -247,14 +247,16 @@ export default function HelpPage() {
 
         <Card title="Plants">
           <Points>
+            <li>Every notes session plants something new and helps an old plant grow.</li>
             <li>
-              Every notes session grows its own plant, like a fish for a study session. A continued session is one
-              session, so one plant.
+              A continued session is one session, so one plant. Under {PLANT_MIN_MINUTES} minutes there&apos;s no plant
+              (your minutes and coins still count).
             </li>
             <li>
-              The plant grows while you take notes, and the session&apos;s length decides how big it gets. Under{" "}
-              {PLANT_MIN_MINUTES} minutes there&apos;s no plant (your minutes and coins still count).
+              Each session of {PLANT_MIN_MINUTES}+ minutes also moves your oldest plant that isn&apos;t mature yet up one
+              stage, so small plants never stay small.
             </li>
+            <li>The new plant grows while you take notes, and the session&apos;s length sets the size it starts at:</li>
           </Points>
           <dl className="grid grid-cols-2 gap-2 text-sm">
             {PLANT_STAGES.slice(1).map((s, i, all) => (
@@ -269,7 +271,7 @@ export default function HelpPage() {
             <li>
               When the session ends, its plant goes on the floor of your newest tank (up to {PLANTS_PER_TANK} per tank).
             </li>
-            <li>A failed notes session grows no plant. Plants never die, and nothing happens while you&apos;re away.</li>
+            <li>A failed notes session grows no plant and helps none. Plants never die, and nothing happens while you&apos;re away.</li>
           </Points>
         </Card>
 

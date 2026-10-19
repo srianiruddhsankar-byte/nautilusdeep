@@ -24,10 +24,11 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - No leaderboards. Any future friends features are about encouragement, not ranking.
 - Web-first: no features that require native iPhone/Android apps.
 - Feature test: a new feature must help organise work, finish work, make progress rewarding, or make progress
-  visible. Otherwise it goes in IDEAS.md.
+  visible. Otherwise it goes on the ideas list.
 - UI/UX every phase: each phase organises and polishes the screens it touches, and new features are designed
   with the future layout in mind. Phase 9 is still the big polish pass.
-- Ideas rule: any idea that isn't built goes into IDEAS.md with why and when to revisit.
+- Ideas rule: any idea that isn't built goes on the ideas list with why and when to revisit. The list lives at
+  `Ideas/IDEAS.md` and is edited outside Claude Code: never edit it; mention such ideas to the owner instead.
 
 ## Stack
 - Next.js 16 (App Router), TypeScript, Tailwind CSS v4
@@ -54,8 +55,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
   bones, the nautilus flag, `catchLog` for the index, `creditedHours` (tested in `lib/fish.test.ts`).
   `lib/fish-look.ts` — a fish's swim (speed, lane, bob) seeded from its session id. `lib/sessions-data.ts` — `useSessions()`:
   all of the user's sessions (paged), shared by tank + recent list, merged with not-yet-uploaded queue rows
-- `lib/plants.ts` — pure plant derivation (`deriveGarden`): one plant per notes session with its stage, tank +
-  slot; `growingSpot` (where a running session's plant grows); stage thresholds in `PLANT_STAGES` (tested in
+- `lib/plants.ts` — pure plant derivation (`deriveGarden`): one plant per notes session with its start stage,
+  boosts from later sessions, tank + slot (`boostedBySession`: the older plant each session helped); `growingSpot` (where a running session's plant grows); stage thresholds in `PLANT_STAGES` (tested in
   `lib/plants.test.ts`).
   `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
 - `app/_tank/` — tank UI: `tank.tsx` (`Tank`: header, arrows / swipe, tap cards, keyboard buttons, the canvas;
@@ -385,7 +386,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Result screen: a calm ~2.5 s reveal (silhouettes flicking past and slowing, then the fish in colour with name,
   rarity and fact). Tap to skip; reduced motion shows it straight away.
 - Legendary fish glow gold with sparkles; Epic fish have a soft white glow. Drawings are simple for now (the
-  realistic redesign comes later, see IDEAS.md).
+  realistic redesign comes later, on the ideas list).
 - **The nautilus** (the namesake) is NOT in the roulette: at 100 total credited hours (study + notes, same total
   as skins) it lives in your newest tank, tappable, with its own "The namesake" section at the top of the index.
 - **Sea life index** (`/sea-life`): the namesake, then every species grouped by rarity. Caught: colour, name, fact,
@@ -412,11 +413,15 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 ### Plants, coins, decorations and skins (Phase 7)
 - Study sessions grow FISH. Notes sessions grow PLANTS, never fish; study sessions never touch plants.
 - Plants are DERIVED from `sessions` like fish (no table): ONE plant per notes session (completed / partial; a
-  Continue chain is one session), like a fish per study session. Its credited minutes set its final stage:
+  Continue chain is one session), like a fish per study session. Its credited minutes set the stage it STARTS at:
   under 15 no plant (minutes and coins still count), sprout 15–29, young 30–59, full 60–119, mature 120+
   (`PLANT_STAGES` in `lib/plants.ts`, the one place to tune). Minutes never add up across sessions. During the
-  session the plant grows through the stages live (seed until 15). Changed from "one plant at a time from
-  cumulative minutes" on 2026-10-18; past plants are simply re-derived.
+  session the plant grows through the stages live (seed until 15).
+- Long-term growth: each notes session that grows a plant (15+ min, not failed) also moves the OLDEST plant
+  planted before it that isn't mature up one stage (`boosts`), applied in date order. A session never boosts
+  its own plant; boosts never move a plant's tank or slot. Help says it in one sentence: "Every notes session
+  plants something new and helps an old plant grow". History: "one plant at a time from cumulative minutes"
+  until 2026-10-18, boosts added 2026-10-19; past plants are simply re-derived (no migration).
 - Plants live underwater: NO land-style flowers or petals. Maturity shows through size, fullness and colour
   (richer greens; the newest growth at the top takes on a warm tint, `tipHue`).
 - When its session ends the plant goes into the tank that is newest at that moment (by fish count then), in the
@@ -536,8 +541,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Phase 7: plants, coins, decorations, skins (rules in "Plants, coins, decorations and skins" above)
   - Part 1 (done): plants only.
   - Part 2 (done): coins, decorations (shop + milestones + placing), skins per tank.
-  - Plants: notes sessions grow plants from cumulative notes minutes; they never die from time passing; a failed
-    Deep Focus notes session loses only that session's growth.
+  - Plants: one per notes session, each session also helping the oldest unfinished plant grow (see above); they
+    never die from time passing; a failed notes session grows and helps nothing.
   - Coins: 1 focus minute = 1 coin; Open Focus = half.
   - Decorations: mostly bought with coins, some unlocked by milestones.
   - Skins unlocked by total hours.
@@ -546,7 +551,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   - Pulled forward from "later": fish species with a rarity roulette, the Sea life index and the nautilus
     (simple drawings; the realistic redesign and water types are still later).
 - Phase 9 (in progress): professional UI/UX redesign, visual only (no new features; Continue session was added
-  on request between Stage C batches). Includes the tank/scene redesign (moved here from IDEAS.md). Stages: A design direction (3 options on `/design-preview`), B design
+  on request between Stage C batches). Includes the tank/scene redesign (moved here from the ideas list). Stages: A design direction (3 options on `/design-preview`), B design
   system (tokens + shared components, rules written here), C tank and scene art, D every page rebuilt
   phone-first, E motion. The owner approves each stage before the next.
   - Stage A (done): UI = Paper Tide (C); tank = Tank 4 (PixiJS rope-mesh fish), built in Stage C.
@@ -564,8 +569,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Phase 10 (done): PWA (installable) + push notifications.
   - 10a (done): installable app; install card on Home (done).
   - 10b-1 (done; test after deploy): push infrastructure + "Time's up".
-  - 10b-2 task reminders: parked in IDEAS.md (revisit after friends testing).
+  - 10b-2 task reminders: parked on the ideas list (revisit after friends testing).
 - Phase 11: testing with friends. Key questions: do they study more because the tank grows, or just think it
   looks nice? Do they come back for the tank? Do they use cycles and tasks? Where do they keep their to-do lists?
   If they say "cool" and never return, rethink — don't just add features.
-- Later: see IDEAS.md.
+- Later: see the ideas list (`Ideas/IDEAS.md`).

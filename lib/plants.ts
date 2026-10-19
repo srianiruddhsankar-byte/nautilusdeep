@@ -5,9 +5,11 @@ import { TANK_CAPACITY, earnsFish, focusMinutes, type SessionFacts } from "./fis
 //
 // - ONE plant per notes session, like a fish per study session (a continued
 //   session is one session). Study sessions never touch plants.
-// - The session's credited minutes set how far it grew: under 15 no plant (its
-//   minutes and coins still count), then sprout, young, full, mature
-//   (PLANT_STAGES). During the session it grows through the stages live.
+// - The session's credited minutes set the stage it starts at: under 15 no
+//   plant (its minutes and coins still count), then sprout, young, full,
+//   mature (PLANT_STAGES). During the session it grows through the stages live.
+// - Each plant-growing session also moves the oldest plant planted BEFORE it
+//   that isn't mature yet up one stage, so short-session plants keep growing.
 // - Completed / partial sessions only; a failed notes session grows nothing.
 // - When the session ends its plant goes into the tank that is newest at that
 //   moment (by fish count then), in the next free spot (6 per tank; if full,
@@ -63,14 +65,22 @@ export function toNextStage(minutes: number): string | null {
   return next ? `${next.atMinutes - minutes} min to ${PLANT_STAGE_SHORT[next.stage]}` : null;
 }
 
-// A notes session that leaves a plant.
+// The stage after this one (mature stays mature).
+export function stageAfter(stage: PlantStage): PlantStage {
+  const i = PLANT_STAGES.findIndex((s) => s.stage === stage);
+  return PLANT_STAGES[Math.min(i + 1, PLANT_STAGES.length - 1)].stage;
+}
+
+// A notes session that leaves a plant (and helps an older one grow).
 export function growsPlant(row: SessionFacts): boolean {
   return row.session_type === "notes" && row.outcome !== "failed" && focusMinutes(row) >= PLANT_MIN_MINUTES;
 }
 
 export type Plant = {
   id: string; // = the session id; also seeds its look
-  stage: PlantStage; // never "seed"
+  stage: PlantStage; // never "seed": its start stage plus every boost since
+  startStage: PlantStage; // set by its own session's length
+  boosts: number; // later sessions that each moved it up one stage
   minutes: number; // the session's credited notes minutes
   startedAt: string;
   plantedAt: string; // = the session's end
@@ -82,6 +92,7 @@ export type Garden = {
   plants: Plant[]; // oldest first
   tankCount: number; // at least the fish tanks; more if plants overflowed
   bySession: Map<string, Plant>; // the plant each notes session left
+  boostedBySession: Map<string, { plant: Plant; to: PlantStage }>; // the older plant it helped, and to what stage
 };
 
 // Where the next plant goes: the newest tank (by fish count), or the next one
@@ -100,18 +111,29 @@ export function deriveGarden(rows: SessionFacts[]): Garden {
 
   const plants: Plant[] = [];
   const bySession = new Map<string, Plant>();
+  const boostedBySession = new Map<string, { plant: Plant; to: PlantStage }>();
   const plantsInTank: number[] = [];
   let fishSoFar = 0;
 
   for (const row of ordered) {
     if (earnsFish(row)) fishSoFar++;
     if (!growsPlant(row)) continue;
+    // First help the oldest unfinished plant (only plants from earlier sessions).
+    const older = plants.find((p) => p.stage !== "mature");
+    if (older) {
+      older.stage = stageAfter(older.stage);
+      older.boosts++;
+      boostedBySession.set(row.id, { plant: older, to: older.stage });
+    }
     const spot = nextPlantSpot(plantsInTank, fishSoFar);
     plantsInTank[spot.tank] = spot.slot + 1;
     const minutes = focusMinutes(row);
+    const startStage = plantStageFor(minutes);
     const plant: Plant = {
       id: row.id,
-      stage: plantStageFor(minutes),
+      stage: startStage,
+      startStage,
+      boosts: 0,
       minutes,
       startedAt: row.started_at,
       plantedAt: row.ended_at,
@@ -122,7 +144,12 @@ export function deriveGarden(rows: SessionFacts[]): Garden {
   }
 
   const fishTanks = Math.max(1, Math.ceil(fishSoFar / TANK_CAPACITY));
-  return { plants, tankCount: Math.max(fishTanks, plantsInTank.length), bySession };
+  return {
+    plants,
+    tankCount: Math.max(fishTanks, plantsInTank.length),
+    bySession,
+    boostedBySession,
+  };
 }
 
 // Where a running notes session's plant is growing (it's planted there when

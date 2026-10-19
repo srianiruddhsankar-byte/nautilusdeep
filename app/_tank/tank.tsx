@@ -544,7 +544,10 @@ function PlantCard({ plant, onClose }: { plant: Plant; onClose: () => void }) {
   return (
     <TankCard onClose={onClose}>
       <p className="font-semibold">{PLANT_STAGE_LABEL[plant.stage]}</p>
-      <p>Grown in one notes session of {formatDuration(plant.minutes * 60)}</p>
+      <p>
+        Planted in a {formatDuration(plant.minutes * 60)} notes session
+        {plant.boosts > 0 && ` · grown by ${plant.boosts} later ${plant.boosts === 1 ? "session" : "sessions"}`}
+      </p>
       <p className="text-[#5f6977]">Planted {shortDate(plant.plantedAt)}</p>
     </TankCard>
   );
