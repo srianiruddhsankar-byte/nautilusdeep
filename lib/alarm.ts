@@ -1,13 +1,15 @@
 import { useSyncExternalStore } from "react";
-import { playCheckInAlarm, playCheckInChime, playChimes, stopVibrating, vibrate } from "./feedback";
-import type { Alarm } from "./alarm-text";
+import { playCheckInAlarm, playCheckInChime, playChimes, playGentleChime, stopVibrating, vibrate } from "./feedback";
+import { loadPrefs } from "./prefs-store";
+import type { Alarm, AlarmStyle } from "./alarm-text";
 import type { CheckInStyle } from "./timer";
 
 // The words live in lib/alarm-text.ts (shared with the push notifications).
 export { PAUSE_OVER_ALARM, SESSION_DONE_ALARM, TIMES_UP_ALARM, phaseAlarm, type Alarm } from "./alarm-text";
 
-// The end-of-block alarm: 3 chimes plus a vibration, repeated every few
-// seconds until you tap "Got it", and never longer than a minute. The overlay
+// The end-of-block alarm: a sound (in the style chosen in Session settings:
+// gentle, chime or silent) plus a vibration, repeated every few seconds until
+// you tap "Got it", and never longer than a minute. The overlay
 // (app/_focus/alarm-overlay.tsx) shows while it rings, so a phone on silent
 // still flashes. Shaped for React's useSyncExternalStore, like the other stores.
 
@@ -15,8 +17,10 @@ export const CHIMES_PER_RING = 3;
 export const RING_EVERY_MS = 4_000;
 export const ALARM_MAX_MS = 60_000;
 const VIBRATION = [300, 150, 300, 150, 300]; // buzz-pause-buzz-pause-buzz (ms)
+const GENTLE_VIBRATION = [200, 120, 200];
 
 let current: Alarm | null = null;
+let style: AlarmStyle = "gentle";
 let repeat: ReturnType<typeof setInterval> | null = null;
 let timeout: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
@@ -32,14 +36,25 @@ function subscribe(listener: () => void) {
   };
 }
 
+// One ring in the given style. Also the sample when you pick a style.
+export function ringOnce(s: AlarmStyle) {
+  if (s === "chime") {
+    playChimes(CHIMES_PER_RING);
+    vibrate(VIBRATION);
+  } else {
+    if (s === "gentle") playGentleChime();
+    vibrate(GENTLE_VIBRATION); // silent: the buzz alone (no vibration on iPhone: the screen still pulses)
+  }
+}
+
 function ring() {
-  playChimes(CHIMES_PER_RING);
-  vibrate(VIBRATION);
+  ringOnce(style);
 }
 
 export function startAlarm(alarm: Alarm) {
   stopAlarm(); // a new alarm replaces one that's still ringing
   current = alarm;
+  style = loadPrefs().alarm; // saved on Start, so it's the style this session began with
   ring();
   repeat = setInterval(ring, RING_EVERY_MS);
   timeout = setTimeout(stopAlarm, ALARM_MAX_MS);

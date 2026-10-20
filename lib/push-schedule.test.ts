@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { VISIBLE_LOOKAHEAD_MS, pushPlan, pushSupport, sessionAlerts, showPushOffer, type PushAlert } from "./push-schedule.ts";
 import {
   DEFAULT_CYCLE,
+  comeBack,
   confirmCheckIn,
   continueSession,
   endPause,
@@ -11,6 +12,7 @@ import {
   startPause,
   startStopwatch,
   startTimer,
+  withAwayPause,
   withChain,
   type Session,
 } from "./timer.ts";
@@ -51,10 +53,26 @@ describe("a timer", () => {
 });
 
 describe("Deep Focus: never announce a block that leaving has lost", () => {
-  test("during focus the server holds nothing (leaving would end it first)", () => {
+  // The pause used up already (1 min in), so leaving can only fail it.
+  const pauseUsed = (s: Session): Session => ({ ...s, pause: { startedAt: T0 + MIN, endedAt: T0 + 2 * MIN } });
+
+  test("during focus, pause used: the server holds nothing (leaving would end it first)", () => {
+    const s = pauseUsed(withChain(startTimer(25, T0, "deep")));
+    assert.deepEqual(pushPlan(s, T0 + 3 * MIN, hidden), []);
+    assert.deepEqual(pushPlan({ ...s, awaySince: T0 + 3 * MIN }, T0 + 3 * MIN, hidden), []);
+  });
+
+  test("during focus, pause unused: only Still away?, a minute before the pause would run out", () => {
     const s = withChain(startTimer(25, T0, "deep"));
-    assert.deepEqual(pushPlan(s, T0 + MIN, hidden), []);
-    assert.deepEqual(pushPlan({ ...s, awaySince: T0 + MIN }, T0 + MIN, hidden), []);
+    // Leaving at 1 min pauses until 6; Time's up would move past the 15 s after it.
+    assert.deepEqual(brief(pushPlan(s, T0 + MIN, hidden)), ["away @5 Still away?"]);
+    assert.deepEqual(brief(pushPlan({ ...s, awaySince: T0 + MIN }, T0 + 2 * MIN, hidden)), ["away @5 Still away?"]);
+  });
+
+  test("coming back takes Still away? off again", () => {
+    const back = comeBack(withAwayPause({ ...withChain(startTimer(25, T0, "deep")), awaySince: T0 + MIN }, T0 + MIN), T0 + 3 * MIN);
+    assert.deepEqual(brief(sessionAlerts(back, T0 + 3 * MIN)), ["end:0 @27 Time's up"]); // 2 min paused
+    assert.deepEqual(pushPlan(back, T0 + 3 * MIN, hidden), []); // pause used: leaving again would fail it
   });
 
   test("leaving in the last 15 s still finishes the block, so it rings", () => {
@@ -63,14 +81,16 @@ describe("Deep Focus: never announce a block that leaving has lost", () => {
     assert.deepEqual(brief(pushPlan({ ...s, awaySince: now }, now, hidden)), ["end:0 @25 Time's up"]);
   });
 
-  test("in a cycle's break: only Break's over (the next focus block would fail)", () => {
+  test("in a cycle's break: Break's over (and Still away? if the pause is unused)", () => {
     const now = T0 + 27 * MIN;
-    assert.deepEqual(brief(pushPlan(pomodoro("deep"), now, hidden)), ["end:1 @30 Break's over"]);
+    assert.deepEqual(brief(pushPlan(pomodoro("deep"), now, hidden)), ["end:1 @30 Break's over", "away @34 Still away?"]);
+    // (its 1-minute pause moved the break end to 31)
+    assert.deepEqual(brief(pushPlan(pauseUsed(pomodoro("deep")), now, hidden)), ["end:1 @31 Break's over"]);
   });
 
-  test("a leave that has already run out of grace: nothing at all", () => {
-    const s = { ...withChain(startTimer(25, T0, "deep")), awaySince: T0 + MIN };
-    assert.deepEqual(pushPlan(s, T0 + 2 * MIN, hidden), []);
+  test("a leave that has already run out of grace (pause used): nothing at all", () => {
+    const s = { ...pauseUsed(withChain(startTimer(25, T0, "deep"))), awaySince: T0 + 3 * MIN };
+    assert.deepEqual(pushPlan(s, T0 + 4 * MIN, hidden), []);
   });
 });
 

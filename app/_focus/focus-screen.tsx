@@ -40,6 +40,7 @@ import {
   continueWindowRemainingMs,
   checkInState,
   checkSession,
+  comeBack,
   confirmCheckIn,
   endPause,
   formatClock,
@@ -68,6 +69,7 @@ import { useWakeLock } from "@/lib/use-wake-lock";
 import { BottomNav } from "../_nav/bottom-nav";
 import { InstallAppCard } from "../_pwa/install-card";
 import { StatsLine } from "../_stats/stats-line";
+import { toast } from "../_ui/toast";
 import { ResultFish } from "../_tank/result-fish";
 import { ResultPlant } from "../_tank/result-plant";
 import { RunningTank } from "../_tank/running-tank";
@@ -367,16 +369,22 @@ function useSessionClock(active: boolean): number | null {
         return;
       }
 
-      // Back on screen: away more than 15 s of focus? (A leave that began in the
-      // first 10 s counts as a cancel, not a failure.)
+      // Back on screen: away more than 15 s of focus? Then the one pause took
+      // over (if unused) and ends now; otherwise the session ended. (A leave
+      // that began in the first 10 s counts as a cancel, not a failure.)
+      let current = session;
       if (session.awaySince !== null) {
         const check = checkSession(session, t);
-        if (check.status !== "running") return finish(check);
-        save({ session: { ...session, awaySince: null }, result: null });
+        if (check.status === "cancelled" || check.status === "ended") return finish(check);
+        if (check.status === "updated") current = check.session;
+        const pausedWhileAway = current.pause?.auto && current.pause.startedAt >= session.awaySince;
+        current = comeBack(current, t);
+        save({ session: current, result: null });
+        if (pausedWhileAway) toast("Paused while you were away. Your one pause is now used.");
       }
       // Don't ring for phases that ended while away.
-      lastPhase = getStatus(session, t).phaseIndex;
-      wasWaiting = getStatus(session, t).waiting;
+      lastPhase = getStatus(current, t).phaseIndex;
+      wasWaiting = getStatus(current, t).waiting;
       setNow(t);
     }
 
@@ -521,9 +529,11 @@ function RunningView({
       ? `Break. It's safe to leave the app. Next: Focus ${status.focusBlock + 1} of ${status.totalBlocks}.`
       : open
         ? "Open Focus: you can use other apps on this device."
-        : `Stay on this screen. Leaving for more than ${LEAVE_GRACE_MS / 1000} s ends ${
-            losesWholeSession ? "the session" : `this ${piece}`
-          }.`;
+        : !session.pause
+          ? `Stay on this screen. If you must leave for more than ${LEAVE_GRACE_MS / 1000} s, it pauses once, for up to ${MAX_PAUSE_MS / 60_000} min.`
+          : `Stay on this screen. Leaving for more than ${LEAVE_GRACE_MS / 1000} s ends ${
+              losesWholeSession ? "the session" : `this ${piece}`
+            }.`;
 
   let stopLabel = session.mode === "stopwatch" ? "Stop" : isCycle ? "End session" : "Give up";
   if (finalBreak || waiting) stopLabel = "Finish";
@@ -941,7 +951,7 @@ function describe(r: Result): { title: string; detail: string } {
       detail: `Ended at your last check-in — looks like you fell asleep. Credited: ${Math.floor(r.focusMs / 60_000)} min.`,
     };
   }
-  const away = `You were away for more than ${LEAVE_GRACE_MS / 1000} seconds`;
+  const away = "You were away from the app for too long";
   if (isNotes(r)) {
     if (r.outcome === "failed") {
       return {

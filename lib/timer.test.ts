@@ -5,13 +5,16 @@ import {
   DEFAULT_CYCLE,
   cancelWindowRemainingMs,
   checkSession,
+  comeBack,
   endSession,
   getStatus,
   leaveFailureTime,
   pressStop,
   startCycle,
+  startPause,
   startStopwatch,
   startTimer,
+  withAwayPause,
   type Check,
   type Result,
   type Session,
@@ -24,6 +27,9 @@ const T0 = 1_700_000_000_000; // an arbitrary fixed start time
 // Default cycle timeline: F1 0–25, break 25–30, F2 30–55, break 55–60,
 // F3 60–85, break 85–90, F4 90–115, long break 115–130.
 const cycle = () => startCycle(DEFAULT_CYCLE, T0);
+
+// The pause already used (manually, 1 min in), so a long leave fails as before.
+const pauseUsed = (s: Session): Session => ({ ...s, pause: { startedAt: T0 + MIN, endedAt: T0 + 2 * MIN } });
 
 // The Result of a check that must have ended (fails the test otherwise).
 function ended(check: Check): Result {
@@ -85,8 +91,8 @@ describe("15-second leave rule", () => {
     assert.equal(away(cycle(), 29 * MIN, 30 * MIN + 20 * SEC), T0 + 30 * MIN + 15 * SEC);
   });
 
-  test("checkSession fails a stopwatch the user left", () => {
-    const s = { ...startStopwatch(T0), awaySince: T0 + 10 * MIN };
+  test("checkSession fails a stopwatch the user left (pause already used)", () => {
+    const s = { ...pauseUsed(startStopwatch(T0)), awaySince: T0 + 10 * MIN };
     const r = ended(checkSession(s, T0 + 11 * MIN));
     assert.equal(r.outcome, "failed");
     assert.equal(r.endedBy, "left");
@@ -127,10 +133,11 @@ describe("cycle checkpoints", () => {
   });
 
   test("leaving mid-block, via checkSession, banks blocks done before the leave", () => {
-    // Left 10 min into F3 and came back an hour later.
+    // Left 10 min into F3 and came back an hour later: the pause took over
+    // when they left, then 15 s more after it ran out.
     const s = { ...cycle(), awaySince: T0 + 70 * MIN };
     const r = ended(checkSession(s, T0 + 130 * MIN - 1));
-    assert.equal(r.endedAt, T0 + 70 * MIN + 15 * SEC);
+    assert.equal(r.endedAt, T0 + 75 * MIN + 15 * SEC);
     assert.equal(r.blocksCompleted, 2);
   });
 
@@ -147,8 +154,8 @@ describe("focus modes", () => {
     assert.equal(startTimer(25, T0).focusMode, "deep");
   });
 
-  test("Deep Focus still fails after 15 s away", () => {
-    const s = { ...startTimer(25, T0, "deep"), awaySince: T0 + 5 * MIN };
+  test("Deep Focus still fails after 15 s away once the pause is used", () => {
+    const s = { ...pauseUsed(startTimer(25, T0, "deep")), awaySince: T0 + 5 * MIN };
     assert.equal(checkSession(s, T0 + 5 * MIN + 15 * SEC).status, "running");
     const r = ended(checkSession(s, T0 + 5 * MIN + 16 * SEC));
     assert.equal(r.outcome, "failed");
@@ -240,9 +247,72 @@ describe("cancel window", () => {
   });
 
   test("Deep Focus: leaving at 11 s follows the normal 15-second rule and fails", () => {
-    const s = { ...startTimer(25, T0), awaySince: T0 + 11 * SEC };
+    const s = { ...startTimer(25, T0), awaySince: T0 + 11 * SEC, pause: { startedAt: T0 + 11 * SEC, endedAt: T0 + 11 * SEC } };
     const r = ended(checkSession(s, T0 + 30 * SEC));
     assert.equal(r.outcome, "failed");
     assert.equal(r.endedBy, "left");
+  });
+});
+
+describe("one free interruption (the pause takes over when you're away)", () => {
+  // A 25-min Deep Focus timer; a call comes in 5 minutes in.
+  const left = { ...startTimer(25, T0, "deep"), awaySince: T0 + 5 * MIN };
+
+  test("15 s is still fine with no pause at all", () => {
+    assert.deepEqual(checkSession(left, T0 + 5 * MIN + 15 * SEC), { status: "running" });
+  });
+
+  test("away longer: the pause starts the moment they left", () => {
+    const check = checkSession(left, T0 + 7 * MIN);
+    assert.equal(check.status, "updated");
+    const s = (check as Extract<Check, { status: "updated" }>).session;
+    assert.deepEqual(s.pause, { startedAt: T0 + 5 * MIN, endedAt: null, auto: true });
+    assert.equal(s.awaySince, T0 + 5 * MIN); // still away
+    assert.deepEqual(checkSession(s, T0 + 8 * MIN), { status: "running" });
+  });
+
+  test("coming back ends it; the away time didn't count", () => {
+    const paused = withAwayPause(left, left.awaySince, T0 + 7 * MIN);
+    const back = comeBack(paused, T0 + 7 * MIN);
+    assert.equal(back.awaySince, null);
+    assert.deepEqual(back.pause, { startedAt: T0 + 5 * MIN, endedAt: T0 + 7 * MIN, auto: true });
+    assert.equal(getStatus(back, T0 + 7 * MIN).remainingMs, 20 * MIN); // still 20 min left, as when they left
+  });
+
+  test("away past the 5 minutes + 15 s fails, crediting nothing paused", () => {
+    assert.deepEqual(checkSession(left, T0 + 10 * MIN + 15 * SEC).status, "updated");
+    const r = ended(checkSession(left, T0 + 10 * MIN + 16 * SEC));
+    assert.equal(r.outcome, "failed");
+    assert.equal(r.endedBy, "left");
+    assert.equal(r.endedAt, T0 + 10 * MIN + 15 * SEC);
+  });
+
+  test("only once: a second long leave fails", () => {
+    const back = comeBack(withAwayPause(left, left.awaySince, T0 + 7 * MIN), T0 + 7 * MIN);
+    const again = { ...back, awaySince: T0 + 12 * MIN };
+    assert.equal(ended(checkSession(again, T0 + 13 * MIN)).endedBy, "left");
+  });
+
+  test("a pause you started yourself counts as the one pause", () => {
+    const s = { ...comeBack(startPause(startTimer(25, T0, "deep"), T0 + MIN), T0 + 2 * MIN), awaySince: T0 + 5 * MIN };
+    assert.deepEqual(withAwayPause(s, T0 + 5 * MIN, T0 + 6 * MIN), s);
+  });
+
+  test("coming back doesn't end a pause you started yourself", () => {
+    const s = { ...startPause(startTimer(25, T0, "deep"), T0 + MIN), awaySince: T0 + 2 * MIN };
+    assert.equal(comeBack(s, T0 + 3 * MIN).pause?.endedAt, null);
+  });
+
+  test("leaving in a cycle's break: the pause starts when focus does", () => {
+    const s = { ...cycle(), awaySince: T0 + 27 * MIN };
+    assert.equal(withAwayPause(s, s.awaySince, T0 + 31 * MIN).pause?.startedAt, T0 + 30 * MIN);
+  });
+
+  test("the first 10 s are still a cancel, and Open Focus never pauses", () => {
+    assert.deepEqual(checkSession({ ...startTimer(25, T0), awaySince: T0 + 4 * SEC }, T0 + 2 * MIN), {
+      status: "cancelled",
+    });
+    const open = { ...startTimer(25, T0, "open"), awaySince: T0 + MIN };
+    assert.deepEqual(withAwayPause(open, T0 + MIN, T0 + 20 * MIN), open);
   });
 });

@@ -75,8 +75,9 @@ export type Session = {
   // Ocean ambience for this session (Phase 8). Missing = off.
   ambience?: SessionAmbience | null;
   // The one pause (Deep Focus only). endedAt null = still paused (it ends by
-  // itself after MAX_PAUSE_MS). Missing = not used yet.
-  pause?: { startedAt: number; endedAt: number | null } | null;
+  // itself after MAX_PAUSE_MS). Missing = not used yet. auto = it started by
+  // itself when you were away too long (see withAwayPause).
+  pause?: { startedAt: number; endedAt: number | null; auto?: boolean } | null;
   // Continue session: present on sessions started since it exists (older ones
   // simply end, as before). See "Continuing" below.
   chain?: Chain;
@@ -432,6 +433,25 @@ export function leaveFailureTime(
   return null;
 }
 
+// One free interruption (a phone call, something urgent): a leave that would
+// fail the session, with the pause still unused, uses the pause instead,
+// starting the moment you left. Paused time never counts, and the leave rule
+// is back on when the pause runs out, so staying away longer than the 5
+// minutes (+15 s) still fails, and so does a second long leave.
+export function withAwayPause(session: Session, from: number, to = Infinity): Session {
+  if (isOpenFocus(session) || session.pause) return session;
+  const failAt = leaveFailureTime(session, from, to);
+  if (failAt === null) return session;
+  return { ...session, pause: { startedAt: Math.max(from, failAt - LEAVE_GRACE_MS), endedAt: null, auto: true } };
+}
+
+// Back on screen after a leave that didn't end the session: the pause that
+// started by itself (if any) ends now, and the timer carries on.
+export function comeBack(session: Session, now: number): Session {
+  const back = { ...session, awaySince: null };
+  return back.pause?.auto ? endPause(back, now) : back;
+}
+
 // ---------- Night mode check-ins ----------
 //
 // Every `intervalMs` of FOCUS time since the last confirmation (or the start),
@@ -611,6 +631,13 @@ export function checkSession(session: Session, now: number): Check {
     // continuation goes back to the break.
     if (session.awaySince! < partStartedAt(session) + CANCEL_WINDOW_MS) {
       return isContinuation(session) ? { status: "updated", session: undoContinue(session) } : { status: "cancelled" };
+    }
+    // The pause still unused: it takes over from the moment you left, and the
+    // session is checked again with it (still away past the pause = failed).
+    const paused = withAwayPause(session, session.awaySince!, now);
+    if (paused !== session) {
+      const next = checkSession(paused, now);
+      return next.status === "running" ? { status: "updated", session: paused } : next;
     }
     return { status: "ended", result: endSession(session, "left", failAt) };
   }

@@ -23,7 +23,8 @@ import {
   type NightPrefs,
   type SetupPrefs,
 } from "@/lib/setup-prefs";
-import { checkInAlert } from "@/lib/alarm";
+import { checkInAlert, ringOnce } from "@/lib/alarm";
+import type { AlarmStyle } from "@/lib/alarm-text";
 import { formatDuration } from "@/lib/stats";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
 import { groupTasks, openTasksInOrder } from "@/lib/task-views";
@@ -57,7 +58,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "cycle", label: "Cycle" },
 ];
 const FOCUS_MODES: { id: FocusMode; explanation: string }[] = [
-  { id: "deep", explanation: "Stay in the app. Leaving over 15 s fails it." },
+  { id: "deep", explanation: "Stay in the app. Leaving over 15 s pauses it once, then fails it." },
   { id: "open", explanation: "Use this device to study. No leave rule." },
 ];
 const SESSION_TYPES: SessionType[] = ["study", "notes"];
@@ -66,6 +67,11 @@ const NIGHT_STYLES: { id: CheckInStyle; label: string }[] = [
   { id: "vibrate", label: "Chime + buzz" },
   { id: "alarm", label: "Alarm" },
   { id: "pulse", label: "Silent pulse" },
+];
+const ALARM_OPTIONS: { id: AlarmStyle; label: string }[] = [
+  { id: "gentle", label: "Gentle" },
+  { id: "chime", label: "Chime" },
+  { id: "silent", label: "Silent" },
 ];
 // The 1-minute check-in is only for testing on your computer (npm run dev).
 const NIGHT_CHOICES =
@@ -274,6 +280,21 @@ export function SetupForm({
 
           <Group title="Sound and night">
             <Ambience value={prefs.ambience} onChange={(ambience) => set({ ambience })} />
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-muted">Alarm when time&apos;s up (tap to hear)</span>
+              <Segmented
+                label="Alarm sound"
+                options={ALARM_OPTIONS}
+                value={prefs.alarm}
+                onChange={(alarm) => {
+                  set({ alarm });
+                  ringOnce(alarm); // a sample, so you know what you picked
+                }}
+              />
+              {prefs.alarm === "silent" && (
+                <p className="text-sm text-muted">Vibration and a pulsing screen. iPhones can&apos;t vibrate from a web app.</p>
+              )}
+            </div>
             <NightMode night={prefs.night} onChange={(night) => set({ night })} />
           </Group>
         </div>

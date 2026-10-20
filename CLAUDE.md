@@ -118,8 +118,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Shop · Stats · Help; each page renders it, Home hides it
   while a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
 - `app/_focus/today-tasks.tsx` — Home's "Today" card. `app/_focus/task-status.tsx` — "In progress" badge, "Mark done"
-- `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): 3 chimes + vibration every 4 s,
-  stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay.
+- `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): one ring every 4 s in the
+  style from the setup prefs (`alarm`: Gentle (default, one soft chime) / Chime (3 bright chimes) / Silent
+  (vibration only), sampled by `ringOnce`), stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay.
   The words (`phaseAlarm`, "Time's up", "Pause over", "Session complete") live in pure `lib/alarm-text.ts`,
   shared with the push notifications
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
@@ -274,6 +275,9 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   leave rule is off during it and back on after; Night mode check-ins can't come due or run out. It ends on
   Resume or by itself after 5 min (a gentle "Pause over" alarm if on screen). Stored on the running session as
   `pause: { startedAt, endedAt }`, so refreshes and hidden pages work. Ambience and the tank scene stop for it.
+  - **One free interruption** (a phone call): a leave that would fail the session, with the pause unused, uses
+    the pause instead, from the moment you left (`withAwayPause`, `pause.auto`); coming back ends it
+    (`comeBack`) with a toast. Away past the 5 min + 15 s, or a second long leave, fails as before.
 
 - **Continue session**: every session started since it exists (`withChain` at Start; older ones end as
   before) goes into a BREAK when its time is up (a timer reaching zero, a stopwatch's Stop, or a cycle's
@@ -503,9 +507,11 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   hidden / shown, or every 5 s while Home is open. Only while Time's up is on for this device.
 - What's on the list (`pushPlan`) mirrors the in-app alarm: each phase end of a cycle, "Time's up" when the last
   focus block of a continuable session ends (a timer, or a cycle ending in focus), "Session complete" for
-  pre-Continue sessions, "Pause over" (a pause is assumed to last its full 5 min). Stopwatch Stop and a final
+  pre-Continue sessions, "Pause over" (a pause is assumed to last its full 5 min), "Still away?" a minute before
+  an away pause (`pause.auto`) runs out. Stopwatch Stop and a final
   long break running out never ring. Never anything after a missed check-in's deadline.
-- Deep Focus: nothing from the moment you'd fail if you left NOW (`leaveFailureTime` from `awaySince ?? now`):
+- Deep Focus: nothing from the moment you'd fail if you left NOW (`leaveFailureTime` from `awaySince ?? now`,
+  planned with the away pause if the pause is unused, so focus ends shift past the cut):
   the server never holds a focus-end alert during focus, only "Break's over" in a break, "Pause over" when
   paused, so a lost request can't cause a false "Focus done". Leaving in the last 15 s of a block adds it.
 - While Home is on screen, alerts due within 30 s are taken off the server (the in-app alarm rings; iPhones

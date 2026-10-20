@@ -1,3 +1,4 @@
+import { ALARM_STYLES, type AlarmStyle } from "./alarm-text.ts";
 import { DEFAULT_VOLUME, cleanVolume, toAmbienceChoice, type AmbienceChoice } from "./ambience-logic.ts";
 import { MAX_REPEAT } from "./cycle-blocks.ts";
 import {
@@ -47,6 +48,7 @@ export type SetupPrefs = {
   custom: CustomFields;
   night: NightPrefs;
   ambience: { sound: AmbienceChoice; volume: number };
+  alarm: AlarmStyle; // how the end-of-block alarm sounds
 };
 
 export const CUSTOM = "custom";
@@ -69,6 +71,7 @@ export const DEFAULT_PREFS: SetupPrefs = {
   custom: DEFAULT_CUSTOM,
   night: { on: false, intervalMin: 30, style: "chime" },
   ambience: { sound: "off", volume: DEFAULT_VOLUME },
+  alarm: "gentle",
 };
 
 const oneOf = <T extends string>(value: unknown, options: readonly T[], fallback: T): T =>
@@ -114,5 +117,6 @@ export function sanitizePrefs(data: unknown): SetupPrefs {
       sound: toAmbienceChoice(a.sound), // an old, retired sound becomes its closest match
       volume: cleanVolume(a.volume),
     },
+    alarm: oneOf(d.alarm, ALARM_STYLES, DEFAULT_PREFS.alarm),
   };
 }

@@ -65,6 +65,10 @@ export default function HelpPage() {
             <li>
               <b>Cycle</b>: focus and breaks take turns, like the Pomodoro method.
             </li>
+            <li>
+              When time&apos;s up, an alarm rings until you tap Got it. In a library or class? It&apos;s Gentle by default;
+              pick Chime (louder) or Silent (vibration and a pulsing screen) in Session settings.
+            </li>
           </Points>
         </Card>
 
@@ -91,6 +95,10 @@ export default function HelpPage() {
             <li>
               <b>Deep Focus</b>: stay in the app. Leaving for more than {GRACE} seconds during focus ends it. The screen
               stays on.
+            </li>
+            <li>
+              A phone call or something urgent? If your pause is unused, leaving uses it instead: the timer stands still
+              for up to {MAX_PAUSE_MS / 60_000} minutes and carries on when you come back. A second long leave ends it.
             </li>
             <li>
               <b>Open Focus</b>: for studying on this same device. Use other apps freely; leaving never ends it.
@@ -137,6 +145,7 @@ export default function HelpPage() {
               Tap Resume, or after {MAX_PAUSE_MS / 60_000} minutes it carries on by itself. Then the {GRACE}-second leave
               rule is back on, so come back in time.
             </li>
+            <li>If you leave for more than {GRACE} seconds with your pause unused, it pauses by itself, from the moment you left.</li>
             <li>Open Focus doesn&apos;t need a pause: leaving never ends it.</li>
           </Points>
         </Card>

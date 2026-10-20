@@ -19,6 +19,7 @@ describe("remembered setup", () => {
       custom: { focusMin: "50", shortBreakMin: "10", longBreakMin: "20", blocksPerSet: "3" },
       night: { on: true, intervalMin: 45, style: "pulse" },
       ambience: { sound: "stream", volume: 0.4 },
+      alarm: "silent",
     };
     assert.deepEqual(sanitizePrefs(JSON.parse(JSON.stringify(saved))), saved);
   });
@@ -42,6 +43,12 @@ describe("remembered setup", () => {
     assert.equal(prefs.cycleChoice, "pomodoro");
     assert.deepEqual(prefs.custom, { focusMin: "50", shortBreakMin: "5", longBreakMin: "15", blocksPerSet: "4" });
     assert.deepEqual(prefs.night, { on: false, intervalMin: 30, style: "chime" }); // Night mode stays off
+  });
+
+  test("the alarm is gentle unless another style was chosen (people who saved before it existed too)", () => {
+    assert.equal(sanitizePrefs({}).alarm, "gentle");
+    assert.equal(sanitizePrefs({ alarm: "chime" }).alarm, "chime");
+    assert.equal(sanitizePrefs({ alarm: "siren" }).alarm, "gentle");
   });
 
   test("Night mode is off unless it was turned on, and the 1-minute test interval survives a reload", () => {

@@ -136,7 +136,8 @@ test("leaving during the break is safe; leaving a continuation loses only it", (
   const s = { ...timer(12), awaySince: T0 + 13 * MIN };
   assert.equal(checkSession(s, T0 + 20 * MIN).status, "running");
   const c = { ...continueSession(timer(12), T0 + 14 * MIN), awaySince: T0 + 16 * MIN };
-  const result = ended(checkSession(c, T0 + 17 * MIN));
+  // Away longer than the pause that takes over (5 min) + 15 s.
+  const result = ended(checkSession(c, T0 + 22 * MIN));
   assert.equal(result.endedBy, "left");
   assert.equal(result.focusMs, 12 * MIN);
   assert.equal(outcomeOf(result), "partial");

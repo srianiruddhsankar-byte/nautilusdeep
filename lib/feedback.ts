@@ -69,6 +69,14 @@ function tone(freq: number, delay: number, peak: number, decay: number, type: Os
   } catch {}
 }
 
+// The gentle alarm (the default): the block alarm's rising two notes, but lower
+// (C5 → E5), as soft sine tones with no bright edge, at about a third of the
+// chime's volume. Heard by you at your desk, not by the whole library.
+export function playGentleChime() {
+  tone(523, 0, 0.16, 0.9, "sine");
+  tone(659, 0.28, 0.14, 1.2, "sine");
+}
+
 // Night mode's own sounds, never the block alarm's rising two-note chime.
 // Gentle: one soft, low bell falling a fourth (G5 → D5), with a long fade.
 export function playCheckInChime() {
