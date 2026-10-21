@@ -194,6 +194,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - State the file path before showing code; show full files when changing them (except one-liners).
 - Before the owner tests something, say exactly what they should see if it works.
 - Never git push or deploy without the owner's confirmation.
+- Changelog: whenever a big update is committed, add its CHANGELOG.md entry in the same commit, then tell the
+  owner which idea IDs were built so they can be moved to Ideas/DONE.md.
 
 ## Design system ("Paper Tide", Phase 9)
 Every screen uses these. New UI is built from `app/_ui/` components and the tokens in `app/globals.css`; never
@@ -569,8 +571,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   - Stage C (done): Tank 4 in the app. C1 engine (all species, merged layers, taps, fallback, paintings), C2 odd
     shapes as puppets + egg / fry / reveal, C3 plants, decorations and every skin's own scenery; Tanks 1 and 3
     and the `three` package removed. Stage D (every page rebuilt phone-first) is next.
-  - Stage E (in progress): motion. E1 core moments (screen changes, Continue, result count-up / streak /
-    new species / nautilus, quiet ending, buy → place, settling decorations, ticks) committed. E2 navigation
+  - Stage E (done, 2026-10-18): motion. E1 core moments (screen changes, Continue, result count-up / streak /
+    new species / nautilus, quiet ending, buy → place, settling decorations, ticks). E2 navigation
     and polish (tab transitions, presses, open/close, skeleton fades, stats animating in once) + the
     Appearance setting (requested with it).
 - Phase 10 (done): PWA (installable) + push notifications.

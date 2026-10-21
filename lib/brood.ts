@@ -3,7 +3,7 @@ import { nextOddsAt } from "./species.ts";
 
 // What the running screen shows for a study session's fish, minute by minute,
 // modelled on how real fish eggs develop. Pure; the drawings live in
-// app/_tank/brood.tsx so the realistic redesign can rework them in one place.
+// app/_tank/tank4/brood-art.ts (Tank 4) and app/_tank/brood.tsx (the still picture).
 //
 // - eggs (0–2 min): one translucent, round egg stuck to a rock.
 // - eyed (2–5 min): the "eyed" stage: two dark eye spots show inside it.

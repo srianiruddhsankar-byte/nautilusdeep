@@ -13,7 +13,8 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
   - Was: parked, then moved into Phase 9.
 - **I-039 · Pause button (limited)** · `Reusable`: Deep Focus only, once per session, up to 5 minutes, paused
   time not credited.
-  - Done in: built after Phase 6 (exact phase not recorded in CLAUDE.md)
+  - Done in: right after Phase 8 (2026-10-15, commit 734e4ce). A "one free interruption" add-on followed on
+    2026-10-20 (commit 4dfee37).
   - Was: rejected as a loophole, then reconsidered (see "Reconsidered" in IDEAS.md).
 
 ## Backfilled from CLAUDE.md (built before this folder had IDs)
@@ -28,7 +29,7 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
   the same device.
   - Done in: Phase 2
 - **I-043 · 10-second cancel window** · `Reusable`: cancel in the first 10 s and nothing is saved, no penalty.
-  - Done in: phase not recorded in CLAUDE.md
+  - Done in: Phase 5 (2026-10-15, commit 531c474)
 - **I-044 · Save every session + offline queue** · `Reusable`: one raw record per session; finished sessions
   queue offline and upload later.
   - Done in: Phase 3
@@ -60,7 +61,7 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
   - Done in: Phase 6 (Shop tab added in Phase 8)
 - **I-054 · Night mode ("Still studying?" check-ins)** · `Reusable`: falling asleep ends the session at the last
   check-in, with no penalty.
-  - Done in: phase not recorded in CLAUDE.md
+  - Done in: between Phase 7 Parts 1 and 2 (2026-10-15, commit 0e3bdd8)
 
 ### Plants, coins, decorations and skins
 - **I-055 · Plants**: one per notes session, scaled to its length (under 15 min no plant), and each session helps

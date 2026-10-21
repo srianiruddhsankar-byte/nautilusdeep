@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// TODO: put the email address people should use to contact you about their data.
 const CONTACT_EMAIL = "srianiruddhsankar@gmail.com";
 
 export const metadata: Metadata = {
