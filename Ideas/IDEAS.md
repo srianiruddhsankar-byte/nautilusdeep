@@ -25,7 +25,59 @@ The `Ideas/` folder has three files:
 8. **`Reusable`** marks ideas that would work in other apps, not just Deep Nautilus.
 9. This folder is edited outside Claude Code (see CLAUDE.md). Claude Code never edits it.
 
-**Next free IDs: I-090 · P-038**
+**Next free IDs: I-112 · P-040**
+
+## Quick wins: small fixes only
+
+The rule for the next version: no big features, just fix small problems. This list holds every idea that is
+small (no new table, no new service, no new art style) and the problem it fixes. Built ones move to DONE.md as
+usual; remove them from this list when they do. Sizes: **Tiny** = a few lines or words · **Small** = one screen
+or one setting · **Small+** = small, but touches the database or stored data. Last full review: 2026-10-22
+(every idea and problem checked again).
+
+**Words and pages (Tiny)**
+- I-096 Explain the name in one line (P-037)
+- I-101 Link Privacy from Help (I-071)
+- I-071 Fix the privacy page's list of stored data (only the wording fix, not the whole FAQ)
+- I-068 First-open words: why Google, tap Start, set the rest later (P-029, P-030)
+- I-066 The one-sentence "what it is" + "works like an app, no app store" (P-028)
+- I-097 Focus-mode hint at Start: studying on this phone or expecting a call? Open Focus (P-019, P-023)
+- I-109 A welcoming empty tank for a brand-new user (P-034)
+- I-110 One sound tip by Ambience: the iPhone silent switch mutes the app (P-017, P-035)
+- I-108 A random sea fact during breaks or on the result screen (P-001)
+- I-069 "What if…" answers: call, restroom, screen off, battery (words only, once P-019 is decided)
+
+**Screens and settings (Small)**
+- I-088 Quiet alarm: chime / vibrate only / silent (P-035)
+- I-095 Full-screen tank (P-034)
+- I-093 Make decorations more visible (P-036)
+- I-103 Make "Your items" (the storage box) easy to find (I-094)
+- I-111 "Next buy" line: coins to the next decoration (P-036)
+- I-070 A quiet "next unlock" line: River skin at 30 h (P-001, P-013)
+- I-090 Add a task from the timer (P-038)
+- I-100 An honest result for short sessions: what still counted (P-032)
+- I-098 Plain-language stat sentences (P-012)
+- I-005 Personal records from stats that already exist
+- I-074 "Just start": a 10-minute session (P-002, P-024)
+- I-087 Show the odds in plain words (only this part; the guarantee is bigger) (P-033)
+- I-105 Low graphics mode for older phones (P-039, P-014)
+- I-026 One cached "You're offline" page (P-016)
+- I-102 "What's new" after a big update
+- I-089 Separate Settings and Account pages (bigger than the rest, but I-088 and I-105 live there)
+- I-067 Reorganise Help: short answers first (one page; holds I-066, I-068, I-069, I-071)
+
+**Small+ (touches the database or stored data)**
+- I-091 Add a finished session to a task afterwards (a narrow update policy on `task_name`) (P-038)
+- I-099 Download your data as CSV / JSON (P-018)
+- I-008 Holiday mode: the streak pauses on a long break (needs the break dates stored)
+- I-081 One-tap recall check after a session (P-025, P-031)
+- I-082 Phone-check counter (needs quick leaves stored) (P-026)
+
+**Not quick wins, even though they sound small:** I-073 late pause (undoing a failure after the fact), I-086
+carry-over minutes (reverses an anti-farming rule), I-094 free placement off the sand (changes how positions are
+stored), I-028 task reminders (a new kind of push), I-092 voice tasks (needs an AI service), I-107 several tasks
+in one session (changes how parts are recorded), I-106 floating timer (uneven browser support), I-080 study
+links on tasks (a new task field), I-079 breathing (a new feature, not a fix), I-104 mascot (needs art).
 
 ## Background: the earlier concept
 
@@ -67,6 +119,13 @@ feelings and moments behind these.
   - Why parked: it must stay optional and short, never a step before studying ("low effort to start").
   - Revisit: after Phase 11, or with I-078.
   - Related: I-078
+- **I-097 · Focus-mode hint at Start** · `Reusable`: one quiet line where you pick Deep or Open Focus: "Studying
+  on this phone, or expecting a call? Choose Open Focus." Tells people about the escape hatch before a fish dies,
+  not after.
+  - Status: Parked
+  - Why parked: words only; belongs with the setup screen rebuild.
+  - Revisit: Phase 9 Stage D.
+  - Related: P-019, P-023, I-042
 
 ## Cycles
 
@@ -149,6 +208,28 @@ feelings and moments behind these.
     and stay optional.
   - Revisit: after Phase 11, if testers ask what their time is getting them.
   - Related: I-034, I-076, P-020
+- **I-098 · Plain-language stat sentences** · `Reusable`: one or two lines at the top of Stats, worked out from
+  data the app already has: "You focus best in the mornings", "More than last week: 4 h vs 3 h".
+  - Status: Parked
+  - Why parked: words only, but each sentence needs a rule for when it's true and kind (never "less than last
+    week" as a scolding).
+  - Revisit: Phase 9 Stage D (Stats page).
+  - Related: P-012, I-046
+- **I-100 · An honest result for short sessions** · `Reusable`: when a session is too short for a fish or plant,
+  the result screen says what still counted: "12 min counted · +12 coins · today's streak day. Plants start at
+  15 min."
+  - Status: Parked
+  - Why parked: words only; belongs with the result screen.
+  - Revisit: Phase 9 Stage D.
+  - Related: P-032, I-086
+- **I-104 · A mascot**: a character that shows up around the app (Home, the result screen, empty states) to make
+  it more fun and exciting.
+  - Status: Parked
+  - Why parked: the nautilus is the natural mascot (the namesake, and the calm companion idea, I-010, already
+    gives it a voice). A mascot must stay calm and kind, never Duolingo-style guilt, and must not turn the app
+    into a game ("the tank is not a game"). Needs art, so it waits for a settled style.
+  - Revisit: with I-010 and I-077, after Phase 11.
+  - Related: I-010, I-077, I-061
 
 ## Tank & creatures
 
@@ -167,6 +248,67 @@ feelings and moments behind these.
     are saved on the session, so it only affects future hatches).
   - Revisit: after Phase 11, if testers call it unfair or gambling-like.
   - Related: P-033, I-060
+- **I-093 · Make decorations more visible**: today they sit on the sand behind plants and fish, so they're easy
+  to miss. Make them read clearly: bigger, nearer the front, or with fish swimming around them rather than over
+  them.
+  - Status: Parked
+  - Why parked: it's tank art and layering, so it should be tuned together with I-094.
+  - Revisit: with I-094, after Phase 11 or in a tank polish pass.
+  - Related: I-057, I-094, P-036
+- **I-094 · Move decorations freely** · `Reusable`: drag a decoration anywhere in the tank (not just along the
+  sand), choose what's in front, and put it away to a storage box to use later.
+  - Today (per CLAUDE.md): decorations can only sit on the sand (`x` across, `y` front to back) and can only be
+    moved on the Shop page. A storage box already exists: "Put away" sends an item to "Your items", with no
+    refund. If people don't find it, the fix is making it obvious, not building a new one.
+  - Status: Parked
+  - Why parked: placing things off the sand (floating, on rocks) changes how the tank stores positions;
+    decorating must also never take longer than studying.
+  - Revisit: after Phase 11, if testers decorate at all.
+  - Related: I-057, I-093
+- **I-095 · Full-screen tank** · `Reusable`: one tap to see the tank on its own, filling the screen, with
+  nothing else in the way. A calm thing to look at during a break.
+  - Status: Parked
+  - Why parked: small, but the running screen and Home are being rebuilt in Phase 9 Stage D.
+  - Revisit: Phase 9 Stage D.
+  - Related: P-034
+- **I-103 · Make "Your items" easy to find**: the storage box already exists ("Put away" → "Your items" on the
+  Shop page). Show it where people decorate, with a count ("3 put away"), so nobody thinks put-away items are
+  gone.
+  - Status: Parked
+  - Why parked: small; belongs with the Shop page rebuild.
+  - Revisit: Phase 9 Stage D.
+  - Related: I-094, I-057
+- **I-108 · A random sea fact** · `Reusable`: one short marine or freshwater fact in a quiet spot: during a break,
+  on the result screen, or on Home ("Octopuses have three hearts"). A small reason to smile and to open the app.
+  - Today: each of the 18 species already has a fact (shown in the Sea life index and tank cards), so the first
+    version can reuse those, then add more.
+  - Status: Parked
+  - Why parked: words only, but facts must be checked as true before they go in, and it should show during
+    breaks, never during focus.
+  - Revisit: Phase 9 Stage D (Home / result screen), or any time as a quick win.
+  - Related: I-060, P-001
+- **I-109 · A welcoming empty tank** · `Reusable`: a brand-new user's tank is empty, so their first session is
+  just an egg. Show one kind line in the empty tank ("Your first fish hatches after 5 minutes of focus") and let
+  the egg sit in a tank that already has sand, plants of the skin and light, so it never looks broken.
+  - Status: Parked
+  - Why parked: words plus a small empty-state check; belongs with the Home / running screen rebuild.
+  - Revisit: Phase 9 Stage D.
+  - Related: P-034, I-068
+- **I-111 · "Next buy" line** · `Reusable`: on the result screen, next to the coins earned, one quiet line: "+25
+  coins · 15 more for the Coral arch". Gives coins a purpose without a store pop-up.
+  - Status: Parked
+  - Why parked: words only (the catalogue and balance already exist); must never feel like being sold to.
+  - Revisit: Phase 9 Stage D (result screen).
+  - Related: P-036, I-057, I-070
+- **I-105 · High and low graphics modes** · `Reusable`: a setting for phones that struggle with the tank. High =
+  today's tank. Low = fewer animated parts, 15 fps instead of 30, pixel ratio 1, no ambience scene effects
+  (or the still picture the tank already falls back to without WebGL). Auto-pick Low on weak phones, changeable
+  in Settings.
+  - Status: Parked
+  - Why parked: the pieces exist (fps, pixel ratio cap, the still fallback, reduced motion), so it's mostly a
+    setting; it belongs in the new Settings page (I-089).
+  - Revisit: Phase 9 Stage D with I-089, or sooner if a tester's phone stutters.
+  - Related: P-039, P-014, I-089, I-038
 
 - **I-011 · Freshwater species come back with water types**: guppy, neon tetra, zebrafish, goldfish,
   (freshwater) angelfish and discus were in the first species list but were swapped for saltwater ones, because
@@ -206,6 +348,12 @@ feelings and moments behind these.
   - Why parked: small, but it's a new setting; it should live in the new Settings page (I-089).
   - Revisit: Phase 9 Stage D with I-089, or sooner if a tester gets caught out in a library.
   - Related: P-035, I-054, I-089
+- **I-110 · One sound tip by Ambience**: a single muted line under the Ambience choice: "On iPhone, the silent
+  switch mutes sounds." Stops "the sounds don't work" confusion, and tells library users how to keep it quiet.
+  - Status: Parked
+  - Why parked: words only; belongs with the Settings / setup rebuild.
+  - Revisit: Phase 9 Stage D.
+  - Related: P-017, P-035, I-088
 
 - **I-016 · Revisit ambience** · `Reusable`: Rain is weak and some static remains in the generated sounds.
   Consider real recordings instead (Freesound CC0 / Pixabay), looped and crossfaded.
@@ -286,6 +434,42 @@ feelings and moments behind these.
   - Status: Parked
   - Why parked: the phone keyboard's built-in mic may already be enough.
   - Revisit: only if it isn't.
+  - Related: I-092
+- **I-090 · Add a task from the timer** · `Reusable`: when you type a task name on the setup or running screen
+  that isn't on your list, one tap ("+ Add to tasks") saves it as a task, so you never have to go to the Tasks
+  tab first.
+  - Status: Parked
+  - Why parked: small, but it changes the setup screen, which is being rebuilt in Phase 9 Stage D.
+  - Revisit: Phase 9 Stage D (setup screen rebuild).
+  - Related: I-048, I-049, P-002
+- **I-091 · Add a finished session to a task afterwards** · `Reusable`: you studied an hour and forgot to pick a
+  task; on the result screen or in recent sessions, pick or type the task and the hour counts toward it (time
+  per task, done history).
+  - Status: Parked
+  - Why parked: sessions can't be edited today by design (RLS: insert and select only). This needs a
+    narrow exception that allows changing only `task_name`, and only on your own sessions.
+  - Revisit: Phase 9 Stage D (result screen), or after Phase 11 if testers forget to pick tasks.
+  - Related: I-049, I-048
+- **I-092 · Speak your tasks, the app sorts them out** · `Reusable`: tap the mic, say everything ("bio
+  assignment Friday, revise chapter 3, exam on the 30th") and the app turns it into separate tasks with due
+  dates, for you to check before saving.
+  - Status: Parked
+  - Why parked: splitting speech into tasks and dates needs an AI model, which means an API key, a cost per use
+    and sending your words to another service (the privacy page would have to say so). A big step for a small
+    personal app.
+  - Revisit: after Phase 11, if testers add lots of tasks and find typing slow.
+  - Related: I-025, I-028, I-071
+- **I-107 · More than one task in a session** · `Reusable`: pick several tasks for one session (e.g. "Bio
+  worksheet" + "Chem reading"), and the result screen offers "Mark done" for each.
+  - The open question: how the time is split. Best option: switch tasks mid-session with one tap, so each task
+    gets the real minutes spent on it. Splitting the time evenly is simpler but less true.
+  - Today: Continue session already lets each part have its own task, and sessions already store time per task
+    in `sessions.parts`, so switching mid-session builds on what exists.
+  - Status: Parked
+  - Why parked: changes the setup and running screens and how parts are recorded; tasks stay simple until
+    testers show they need it.
+  - Revisit: Phase 9 Stage D (setup screen), or after Phase 11 if testers ask.
+  - Related: I-049, I-063, I-090, I-091
 
 ## Installed app
 
@@ -307,6 +491,7 @@ feelings and moments behind these.
     notification to get right (see P-004). The push infrastructure from 10b-1 and the
     `push_subscriptions.task_reminders` switch are already there, so it only needs the reminders themselves.
   - Revisit: after friends testing (Phase 11), if friends actually use Tasks and ask for reminders.
+  - Asked again: 2026-10-21, by the owner, for reminders on all tasks.
   - Related: P-004
 - **I-029 · Night-mode check-in pushes**: "Still studying?" as a notification when the app isn't on screen.
   - Status: Parked
@@ -324,6 +509,25 @@ feelings and moments behind these.
   - Why parked: ending quietly is on purpose (every part is already banked; nothing is lost), so there's
     nothing to act on.
   - Revisit: if testers are confused about where a session went after a long break.
+
+- **I-102 · "What's new" after a big update** · `Reusable`: after a big update ships, a short note shows once
+  ("What's new: a quiet alarm for libraries, full-screen tank"). The app already notices new versions ("New
+  version available · Refresh"); this adds the note after the refresh. The developer's changelog is DONE.md
+  (every built idea with its phase and date), so the note is written from it.
+  - Status: Parked
+  - Why parked: requested 2026-10-21; small, but worth it only once friends use the app and updates reach them.
+  - Revisit: before Phase 11, so testers see what changed between rounds.
+  - Related: I-064
+- **I-106 · Timer and tank stay on screen when you leave the app** · `Reusable`: a small floating window
+  (picture-in-picture) with the time left and your tank swimming, over other apps. Satisfying to glance at.
+  - How the web can do it: on laptops, Chrome's Document Picture-in-Picture (a real mini window). On phones,
+    only video can float, so the tank would be drawn into a video stream; that works in Android Chrome and
+    partly in iPhone Safari. Lock-screen timers (Live Activities) are native-only (I-035).
+  - Status: Parked
+  - Why parked: browser support is uneven, and it mostly helps Open Focus: in Deep Focus, leaving still fails
+    the session after 15 s, so a floating timer must not suggest leaving is fine.
+  - Revisit: after Phase 11, starting with the laptop version (the easiest).
+  - Related: I-042, I-095, I-027, P-023
 
 ## Friends
 
@@ -440,6 +644,25 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
   - Why parked: belongs with the Help reorganisation (I-067), so the pages and the nav are redesigned once.
   - Revisit: Phase 9 Stage D.
   - Related: I-067, I-072, I-071
+- **I-096 · Explain the name in one line**: on the login page or in the about answers: "A nautilus is a deep-sea
+  creature. One arrives in your tank after 100 hours."
+  - Status: Parked
+  - Why parked: words only; belongs with the login page rebuild.
+  - Revisit: Phase 9 Stage D.
+  - Related: P-037, I-066, I-061
+- **I-099 · Download your data** · `Reusable`: one button that downloads your sessions and tasks as CSV / JSON.
+  Sending exams to Google Calendar is a separate, later step.
+  - Status: Parked
+  - Why parked: sessions are already raw records, so this is small; but it's only useful once people have
+    months of data.
+  - Revisit: before the app goes beyond friends, or if a tester asks.
+  - Related: P-018, I-071, I-072
+- **I-101 · Link Privacy from Help** · `Reusable`: today Help never links to the privacy page. One link in Help
+  (or Account, I-089).
+  - Status: Parked
+  - Why parked: a one-line change; do it with I-089 / I-067.
+  - Revisit: Phase 9 Stage D.
+  - Related: I-071, I-089
 
 ## Deliberately rejected (and why)
 

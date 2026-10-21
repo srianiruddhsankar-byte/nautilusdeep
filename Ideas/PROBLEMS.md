@@ -99,7 +99,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
     last").
   - Status: open. The data is already there (time of day, last 7 days in `lib/stats.ts`); only the sentences
     are missing.
-  - Related: I-046
+  - Related: I-046, I-098
 - **P-013 · Rewards get boring after a year** (full tanks, every rare fish caught).
   - Direction: new things that come slowly. Careful: not a game.
   - Status: partly handled: skins unlock up to 150 h, the nautilus at 100 h, Legendary fish are rare.
@@ -125,14 +125,14 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: export your data (CSV / JSON), and send tasks and exams to Google Calendar without retyping
     (a calendar file or a subscribe link).
   - Status: open. Sessions are stored as raw records, so an export is straightforward.
-  - Related: P-007
+  - Related: P-007, I-099
 - **P-019 · Real life gets punished as quitting**: an important call, or a phone that dies mid-session, fails
   Deep Focus the same way giving up does.
   - Direction: "punish quitting, never absence". A call isn't quitting. Options: a late pause (I-073), a longer
     grace, or clearly steering people who expect calls to Open Focus.
   - Status: partly handled: Pause covers planned breaks (restroom), Open Focus never fails for leaving, banked
     blocks are kept, plants never die. A sudden call in Deep Focus still kills the fish.
-  - Related: I-069, I-073, I-039, I-042
+  - Related: I-069, I-073, I-039, I-042, I-097
 - **P-020 · "Will this actually help, or will I quit in a week?"**: doubts before committing time to a new app.
   Will it help me study more? During exams? Will it make me feel guilty? Will I waste time on setup and
   decorating? Is it fun enough to open?
@@ -160,7 +160,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: Open Focus is for this (studying on the same device); make that choice obvious at Start for
     people who study on their phone.
   - Status: partly handled: Open Focus never fails for leaving, but people have to know to pick it.
-  - Related: I-042, I-080, I-019
+  - Related: I-042, I-080, I-019, I-097
 - **P-024 · Planning instead of doing**: you plan a lot, or make beautiful timetables, and don't follow them.
   - Direction: plan less, start more. One next step beats a perfect timetable; missed plans never break.
   - Status: partly handled: tasks are simple and missed ones move to Overdue. Keep any planner (I-021) light.
@@ -205,7 +205,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
 - **P-032 · Short sessions feel wasted**: 12 minutes of notes and no plant (plants start at 15 min).
   - Direction: show what you still earned (minutes, coins, the streak day), or carry the minutes forward (I-086).
   - Status: partly handled: the minutes and coins still count; only the plant is missing.
-  - Related: I-086, I-055
+  - Related: I-086, I-055, I-100
 - **P-033 · The roulette can feel like gambling, or unfair.**
   - Direction: no money and no buying rolls ever; show the odds openly; maybe a gentle guarantee (I-087).
   - Status: partly handled: rolls can't be bought, longer study only improves the odds, and the running screen
@@ -215,7 +215,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: the egg is a small part of the screen; your other fish swim around it, which is calming.
   - Status: partly handled: the running screen shows your real tank. A brand-new user with no fish yet only has
     the egg to watch.
-  - Related: I-038, I-060
+  - Related: I-038, I-060, I-095, I-109
 - **P-035 · The alarm rings in a library and everyone hears it.**
   - Direction: a vibrate-only or silent alarm choice (I-088).
   - Status: open. On iPhone the silent switch mutes the app's sounds; on Android the chime plays.
@@ -224,9 +224,20 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: ask in Phase 11 whether decorations make people want to earn coins; if not, rethink what coins
     are for instead of adding more items.
   - Status: open.
-  - Related: I-056, I-057, P-013
+  - Related: I-056, I-057, P-013, I-093, I-111
 - **P-037 · People don't know what "Deep Nautilus" means.**
   - Direction: one line on the login page or in the about answers: a nautilus is a deep-sea creature, and the
     one in your tank arrives at 100 hours.
   - Status: open.
-  - Related: I-066, I-061
+  - Related: I-066, I-061, I-096
+- **P-038 · Forgot to pick the task**: you work on a task for 2 hours but never picked it, so those hours count
+  as study time but not toward the task (time per task, done history).
+  - Direction: let you add a finished session to a task afterwards (I-091); make picking a task quicker at
+    Start (I-090).
+  - Status: open.
+  - Related: I-091, I-090, I-049
+- **P-039 · The tank graphics still aren't good enough**: owner, Oct 2026. They don't look as good as they
+  should, and older phones may struggle to run them.
+  - Direction: keep improving the art in a tank polish pass; give weaker phones a low graphics mode (I-105).
+  - Status: open. Tank 4 (Phase 9 Stage C) is the current art.
+  - Related: I-105, I-038, P-014
