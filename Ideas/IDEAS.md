@@ -25,7 +25,7 @@ The `Ideas/` folder has three files:
 8. **`Reusable`** marks ideas that would work in other apps, not just Deep Nautilus.
 9. This folder is edited outside Claude Code (see CLAUDE.md). Claude Code never edits it.
 
-**Next free IDs: I-112 · P-040**
+**Next free IDs: I-113 · P-041**
 
 ## Quick wins: small fixes only
 
@@ -33,22 +33,13 @@ The rule for the next version: no big features, just fix small problems. This li
 small (no new table, no new service, no new art style) and the problem it fixes. Built ones move to DONE.md as
 usual; remove them from this list when they do. Sizes: **Tiny** = a few lines or words · **Small** = one screen
 or one setting · **Small+** = small, but touches the database or stored data. Last full review: 2026-10-22
-(every idea and problem checked again).
+(every idea and problem checked again). Batch 1 shipped 2026-10-22 (see DONE.md).
 
 **Words and pages (Tiny)**
-- I-096 Explain the name in one line (P-037)
 - I-101 Link Privacy from Help (I-071)
-- I-071 Fix the privacy page's list of stored data (only the wording fix, not the whole FAQ)
-- I-068 First-open words: why Google, tap Start, set the rest later (P-029, P-030)
-- I-066 The one-sentence "what it is" + "works like an app, no app store" (P-028)
-- I-097 Focus-mode hint at Start: studying on this phone or expecting a call? Open Focus (P-019, P-023)
-- I-109 A welcoming empty tank for a brand-new user (P-034)
-- I-110 One sound tip by Ambience: the iPhone silent switch mutes the app (P-017, P-035)
-- I-108 A random sea fact during breaks or on the result screen (P-001)
-- I-069 "What if…" answers: call, restroom, screen off, battery (words only, once P-019 is decided)
+- I-069 "What if…" answers: call, restroom, screen off, battery (words only)
 
 **Screens and settings (Small)**
-- I-088 Quiet alarm: chime / vibrate only / silent (P-035)
 - I-095 Full-screen tank (P-034)
 - I-093 Make decorations more visible (P-036)
 - I-103 Make "Your items" (the storage box) easy to find (I-094)
@@ -61,10 +52,11 @@ or one setting · **Small+** = small, but touches the database or stored data. L
 - I-074 "Just start": a 10-minute session (P-002, P-024)
 - I-087 Show the odds in plain words (only this part; the guarantee is bigger) (P-033)
 - I-105 Low graphics mode for older phones (P-039, P-014)
+- I-112 "Were you still studying?" after a long gap (P-040)
 - I-026 One cached "You're offline" page (P-016)
 - I-102 "What's new" after a big update
-- I-089 Separate Settings and Account pages (bigger than the rest, but I-088 and I-105 live there)
-- I-067 Reorganise Help: short answers first (one page; holds I-066, I-068, I-069, I-071)
+- I-089 Separate Settings and Account pages (bigger than the rest, but I-105 lives there)
+- I-067 Reorganise Help: short answers first (one page; holds the rest of I-066 and I-071, plus I-069)
 
 **Small+ (touches the database or stored data)**
 - I-091 Add a finished session to a task afterwards (a narrow update policy on `task_name`) (P-038)
@@ -73,7 +65,7 @@ or one setting · **Small+** = small, but touches the database or stored data. L
 - I-081 One-tap recall check after a session (P-025, P-031)
 - I-082 Phone-check counter (needs quick leaves stored) (P-026)
 
-**Not quick wins, even though they sound small:** I-073 late pause (undoing a failure after the fact), I-086
+**Not quick wins, even though they sound small:** I-086
 carry-over minutes (reverses an anti-farming rule), I-094 free placement off the sand (changes how positions are
 stored), I-028 task reminders (a new kind of push), I-092 voice tasks (needs an AI service), I-107 several tasks
 in one session (changes how parts are recorded), I-106 floating timer (uneven browser support), I-080 study
@@ -119,13 +111,6 @@ feelings and moments behind these.
   - Why parked: it must stay optional and short, never a step before studying ("low effort to start").
   - Revisit: after Phase 11, or with I-078.
   - Related: I-078
-- **I-097 · Focus-mode hint at Start** · `Reusable`: one quiet line where you pick Deep or Open Focus: "Studying
-  on this phone, or expecting a call? Choose Open Focus." Tells people about the escape hatch before a fish dies,
-  not after.
-  - Status: Parked
-  - Why parked: words only; belongs with the setup screen rebuild.
-  - Revisit: Phase 9 Stage D.
-  - Related: P-019, P-023, I-042
 
 ## Cycles
 
@@ -278,22 +263,6 @@ feelings and moments behind these.
   - Why parked: small; belongs with the Shop page rebuild.
   - Revisit: Phase 9 Stage D.
   - Related: I-094, I-057
-- **I-108 · A random sea fact** · `Reusable`: one short marine or freshwater fact in a quiet spot: during a break,
-  on the result screen, or on Home ("Octopuses have three hearts"). A small reason to smile and to open the app.
-  - Today: each of the 18 species already has a fact (shown in the Sea life index and tank cards), so the first
-    version can reuse those, then add more.
-  - Status: Parked
-  - Why parked: words only, but facts must be checked as true before they go in, and it should show during
-    breaks, never during focus.
-  - Revisit: Phase 9 Stage D (Home / result screen), or any time as a quick win.
-  - Related: I-060, P-001
-- **I-109 · A welcoming empty tank** · `Reusable`: a brand-new user's tank is empty, so their first session is
-  just an egg. Show one kind line in the empty tank ("Your first fish hatches after 5 minutes of focus") and let
-  the egg sit in a tank that already has sand, plants of the skin and light, so it never looks broken.
-  - Status: Parked
-  - Why parked: words plus a small empty-state check; belongs with the Home / running screen rebuild.
-  - Revisit: Phase 9 Stage D.
-  - Related: P-034, I-068
 - **I-111 · "Next buy" line** · `Reusable`: on the result screen, next to the coins earned, one quiet line: "+25
   coins · 15 more for the Coral arch". Gives coins a purpose without a store pop-up.
   - Status: Parked
@@ -341,19 +310,6 @@ feelings and moments behind these.
   - Revisit: with real species / water types (I-012).
 
 ## Sounds and video
-
-- **I-088 · Quiet alarm for libraries** · `Reusable`: a choice for the end-of-block alarm: chime (today),
-  vibrate only, or silent (screen pulse only), like Night mode's check-in styles already have.
-  - Status: Parked
-  - Why parked: small, but it's a new setting; it should live in the new Settings page (I-089).
-  - Revisit: Phase 9 Stage D with I-089, or sooner if a tester gets caught out in a library.
-  - Related: P-035, I-054, I-089
-- **I-110 · One sound tip by Ambience**: a single muted line under the Ambience choice: "On iPhone, the silent
-  switch mutes sounds." Stops "the sounds don't work" confusion, and tells library users how to keep it quiet.
-  - Status: Parked
-  - Why parked: words only; belongs with the Settings / setup rebuild.
-  - Revisit: Phase 9 Stage D.
-  - Related: P-017, P-035, I-088
 
 - **I-016 · Revisit ambience** · `Reusable`: Rain is weak and some static remains in the generated sounds.
   Consider real recordings instead (Freesound CC0 / Pixabay), looped and crossfaded.
@@ -499,7 +455,8 @@ feelings and moments behind these.
     a different feature, and in Deep Focus you can't be away anyway. Open Focus + Night mode is the only real case.
   - Revisit: if testers use Open Focus with Night mode and miss check-ins they'd have answered.
 - **I-030 · "Come back, Deep Focus is about to fail"** warning a few seconds after leaving.
-  - Status: Parked
+  - Status: Partly done: since 2026-10-20, with notifications on, a "Still away?" push comes a minute before
+    the free interruption's 5 minutes run out. A warning in the first 15 s still isn't possible.
   - Why parked: the 15 s grace is too short for a server round trip (the check runs every 15 s), and a buzz to
     pull you back risks feeling guilt-driven. It would need a longer grace or a local notification, which the
     web doesn't offer.
@@ -548,6 +505,14 @@ feelings and moments behind these.
   - Status: Parked
   - Why parked: it's a personal app for a few friends, with nothing to compete over, so cheating only fools yourself.
   - Revisit: if the app goes public, or if any shared or comparing features are ever added.
+- **I-112 · "Were you still studying?" after a long gap** · `Reusable`: when you come back to a running session
+  after a long time away (the phone died, the app was closed), ask once: "Were you studying the whole time?"
+  with "Yes, count it" and "No, count until I left". Stops a stopwatch from crediting hours you didn't study.
+  - Status: Parked
+  - Why parked: found 2026-10-22 while writing the battery answer; needs a clear rule for "long gap" and must
+    stay one tap, never an accusation. Night mode already limits it when it's on.
+  - Revisit: soon after Batch 2; fits the quick wins (small, no new table).
+  - Related: P-040, I-054, P-021
 
 ## Help, first use & trust
 
@@ -566,7 +531,8 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     one student for himself and friends; no ads, ever (I-037); no friends features yet (I-032). Same account and
     progress on phone and laptop, with a layout made for each. Battery: the tank pauses whenever it's off screen
     and sounds are off by default (P-014). "Do others use it?" can only be answered honestly after Phase 11.
-  - Status: Parked
+  - Status: Partly done (2026-10-22, Batch 1): the one-sentence description and the three login lines (Google,
+    works like an app, the name). The before-you-download answers go into Help with I-067 (Batch 2).
   - Why parked: the login page and Help get rebuilt in Phase 9 Stage D anyway.
   - Revisit: Phase 9 Stage D. The one-liner needs writing first.
   - Related: P-020
@@ -578,29 +544,25 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
   - Why parked: it needs the answers from I-066, I-068, I-069 and I-071 written first.
   - Revisit: Phase 9 Stage D (every page rebuilt), so the redesign happens once.
   - Related: I-066, I-068, I-069, I-071
-- **I-068 · First-open guidance** · `Reusable`: answer the first-time questions on the screens themselves, not in
-  Help: why Google sign-in, what to tap first, whether setup can be skipped.
-  - Answers today: Google sign-in so your progress follows you to any device with no password to remember;
-    tap Start (no setup needed, one tap); everything in "Change" can be set later.
-  - Status: Parked
-  - Why parked: "low effort to start" already holds; this is only words on the login page and Home.
-  - Revisit: Phase 9 Stage D, or sooner if Phase 11 testers get stuck on the first screen.
 - **I-069 · "What if…" answers for interruptions** · `Reusable`: short, honest answers about real life
   interrupting a session.
   - Questions and answers today:
-    - An important call: in Deep Focus, more than 15 s away fails the session or block. A study fish dies (+1
-      bone, no coins); a notes session grows nothing and leaves no bone. Plants never die. Banked cycle blocks
-      and continued parts are kept. Open Focus never fails for leaving.
-    - The restroom: in Deep Focus, tap Pause (once per session, up to 5 min, paused time doesn't count). In
-      Open Focus, just go: the timer keeps running and counts.
+    - An important call: in Deep Focus, your first time away over 15 s pauses the session by itself (the "free
+      interruption", built 2026-10-20) for up to 5 min, if you haven't used your pause yet. Come back in time
+      and nothing is lost; the away time just doesn't count. A second long leave, or staying away past 5 min,
+      fails as before: a study fish dies (+1 bone, no coins), a notes session grows nothing. Plants never die.
+      Banked cycle blocks and continued parts are kept. Open Focus never fails for leaving.
+    - The restroom: in Deep Focus, tap Pause, or just go: if you haven't paused yet, leaving pauses it for you
+      (once per session, up to 5 min, paused time doesn't count). In Open Focus, just go: the timer keeps
+      running and counts.
     - The screen turning off: Deep Focus keeps the screen awake for the whole session; locking it yourself
       counts as leaving. In Open Focus the screen can sleep and the time stays right.
     - The battery dying: everything already finished is saved to your account and can't be lost. The session
       that was running is likely to end as failed in Deep Focus (it counts as leaving); check what happens in
       Open Focus.
   - Status: Parked
-  - Why parked: writing these honestly shows the call case is harsh (see P-019); decide that first.
-  - Revisit: with P-019, before Phase 11.
+  - Why parked: words only; belongs with the Help reorganisation (I-067).
+  - Revisit: Phase 9 Stage D, with I-067.
   - Related: P-019, I-039, I-073
 - **I-070 · Show the end goal** · `Reusable`: make it clear what you're working towards: skins unlock up to
   150 h, the nautilus arrives at 100 h, fill the Sea life index. A quiet "next: River skin at 30 h" line, not
@@ -617,7 +579,8 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     device (setup, Appearance) and any session that hadn't uploaded yet. Deleting today = emailing the owner.
   - Fix with it: the privacy page only mentions sessions and push; it should also list tasks, cycles,
     decorations and skins.
-  - Status: Parked
+  - Status: Partly done (2026-10-22, Batch 1): the privacy page now lists everything stored. The plain
+    answers in Help go in with I-067 (Batch 2).
   - Why parked: belongs with the Help reorganisation (I-067).
   - Revisit: with I-067. Fix the privacy page wording before Phase 11, since friends will be signing in.
   - Related: I-072, P-018
@@ -628,14 +591,6 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     function (users can't delete their own rows by design).
   - Revisit: before the app goes beyond friends.
   - Related: I-071, P-018
-- **I-073 · "Was that a call?" late pause**: if you come back after leaving Deep Focus and haven't used your
-  pause yet, offer to count the time away as your one pause (still max 5 min, not credited), instead of
-  failing.
-  - Status: Parked
-  - Why parked: it must not become a loophole. It uses the same once-per-session, 5-minute limits as Pause, but
-    needs thought on how the failure is undone after the fact.
-  - Revisit: with P-019, after real use shows how often calls kill sessions.
-  - Related: P-019, I-039, I-030
 - **I-089 · Separate Settings and Account pages** · `Reusable`: today Appearance, notifications, installing,
   your email and sign-out all live under Help → Account. Split them: **Settings** (Appearance, notifications,
   sounds, install the app), **Account** (email, privacy, sign out, delete account, I-072), and **Help** only
@@ -644,12 +599,6 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
   - Why parked: belongs with the Help reorganisation (I-067), so the pages and the nav are redesigned once.
   - Revisit: Phase 9 Stage D.
   - Related: I-067, I-072, I-071
-- **I-096 · Explain the name in one line**: on the login page or in the about answers: "A nautilus is a deep-sea
-  creature. One arrives in your tank after 100 hours."
-  - Status: Parked
-  - Why parked: words only; belongs with the login page rebuild.
-  - Revisit: Phase 9 Stage D.
-  - Related: P-037, I-066, I-061
 - **I-099 · Download your data** · `Reusable`: one button that downloads your sessions and tasks as CSV / JSON.
   Sending exams to Google Calendar is a separate, later step.
   - Status: Parked

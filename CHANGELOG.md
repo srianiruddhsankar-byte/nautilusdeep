@@ -3,9 +3,17 @@
 What changed in Deep Nautilus, newest first. One entry per big update; small fixes go under "Small fixes" in
 the next big entry. Idea IDs point at `Ideas/DONE.md`.
 
-## Unreleased
+## 2026-10-22 · Quick wins 1: clearer words
 
-Small fixes committed since the last big update. They move into the next big entry when it's committed.
+### What's new
+- The login page says what the app is in one sentence, why Google, that it installs with no app store, and what
+  a nautilus is.
+- New users see "One tap is all it takes" under Start, and a kind line in their empty tank.
+- Session settings: a hint to choose Open Focus when studying on the phone or expecting calls, and a tip that
+  the iPhone silent switch mutes sounds.
+- A sea fact in breaks and on result screens without a fish; the privacy page lists everything stored.
+
+Ideas built: I-066, I-068, I-071 (privacy wording only), I-096, I-097, I-108, I-109, I-110
 
 ### Small fixes
 - One free interruption in Deep Focus: leaving for more than 15 s with the pause unused pauses the session (up

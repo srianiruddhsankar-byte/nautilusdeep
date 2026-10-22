@@ -276,6 +276,8 @@ export function SetupForm({
                 );
               })}
             </div>
+            {/* The escape hatch, told before a fish dies, not after. */}
+            <p className="text-sm text-muted">Studying on this phone, or expecting calls? Choose Open Focus.</p>
           </Group>
 
           <Group title="Sound and night">
@@ -350,6 +352,8 @@ function Ambience({
           {AMBIENCE_LABEL[value.sound]} {listOpen ? "▾" : "›"}
         </span>
       </button>
+      {/* Web Audio follows the iPhone's silent switch: the sounds and the alarm. */}
+      <p className="text-sm text-muted">On iPhone, the silent switch mutes the app&apos;s sounds and alarm.</p>
 
       {listOpen && (
         <>

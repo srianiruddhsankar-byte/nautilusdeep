@@ -17,6 +17,16 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
     2026-10-20 (commit 4dfee37).
   - Was: rejected as a loophole, then reconsidered (see "Reconsidered" in IDEAS.md).
 
+- **I-073 · "Was that a call?" late pause → the free interruption** · `Reusable`: in Deep Focus, if you leave
+  for more than 15 s and haven't used your pause, the session pauses by itself (counted from when you left)
+  instead of failing. Up to 5 min, once per session / cycle set / Continue chain; it IS the pause. A toast on
+  return says the pause is used; with notifications on, a "Still away?" push comes a minute before it runs out.
+  - Done in: hotfix 2026-10-20 (commit 4dfee37), built automatically instead of after the fact.
+- **I-088 · Quiet alarm for libraries** · `Reusable`: "Alarm when time's up" in Session settings: Gentle (the
+  default, a soft low two-note chime at about a third of the volume), Chime (the old three chimes), Silent
+  (vibration + pulsing screen). Tapping a choice plays a sample.
+  - Done in: hotfix 2026-10-20 (commit 4dfee37). Could move to the Settings page with I-089.
+
 ## Backfilled from CLAUDE.md (built before this folder had IDs)
 
 ### Foundations
@@ -100,3 +110,36 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
   up, streak / new species / nautilus moments, ticks popping, tab changes, sheets opening, stats animating in
   once per app open; all instant or a plain fade with reduced motion.
   - Done in: Phase 9, Stage E (E1 and E2, finished 2026-10-18)
+
+## Quick wins
+
+### Batch 1 · clearer words (2026-10-22)
+- **I-096 · Explain the name in one line**: on the login page or in the about answers: "A nautilus is a deep-sea
+  creature. One arrives in your tank after 100 hours."
+  - Done in: Quick wins, Batch 1 (2026-10-22)
+  - Related: P-037, I-066, I-061
+- **I-068 · First-open guidance** · `Reusable`: answer the first-time questions on the screens themselves, not in
+  Help: why Google sign-in, what to tap first, whether setup can be skipped.
+  - Answers today: Google sign-in so your progress follows you to any device with no password to remember;
+    tap Start (no setup needed, one tap); everything in "Change" can be set later.
+  - Done in: Quick wins, Batch 1 (2026-10-22)
+- **I-097 · Focus-mode hint at Start** · `Reusable`: one quiet line where you pick Deep or Open Focus: "Studying
+  on this phone, or expecting a call? Choose Open Focus." Tells people about the escape hatch before a fish dies,
+  not after.
+  - Done in: Quick wins, Batch 1 (2026-10-22)
+  - Related: P-019, P-023, I-042
+- **I-109 · A welcoming empty tank** · `Reusable`: a brand-new user's tank is empty, so their first session is
+  just an egg. Show one kind line in the empty tank ("Your first fish hatches after 5 minutes of focus") and let
+  the egg sit in a tank that already has sand, plants of the skin and light, so it never looks broken.
+  - Done in: Quick wins, Batch 1 (2026-10-22)
+  - Related: P-034, I-068
+- **I-110 · One sound tip by Ambience**: a single muted line under the Ambience choice: "On iPhone, the silent
+  switch mutes sounds." Stops "the sounds don't work" confusion, and tells library users how to keep it quiet.
+  - Done in: Quick wins, Batch 1 (2026-10-22)
+  - Related: P-017, P-035, I-089
+- **I-108 · A random sea fact** · `Reusable`: one short marine or freshwater fact in a quiet spot: during a break,
+  on the result screen, or on Home ("Octopuses have three hearts"). A small reason to smile and to open the app.
+  - Today: each of the 18 species already has a fact (shown in the Sea life index and tank cards), so the first
+    version can reuse those, then add more.
+  - Done in: Quick wins, Batch 1 (2026-10-22)
+  - Related: I-060, P-001

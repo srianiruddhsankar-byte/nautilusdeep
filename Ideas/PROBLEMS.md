@@ -60,7 +60,8 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
 - **P-004 · Notification spam** ("Don't lose your streak!").
   - Direction: at most one nudge a day, off by default, never guilt-driven.
   - Status: partly handled: the only push today is "Time's up" for a running session, off until you turn it on.
-    Keep it this way if task reminders (parked) or any nudges arrive.
+    Keep it this way if task reminders (parked) or any nudges arrive. Since 2026-10-20 there's also a "Still away?" push near the end of
+    the free interruption.
   - Related: I-028, I-065
 - **P-005 · Unreliable timers**: timers that drift, stop in the background or lose sessions.
   - Direction: keep timing timestamp-based and covered by tests.
@@ -130,8 +131,9 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   Deep Focus the same way giving up does.
   - Direction: "punish quitting, never absence". A call isn't quitting. Options: a late pause (I-073), a longer
     grace, or clearly steering people who expect calls to Open Focus.
-  - Status: partly handled: Pause covers planned breaks (restroom), Open Focus never fails for leaving, banked
-    blocks are kept, plants never die. A sudden call in Deep Focus still kills the fish.
+  - Status: mostly handled since 2026-10-20: the first long leave in Deep Focus pauses the session by itself
+    (the free interruption, I-073) for up to 5 min, with a "Still away?" push before it runs out. Still harsh:
+    a call longer than 5 min, a second call, or a call after you already used your pause.
   - Related: I-069, I-073, I-039, I-042, I-097
 - **P-020 · "Will this actually help, or will I quit in a week?"**: doubts before committing time to a new app.
   Will it help me study more? During exams? Will it make me feel guilty? Will I waste time on setup and
@@ -218,7 +220,9 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Related: I-038, I-060, I-095, I-109
 - **P-035 · The alarm rings in a library and everyone hears it.**
   - Direction: a vibrate-only or silent alarm choice (I-088).
-  - Status: open. On iPhone the silent switch mutes the app's sounds; on Android the chime plays.
+  - Status: handled since 2026-10-20: "Alarm when time's up" in Session settings (Gentle, the default, a soft
+    low chime at about a third of the volume; Chime; Silent = vibration and a pulsing screen). iPhones can't
+    vibrate from a web app, and the silent switch mutes the app's sounds.
   - Related: I-088
 - **P-036 · Coins might not buy anything cool enough.**
   - Direction: ask in Phase 11 whether decorations make people want to earn coins; if not, rethink what coins
@@ -241,3 +245,12 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: keep improving the art in a tank polish pass; give weaker phones a low graphics mode (I-105).
   - Status: open. Tank 4 (Phase 9 Stage C) is the current art.
   - Related: I-105, I-038, P-014
+- **P-040 · Time you didn't study can still count**: found 2026-10-22 by Claude Code while writing the
+  battery answer.
+  - Open Focus: a stopwatch keeps counting while the phone is dead or the app is closed, until you open it and
+    tap Stop. A timer that ran out meanwhile counts as fully finished.
+  - Deep Focus: if the phone dies so suddenly that the browser never noted you left, it's treated the same way.
+  - Direction: ask once on return after a long gap (I-112). Night mode check-ins already limit it, but they're
+    off by default.
+  - Status: open.
+  - Related: I-112, I-054, P-021, P-003

@@ -374,7 +374,7 @@ export function Tank({
               ? error
                 ? `Couldn't load your tank: ${error}`
                 : "Filling the tank…"
-              : "Finish a session of 5+ focus minutes to hatch your first fish."}
+              : "Your first fish hatches after 5 minutes of focus."}
           </p>
         )}
 

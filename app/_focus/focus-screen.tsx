@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import {
   CHECK_IN_ALARM_EVERY_MS,
   PAUSE_OVER_ALARM,
@@ -14,7 +14,8 @@ import {
 import { syncAmbience, usePreview } from "@/lib/ambience";
 import { AMBIENCE_LABEL, ambienceTarget, sceneFor, type AmbienceSound } from "@/lib/ambience-logic";
 import { unlockAudio } from "@/lib/feedback";
-import { deriveAquarium, type Aquarium } from "@/lib/fish";
+import { deriveAquarium, earnsFish, type Aquarium } from "@/lib/fish";
+import { seaFact } from "@/lib/sea-facts";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { compareToTarget } from "@/lib/notes";
 import { deriveGarden, type Garden } from "@/lib/plants";
@@ -259,6 +260,10 @@ export function FocusScreen() {
             changeScreen(() => save({ session, result: null }));
           }}
         />
+        {/* First open: no setup needed. Gone after the first finished session. */}
+        {rows && !hasFinishedSession(rows) && (
+          <p className="-mt-2 text-center text-sm text-muted">One tap is all it takes. You can change any of this later.</p>
+        )}
         <InstallAppCard finishedSession={hasFinishedSession(rows)} />
       </div>
       <BottomNav active="home" />
@@ -625,6 +630,14 @@ function RunningView({
           <p key={hint} className="swap-in max-w-xs text-center text-sm text-muted">
             {hint}
           </p>
+          {/* A sea fact in breaks only (never in focus or a pause): one per break. */}
+          {!isFocus && !paused && session.id && (
+            <SeaFactNote
+              key={`${status.phaseIndex}:${waiting}`}
+              seed={`${session.id}:break:${status.phaseIndex}:${waiting}`}
+              className="swap-in py-1"
+            />
+          )}
           {session.checkIn && !paused && (
             <p className="text-center text-sm text-muted">
               Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
@@ -698,6 +711,9 @@ function ResultView({
   const arrive = quiet ? "calm-in" : "rise-in";
   // The nautilus waits until the fish has hatched (about 2.5 s; at once with reduced motion).
   const nautilusDelay = reduce ? 0 : notes ? 900 : 3000;
+  // A sea fact, unless a caught fish is already showing its own.
+  const id = result.id ?? "legacy";
+  const showFact = notes || result.outcome === "failed" || !earnsFish(toRow(result, id, null));
 
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-2 text-center">
@@ -724,6 +740,7 @@ function ResultView({
 
       {notes ? <NotesResult result={result} garden={garden} /> : <ResultFish result={result} aquarium={aquarium} />}
       {moments?.nautilus && <NautilusMoment delayMs={nautilusDelay} />}
+      {showFact && <SeaFactNote seed={`${id}:result`} className={arrive} style={step(4)} />}
 
       {(result.mode === "cycle" || result.lostMs >= 1000) && (
         <dl className={`${arrive} grid w-full grid-cols-2 gap-3 text-left`} style={step(4)}>
@@ -743,6 +760,17 @@ function ResultView({
           New session
         </Button>
       </div>
+    </div>
+  );
+}
+
+// One short sea fact (lib/sea-facts.ts), named, since some facts start "Its…".
+function SeaFactNote({ seed, className = "", style }: { seed: string; className?: string; style?: CSSProperties }) {
+  const { name, fact } = seaFact(seed);
+  return (
+    <div className={`flex max-w-xs flex-col items-center gap-1 text-center ${className}`} style={style}>
+      <p className="eyebrow">Sea fact · {name}</p>
+      <p className="text-sm text-muted">{fact}</p>
     </div>
   );
 }
