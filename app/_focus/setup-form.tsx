@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { totalMinutes } from "@/lib/cycle-blocks";
+import { expandBlocks, totalMinutes } from "@/lib/cycle-blocks";
 import { useCycles } from "@/lib/cycles";
 import { setPreviewVolume, startPreview, stopPreview, usePreview } from "@/lib/ambience";
 import {
@@ -25,10 +25,12 @@ import {
 } from "@/lib/setup-prefs";
 import { checkInAlert } from "@/lib/alarm";
 import { ALARM_LABEL } from "@/lib/alarm-text";
+import { FISH_MIN_MINUTES } from "@/lib/fish";
+import { oddsSentence, oddsSteps } from "@/lib/species";
 import { formatDuration } from "@/lib/stats";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
 import { groupTasks, openTasksInOrder } from "@/lib/task-views";
-import { useTasks } from "@/lib/tasks";
+import { addTask, useTasks } from "@/lib/tasks";
 import {
   FOCUS_MODE_LABEL,
   SESSION_TYPE_LABEL,
@@ -49,9 +51,11 @@ import { inputClass, NumberField } from "../_ui/field";
 import { Chip, Segmented } from "../_ui/segmented";
 import { Sheet } from "../_ui/sheet";
 import { Switch } from "../_ui/switch";
+import { toast } from "../_ui/toast";
 import { CyclePicker, effectiveChoice, resolveCycle } from "./cycle-picker";
 
 const PRESETS = [15, 25, 45, 60];
+const JUST_START_MINUTES = 10;
 const MODES: { id: Mode; label: string }[] = [
   { id: "timer", label: "Timer" },
   { id: "stopwatch", label: "Stopwatch" },
@@ -136,6 +140,41 @@ export function SetupForm({
     );
   }
 
+  // "Just start": always a plain 10-minute timer, whatever the saved setup is
+  // (a cycle, a stopwatch…), with your focus mode, type, task, sound and night
+  // mode. It never changes the saved setup. When it ends, Continue can carry on.
+  function justStart(now: number) {
+    stopPreview();
+    setOpen(false);
+    onStart(
+      withDetails(startTimer(JUST_START_MINUTES, now, prefs.focusMode), {
+        sessionType: prefs.sessionType,
+        task,
+        targetMinutes: null,
+        checkIn: prefs.night.on ? { intervalMs: prefs.night.intervalMin * 60_000, style: prefs.night.style } : null,
+        ambience: prefs.ambience,
+      }),
+    );
+  }
+
+  // The fish odds for this length, in plain words (study only; never a promise).
+  const knownMinutes =
+    prefs.mode === "timer"
+      ? isValidMinutes(Number(prefs.minutes))
+        ? Number(prefs.minutes)
+        : null
+      : prefs.mode === "cycle" && cycle.blocks
+        ? expandBlocks(cycle.blocks).reduce((sum, p) => sum + (p.kind === "focus" ? (p.ms ?? 0) : 0), 0) / 60_000
+        : null;
+  const oddsLine =
+    prefs.mode === "stopwatch"
+      ? oddsSteps()
+      : knownMinutes === null
+        ? null
+        : knownMinutes < FISH_MIN_MINUTES
+          ? oddsSentence(knownMinutes)
+          : `${oddsSentence(knownMinutes)} Longer sessions make rarer fish likelier, never certain.`;
+
   const modeSummary =
     prefs.mode === "timer"
       ? `${prefs.minutes} min timer`
@@ -181,6 +220,10 @@ export function SetupForm({
       >
         <PlayIcon />
         <span className="truncate">{cycleLoading ? "Loading…" : taskName ? `Start · ${taskName}` : "Start"}</span>
+      </Button>
+      {/* For the moments starting feels hard: small enough that no feels silly. */}
+      <Button variant="quiet" onClick={() => justStart(Date.now())} className="self-center">
+        Just start: {JUST_START_MINUTES} minutes
       </Button>
 
       <Sheet
@@ -249,6 +292,7 @@ export function SetupForm({
               />
             )}
             {!validTarget && <p className="text-sm text-warn">The target needs whole minutes, from 1 to 600.</p>}
+            {prefs.sessionType === "study" && oddsLine && <p className="text-sm text-muted">{oddsLine}</p>}
             {prefs.sessionType === "notes" && !hasTarget && (
               <p className="text-sm text-muted">Want a target time? Use the Stopwatch and stop when your notes are done.</p>
             )}
@@ -523,6 +567,18 @@ function TaskPicker({ value, onChange }: { value: string; onChange: (value: stri
     [tasks, clock],
   );
   const picked = cleanTaskName(value);
+  // A typed name that isn't on your to-do list yet: one tap adds it.
+  const onList = picked !== null && (tasks ?? []).some((t) => t.done_at === null && taskKey(t.name) === taskKey(picked));
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  async function add() {
+    setAdding(true);
+    const problem = await addTask(value, null);
+    setAdding(false);
+    setAddError(problem);
+    if (!problem) toast("Added to Tasks");
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -541,7 +597,10 @@ function TaskPicker({ value, onChange }: { value: string; onChange: (value: stri
           placeholder="e.g. Biochem ch. 4"
           autoComplete="off"
           enterKeyHint="done"
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            setAddError(null);
+            onChange(e.target.value);
+          }}
           className={`${inputClass} pr-11 text-lg`}
         />
         {value !== "" && (
@@ -555,6 +614,12 @@ function TaskPicker({ value, onChange }: { value: string; onChange: (value: stri
           </button>
         )}
       </div>
+      {picked && tasks && !onList && (
+        <Button variant="quiet" size="sm" disabled={adding} onClick={add} className="-ml-2 self-start text-primary">
+          + Add to tasks
+        </Button>
+      )}
+      {addError && <p className="text-sm text-danger">{addError}</p>}
       {open.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {open.slice(0, CHIPS).map((t) => {

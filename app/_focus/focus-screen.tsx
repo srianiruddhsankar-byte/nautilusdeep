@@ -14,14 +14,14 @@ import {
 import { syncAmbience, usePreview } from "@/lib/ambience";
 import { AMBIENCE_LABEL, ambienceTarget, sceneFor, type AmbienceSound } from "@/lib/ambience-logic";
 import { unlockAudio } from "@/lib/feedback";
-import { deriveAquarium, earnsFish, type Aquarium } from "@/lib/fish";
+import { deriveAquarium, earnsFish, focusMinutes, type Aquarium } from "@/lib/fish";
 import { seaFact } from "@/lib/sea-facts";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { compareToTarget } from "@/lib/notes";
-import { deriveGarden, type Garden } from "@/lib/plants";
+import { deriveGarden, PLANT_MIN_MINUTES, type Garden } from "@/lib/plants";
 import { hasFinishedSession } from "@/lib/install-logic";
 import { flushPending, queueResult, startSync } from "@/lib/save-queue";
-import { coinsFor } from "@/lib/economy";
+import { coinsFor, formatHours, nextBuy, nextGoal } from "@/lib/economy";
 import { updatePrefs } from "@/lib/prefs-store";
 import { refreshThisDevice } from "@/lib/push";
 import { startTimerPushSync } from "@/lib/timer-pushes";
@@ -63,7 +63,7 @@ import {
   type Status,
 } from "@/lib/timer";
 import { describeParts } from "@/lib/session-parts";
-import { resultMoments } from "@/lib/result-moments";
+import { resultMoments, shortSession, shortSessionText } from "@/lib/result-moments";
 import type { SessionFacts } from "@/lib/fish";
 import { useClock } from "@/lib/use-clock";
 import { useWakeLock } from "@/lib/use-wake-lock";
@@ -221,6 +221,7 @@ export function FocusScreen() {
           rows={rows}
           aquarium={aquarium}
           garden={garden}
+          economy={economy}
           onTaskDone={() => setTask("")}
         />
         <BottomNav active="home" />
@@ -686,12 +687,14 @@ function ResultView({
   rows,
   aquarium,
   garden,
+  economy,
   onTaskDone,
 }: {
   result: Result;
   rows: SessionFacts[] | null;
   aquarium: Aquarium | null;
   garden: Garden | null;
+  economy: ReturnType<typeof useEconomy>;
   onTaskDone: () => void;
 }) {
   const { title, detail } = describe(result);
@@ -713,7 +716,20 @@ function ResultView({
   const nautilusDelay = reduce ? 0 : notes ? 900 : 3000;
   // A sea fact, unless a caught fish is already showing its own.
   const id = result.id ?? "legacy";
-  const showFact = notes || result.outcome === "failed" || !earnsFish(toRow(result, id, null));
+  const row = toRow(result, id, null);
+  const showFact = notes || result.outcome === "failed" || !earnsFish(row);
+  // Too short for a fish or plant: say honestly what still counted (coins as
+  // actually earned: Open Focus is half).
+  const tooShort =
+    result.outcome !== "failed" && (notes ? focusMinutes(row) < PLANT_MIN_MINUTES : !earnsFish(row));
+  const shortNote =
+    tooShort && rows && clock
+      ? shortSessionText(shortSession(rows, row, clock.now, clock.timeZone), notes ? "notes" : "study")
+      : null;
+  // The quiet "what's next" lines: a decoration to aim for, and the next unlock.
+  const buy = economy.balance !== null && economy.owned ? nextBuy(economy.balance, economy.owned.map((d) => d.item)) : null;
+  const buyLine = buy ? (buy.more === 0 ? `Enough for the ${buy.name}` : `${buy.more} more for the ${buy.name}`) : null;
+  const goal = economy.earned !== null && result.outcome !== "failed" && result.focusMs >= 60_000 ? nextGoal(economy.hours) : null;
 
   return (
     <div className="flex flex-1 flex-col items-center gap-6 pt-2 text-center">
@@ -735,10 +751,14 @@ function ResultView({
         <span className="numeral text-[72px]">{Math.floor(result.focusMs / 60_000)}</span>
         <span className="eyebrow">focus minutes</span>
       </p>
-      <EarnedCoins result={result} />
+      <EarnedCoins result={result} next={buyLine} />
       {moments?.streak && <StreakMoment {...moments.streak} />}
 
-      {notes ? <NotesResult result={result} garden={garden} /> : <ResultFish result={result} aquarium={aquarium} />}
+      {notes ? (
+        <NotesResult result={result} garden={garden} shortNote={shortNote} />
+      ) : (
+        <ResultFish result={result} aquarium={aquarium} shortNote={shortNote} />
+      )}
       {moments?.nautilus && <NautilusMoment delayMs={nautilusDelay} />}
       {showFact && <SeaFactNote seed={`${id}:result`} className={arrive} style={step(4)} />}
 
@@ -753,6 +773,11 @@ function ResultView({
 
       {/* One main action. Mark done is there, but quieter. */}
       <div className={`${arrive} mt-auto flex w-full flex-col items-center gap-3`} style={step(5)}>
+        {goal && (
+          <p className="text-sm text-muted">
+            Next: {goal.name} at {goal.hours}h · you&apos;re at {formatHours(economy.hours)}
+          </p>
+        )}
         {tasksOf(result).map((name) => (
           <MarkDone key={name} taskName={name} onDone={onTaskDone} />
         ))}
@@ -931,7 +956,7 @@ function targetLine(session: Session, status: Status): string | null {
 }
 
 // Notes sessions grow no fish: target vs actual at the end, and the plant.
-function NotesResult({ result, garden }: { result: Result; garden: Garden | null }) {
+function NotesResult({ result, garden, shortNote }: { result: Result; garden: Garden | null; shortNote: string | null }) {
   const focusSeconds = Math.floor(result.focusMs / 1000);
   const showTarget = result.targetMinutes !== null && result.outcome !== "failed";
   return (
@@ -942,21 +967,25 @@ function NotesResult({ result, garden }: { result: Result; garden: Garden | null
           <p className="text-sm text-muted">Target: {result.targetMinutes} min</p>
         </div>
       )}
-      <ResultPlant result={result} garden={garden} />
+      <ResultPlant result={result} garden={garden} shortNote={shortNote} />
     </div>
   );
 }
 
 // "+25 coins" (Open Focus earns half). Nothing for failed or under-5-minute sessions.
 // They count up from 0 once the minutes have arrived.
-function EarnedCoins({ result }: { result: Result }) {
+// `next`: one quiet line under it, the decoration to aim for ("15 more for the Driftwood").
+function EarnedCoins({ result, next }: { result: Result; next: string | null }) {
   const coins = coinsFor(toRow(result, result.id ?? "legacy", null));
   if (coins === 0) return null;
   return (
-    <p className="rise-in -mt-3 flex items-center gap-1.5 text-lg font-semibold text-coin" style={step(2)}>
-      <Coin size={18} />+<CountUp value={coins} from={0} delay={350} duration={900} /> coins
-      {result.focusMode === "open" && <span className="text-sm font-normal text-muted">(Open Focus: half)</span>}
-    </p>
+    <div className="rise-in -mt-3 flex flex-col items-center gap-0.5" style={step(2)}>
+      <p className="flex items-center gap-1.5 text-lg font-semibold text-coin">
+        <Coin size={18} />+<CountUp value={coins} from={0} delay={350} duration={900} /> coins
+        {result.focusMode === "open" && <span className="text-sm font-normal text-muted">(Open Focus: half)</span>}
+      </p>
+      {next && <p className="text-sm text-muted">{next}</p>}
+    </div>
   );
 }
 

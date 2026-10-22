@@ -1,7 +1,7 @@
-import { decorationById, type DecorationItem, type MilestoneId } from "./decorations.ts";
+import { DECORATIONS, decorationById, type DecorationItem, type MilestoneId } from "./decorations.ts";
 import { creditedHours, deriveAquarium, focusMinutes, type SessionFacts } from "./fish.ts";
 import { deriveGarden } from "./plants.ts";
-import { rarityRank } from "./species.ts";
+import { NAUTILUS, rarityRank } from "./species.ts";
 import { computeOverview } from "./stats.ts";
 
 // Coins, milestones, skins and decoration placement. Coins earned are DERIVED
@@ -136,6 +136,29 @@ export function nextSkin(hours: number) {
 export function skinForTank(choices: Map<number, string>, tank: number, hours: number): SkinId {
   const chosen = choices.get(tank);
   return chosen && isSkinId(chosen) && skinUnlocked(chosen, hours) ? chosen : "shallows";
+}
+
+// ---------- What's next (the result screen's quiet lines) ----------
+
+// The decoration to aim for: the cheapest one for coins that you don't own yet
+// (never a milestone item, and never more than one suggestion). `more` = coins
+// still needed (0 = you can already get it). null once you own one of each.
+export function nextBuy(balance: number, ownedItems: string[]): { name: string; more: number } | null {
+  const item = DECORATIONS.filter((d) => d.price !== undefined && !ownedItems.includes(d.id)).sort(
+    (a, b) => a.price! - b.price!,
+  )[0];
+  return item ? { name: item.name, more: Math.max(0, item.price! - balance) } : null;
+}
+
+// What your hours unlock next: the next skin or the nautilus, whichever comes
+// first. null once everything is unlocked.
+export function nextGoal(hours: number): { name: string; hours: number } | null {
+  const skin = nextSkin(hours);
+  const goals = [
+    ...(skin ? [{ name: `${skin.name} skin`, hours: skin.hours }] : []),
+    ...(hours < NAUTILUS.hours ? [{ name: "the nautilus", hours: NAUTILUS.hours }] : []),
+  ];
+  return goals.sort((a, b) => a.hours - b.hours)[0] ?? null;
 }
 
 // "12h" or "12.5h", for "Unlocks at 30h · you're at 12h".

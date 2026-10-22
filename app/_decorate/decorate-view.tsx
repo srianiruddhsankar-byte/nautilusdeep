@@ -168,7 +168,8 @@ export function DecorateView() {
                 disabled={busy}
                 onClick={async () => {
                   setMode({ kind: "idle" });
-                  await run(() => removeDecoration(active.id));
+                  // Say where it went, so nobody thinks it's gone.
+                  if (await run(() => removeDecoration(active.id))) toast("Put away. It's in Your items.");
                 }}
               >
                 Put away
@@ -193,7 +194,8 @@ export function DecorateView() {
         onChange={setTab}
         tabs={[
           { id: "shop", label: "Shop" },
-          { id: "items", label: "Your items" },
+          // With a count, so put-away things are easy to find again.
+          { id: "items", label: inventory(owned).length > 0 ? `Your items · ${inventory(owned).length}` : "Your items" },
           { id: "skins", label: "Skins" },
         ]}
       />

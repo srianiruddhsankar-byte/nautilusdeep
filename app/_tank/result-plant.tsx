@@ -10,7 +10,17 @@ import { PlantSprite } from "./plant-sprite";
 // session, starting as big as the session was long, plus the older plant the
 // session helped grow. The garden already includes this session (it's queued
 // before the result shows).
-export function ResultPlant({ result, garden }: { result: Result; garden: Garden | null }) {
+// `shortNote`: what a too-short session still counted (lib/result-moments.ts),
+// once your sessions have loaded.
+export function ResultPlant({
+  result,
+  garden,
+  shortNote = null,
+}: {
+  result: Result;
+  garden: Garden | null;
+  shortNote?: string | null;
+}) {
   if (result.outcome === "failed") {
     return <p className="max-w-xs text-sm text-muted">No plant this time. The next notes session starts fresh.</p>;
   }
@@ -18,8 +28,8 @@ export function ResultPlant({ result, garden }: { result: Result; garden: Garden
   if (minutes < PLANT_MIN_MINUTES) {
     return (
       <p className="max-w-xs text-sm text-muted">
-        Under {PLANT_MIN_MINUTES} minutes, so no plant this time. Your minutes and coins still count. A plant grows
-        from {PLANT_MIN_MINUTES} minutes of notes.
+        {shortNote ??
+          `Under ${PLANT_MIN_MINUTES} minutes, so no plant this time. Your minutes and coins still count. A plant grows from ${PLANT_MIN_MINUTES} minutes of notes.`}
       </p>
     );
   }

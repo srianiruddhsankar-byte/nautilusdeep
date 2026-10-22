@@ -15,7 +15,17 @@ import { Bone, SpeciesSprite } from "./fish-sprite";
 import { MiniCanvas } from "./tank4/mini-canvas";
 
 // What happened to this session's fish, shown on the result screen.
-export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aquarium | null }) {
+// `shortNote`: what a too-short session still counted (lib/result-moments.ts),
+// once your sessions have loaded.
+export function ResultFish({
+  result,
+  aquarium,
+  shortNote = null,
+}: {
+  result: Result;
+  aquarium: Aquarium | null;
+  shortNote?: string | null;
+}) {
   const id = result.id ?? "legacy";
 
   if (result.outcome === "failed") {
@@ -44,8 +54,7 @@ export function ResultFish({ result, aquarium }: { result: Result; aquarium: Aqu
   if (!earnsFish(row)) {
     return (
       <p className="max-w-xs text-sm text-muted">
-        Under {FISH_MIN_MINUTES} focus minutes, so no fish this time. Fish hatch at {FISH_MIN_MINUTES}{" "}
-        minutes.
+        {shortNote ?? `Under ${FISH_MIN_MINUTES} focus minutes, so no fish this time. Fish hatch at ${FISH_MIN_MINUTES} minutes.`}
       </p>
     );
   }

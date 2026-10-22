@@ -211,6 +211,22 @@ export function nextOddsAt(minutes: number, table = ODDS): number | null {
   return table.find((band) => band.from > minutes)?.from ?? null;
 }
 
+// The odds for a session of this length, in plain words, for the setup sheet:
+// "At 25 min: 50% common, 35% uncommon, 13% rare, 2% epic." Tiers at 0% are
+// left out. Under the first band there's no fish at all.
+export function oddsSentence(minutes: number, table = ODDS): string {
+  if (minutes < table[0].from) return `Under ${table[0].from} min, no fish hatches.`;
+  const odds = oddsFor(minutes, table);
+  const tiers = RARITIES.filter((r) => odds[r] > 0).map((r) => `${odds[r]}% ${RARITY_LABEL[r].toLowerCase()}`);
+  return `At ${minutes} min: ${tiers.join(", ")}.`;
+}
+
+// For the stopwatch (the length isn't known): where the odds get better.
+export function oddsSteps(table = ODDS): string {
+  const steps = table.slice(1).map((b) => b.from);
+  return `The longer you go, the likelier a rare fish: better odds at ${steps.slice(0, -1).join(", ")} and ${steps.at(-1)} min.`;
+}
+
 // ---------- The roll ----------
 
 const TWO_32 = 2 ** 32;

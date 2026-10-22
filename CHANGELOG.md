@@ -3,6 +3,21 @@
 What changed in Deep Nautilus, newest first. One entry per big update; small fixes go under "Small fixes" in
 the next big entry. Idea IDs point at `Ideas/DONE.md`.
 
+## 2026-10-22 · Quick wins 2: More, Settings and Account
+
+### What's new
+- The Help tab is now **More**: Settings and Account at the top, then Help.
+- Settings has Appearance, the alarm (moved from Session settings), Graphics, Install the app and Notifications.
+- Low graphics for older phones: a calmer tank at 15 fps with no scene effects (picked automatically on weak
+  devices).
+- Help starts with short answers ("What if I get a call?", "What if my battery dies?"…); Account links to the
+  privacy policy.
+
+Ideas built: I-067, I-069, I-089, I-101, I-105
+
+### Notes for me
+- I-088 (quiet alarm) already existed from 2026-10-20; this update only moved it to Settings.
+
 ## 2026-10-22 · Quick wins 1: clearer words
 
 ### What's new

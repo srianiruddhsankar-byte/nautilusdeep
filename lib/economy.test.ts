@@ -10,6 +10,8 @@ import {
   formatHours,
   inTank,
   inventory,
+  nextBuy,
+  nextGoal,
   nextSkin,
   placeIn,
   reachedMilestones,
@@ -213,5 +215,26 @@ describe("placing decorations", () => {
     assert.deepEqual(removed[0], owned[0]);
     assert.equal(removed.length, 2);
     assert.equal(coinBalance([row(100)], removed), 100 - 180); // spending doesn't change
+  });
+});
+
+describe("what's next", () => {
+  test("next buy: the cheapest coin item you don't own yet", () => {
+    assert.deepEqual(nextBuy(10, []), { name: "Shell", more: 20 });
+    assert.deepEqual(nextBuy(40, ["shell"]), { name: "Pebbles", more: 10 });
+    assert.deepEqual(nextBuy(500, ["shell"]), { name: "Pebbles", more: 0 }); // enough already
+  });
+
+  test("next buy: never a milestone item; nothing once you own one of each", () => {
+    const bought = DECORATIONS.filter((d) => d.price !== undefined).map((d) => d.id);
+    assert.equal(nextBuy(0, bought), null);
+  });
+
+  test("next goal: the next skin or the nautilus, whichever comes first", () => {
+    assert.deepEqual(nextGoal(3), { name: "Pond skin", hours: 10 });
+    assert.deepEqual(nextGoal(12.4), { name: "River skin", hours: 30 });
+    assert.deepEqual(nextGoal(80), { name: "the nautilus", hours: 100 }); // before Deep at 150
+    assert.deepEqual(nextGoal(120), { name: "Deep skin", hours: 150 });
+    assert.equal(nextGoal(150), null);
   });
 });

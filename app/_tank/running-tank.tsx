@@ -4,7 +4,7 @@ import type { AmbienceSound } from "@/lib/ambience-logic";
 import { broodCaption, broodStage, type BroodStage } from "@/lib/brood";
 import { TANK_CAPACITY, type Aquarium } from "@/lib/fish";
 import { growingSpot, PLANT_MIN_MINUTES, PLANTS_PER_TANK, PLANT_STAGE_LABEL, plantStageFor, toNextStage, type Garden } from "@/lib/plants";
-import { focusMsBetween, isNotes, type Session } from "@/lib/timer";
+import { checkInState, focusMsBetween, isNotes, type Session } from "@/lib/timer";
 import type { Owned } from "@/lib/economy";
 import type { TankSkin } from "./skins";
 import { type GrowingInTank, Tank } from "./tank";
@@ -72,6 +72,7 @@ export function RunningTank({
           scene={scene}
           growing={growingPlant}
           brood={brood}
+          canFullScreen={checkInState(session, now).status !== "due"}
         />
       </div>
       <p className="text-center text-sm text-muted">{caption}</p>

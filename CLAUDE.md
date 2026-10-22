@@ -50,7 +50,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `app/_focus/` — focus screen UI (private folder, not a route); `recent-sessions.tsx` is the Phase 3 "is saving
   working?" list, shown at the bottom of `/stats`
 - `lib/species.ts` — the species catalogue (18 saltwater species, 5 rarities, facts), the `ODDS` table per time
-  band (the one place to tune), `hatch(id, minutes)` (the deterministic pick) and the nautilus (`NAUTILUS`);
+  band (the one place to tune), `hatch(id, minutes)` (the deterministic pick), `oddsSentence` / `oddsSteps` (the odds in plain words, in the
+  setup sheet) and the nautilus (`NAUTILUS`);
   tested in `lib/species.test.ts`
 - `lib/fish.ts` — pure fish derivation: sessions → tanks, each fish's species (`speciesOf`: saved value first),
   bones, the nautilus flag, `catchLog` for the index, `creditedHours` (tested in `lib/fish.test.ts`).
@@ -62,7 +63,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `lib/plant-look.ts` — a plant's shape/colours/sway seeded from the session that started it
 - `app/_tank/` — tank UI: `tank.tsx` (`Tank`: header, arrows / swipe, tap cards, keyboard buttons, the canvas;
   takes `skinOf`, `decorations`, `coins`, `edit` (decorate mode), and for the running screen `bare`, `fixedIndex`,
-  `scene`, `brood`, `growing`), `running-tank.tsx` (the running screen's real tank with the session's egg / fry or
+  `scene`, `brood`, `growing`, `canFullScreen`; the ⤢ button shows the same tank full screen in a portal on
+  `<body>` (a parent's animation can trap `fixed`), closed by ×, Esc, or a check-in coming due), `running-tank.tsx` (the running screen's real tank with the session's egg / fry or
   growing plant), `result-fish.tsx` (the hatching reveal) + `result-plant.tsx`, `ambience-scene.tsx` + `.css` (the scene for each ambience, DOM layers over the canvas).
   The SVG drawings `fish-sprite.tsx` (`SpeciesSprite`, also "???" silhouettes; `NautilusSprite`; bone),
   `brood.tsx`, `plant-sprite.tsx` (stem / fern / grass × 5 stages, no flowers), `decoration-sprite.tsx` and
@@ -146,7 +148,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `TickMark`).
   Tokens and the few component classes live in `app/globals.css`
 - `lib/result-moments.ts` — pure: what one session changed, for the result screen (`resultMoments`: the streak
-  grew / the nautilus arrived; `isNewSpecies`), tested in `lib/result-moments.test.ts`.
+  grew / the nautilus arrived; `isNewSpecies`; `shortSession` + `shortSessionText`: what a session too short for a
+  fish / plant still counted, coins as earned), tested in `lib/result-moments.test.ts`. The result screen's quiet
+  lines: `nextBuy` ("15 more for the Driftwood") and `nextGoal` ("Next: River skin at 30h") in `lib/economy.ts`.
   `app/_focus/result-moments.tsx` — `StreakMoment`, `NautilusMoment` (also on `/design-preview`)
 - `lib/theme.ts` — Appearance (System / Light / Dark): `useTheme`, `setTheme`, saved on the device.
   `lib/theme-script.ts` — no React: the key, the browser bar colours and `THEME_SCRIPT`, the inline `<head>`
@@ -342,7 +346,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Limits: the iPhone silent switch mutes Web Audio; browsers may pause audio when the page is hidden (Open Focus in
   another app); phones need a tap before any sound.
 - Home, top to bottom: greeting, stats line, "Today" card (due today + overdue; tap one to pick it for the next
-  session), tank, setup summary card ("Change" opens every option in a sheet, grouped What · How long · Focus · Sound and night) and the one Start button. The setup is remembered in this
+  session), tank, setup summary card ("Change" opens every option in a sheet, grouped What · How long · Focus · Sound and night) and the one Start button, with a quiet "Just start: 10 minutes" under it (always a plain 10-minute timer, never saved as the setup). The setup is remembered in this
   browser (`lib/setup-prefs.ts`, saved on Start; the task isn't remembered).
 - Result screen: big focus minutes, the hatching reveal (or notes result), then one main button (New session);
   Mark done is quieter.

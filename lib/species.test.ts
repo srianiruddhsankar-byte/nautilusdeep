@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   NAUTILUS,
   ODDS,
+  oddsSentence,
+  oddsSteps,
   RARITIES,
   SPECIES,
   hasNautilus,
@@ -155,5 +157,21 @@ describe("the namesake", () => {
   test(`joins at ${NAUTILUS.hours} credited hours`, () => {
     assert.ok(!hasNautilus(99.99));
     assert.ok(hasNautilus(100));
+  });
+});
+
+describe("odds in plain words", () => {
+  test("names each tier with a chance, leaving out 0%", () => {
+    assert.equal(oddsSentence(25), "At 25 min: 50% common, 35% uncommon, 13% rare, 2% epic.");
+    assert.equal(oddsSentence(10), "At 10 min: 80% common, 18% uncommon, 2% rare.");
+    assert.equal(oddsSentence(120), "At 120 min: 10% common, 25% uncommon, 35% rare, 22% epic, 8% legendary.");
+  });
+
+  test("too short for a fish", () => {
+    assert.equal(oddsSentence(3), "Under 5 min, no fish hatches.");
+  });
+
+  test("the stopwatch: where the odds improve", () => {
+    assert.equal(oddsSteps(), "The longer you go, the likelier a rare fish: better odds at 25, 50 and 90 min.");
   });
 });

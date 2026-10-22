@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { AmbienceSound } from "@/lib/ambience-logic";
 import type { BroodStage } from "@/lib/brood";
 import { inTank, type Owned } from "@/lib/economy";
@@ -77,6 +78,7 @@ export function Tank({
   overlay = null,
   brood = null,
   growing = null,
+  canFullScreen = true,
 }: {
   aquarium: Aquarium | null; // null while loading
   garden: Garden | null;
@@ -93,6 +95,9 @@ export function Tank({
   overlay?: ReactNode;
   brood?: BroodStage | null; // the running screen's egg → fry (study sessions)
   growing?: GrowingInTank | null; // …or its growing plant (notes)
+  // false closes the full-screen view (and hides its button): the running
+  // screen's "Still studying?" banner must never be covered.
+  canFullScreen?: boolean;
 }) {
   const [ownPick, setOwnPick] = useState<number | null>(null); // null = newest tank
   const picked = fixedIndex ?? (edit ? edit.index : ownPick);
@@ -124,6 +129,37 @@ export function Tank({
   ];
   const fallback = status === "fallback";
   const tappable = !edit && !bare;
+  // Full screen (I-095): the same tank in a layer over the whole page. It goes
+  // into a portal on <body>, since a parent's animation can trap a `fixed`
+  // element; moving there starts the canvas afresh (a new canvas every start).
+  const [full, setFull] = useState(false);
+  function setFullScreen(on: boolean) {
+    setStatus("loading"); // the skin's picture shows while the canvas restarts
+    setFull(on);
+  }
+  if (full && !canFullScreen) setFullScreen(false); // a check-in came due: back to the timer
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullScreen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [full]);
+  const inFullScreen = (node: ReactNode) =>
+    full
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Your tank, full screen"
+            className="safe-pad fixed inset-0 z-40 flex items-center justify-center bg-paper p-4"
+          >
+            {node}
+          </div>,
+          document.body,
+        )
+      : node;
   // Low graphics (Settings): no ambience effects drawn over the water.
   const effects = useGraphics().graphics === "low" ? null : scene;
   const canvasPlants: CanvasPlant[] = [
@@ -211,8 +247,11 @@ export function Tank({
       </div>
       )}
 
+      {inFullScreen(
       <div
-        className={`relative aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-tank shadow-[0_0_0_1px_var(--line),0_4px_0_var(--line)] select-none ${skin.frame}`}
+        className={`relative aspect-[4/3] touch-pan-y overflow-hidden rounded-tank shadow-[0_0_0_1px_var(--line),0_4px_0_var(--line)] select-none ${skin.frame} ${
+          full ? "w-[min(100%,calc((100svh-6rem)*4/3))]" : "w-full"
+        }`}
         onPointerDown={(e) => {
           swipeStartX.current = e.clientX;
           justSwiped.current = false;
@@ -384,7 +423,27 @@ export function Tank({
         {selectedFish && <FishCard key={selectedFish.id} fish={selectedFish} onClose={() => setSelected(null)} />}
         {selected === "nautilus" && nautilus && <NautilusCard onClose={() => setSelected(null)} />}
         {selectedPlant && <PlantCard key={selectedPlant.id} plant={selectedPlant} onClose={() => setSelected(null)} />}
-      </div>
+
+        {/* Full screen: the tank on its own, a calm thing to look at. */}
+        {!edit && canFullScreen && (
+          <button
+            type="button"
+            aria-label={full ? "Close full screen" : "Show the tank full screen"}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullScreen(!full);
+            }}
+            className="absolute top-1.5 right-1.5 flex size-11 items-center justify-center rounded-control bg-[#fffcf6]/75 text-[#1e2b38] transition-[background-color,transform] duration-(--dur-fast) ease-snap hover:bg-[#fffcf6] active:scale-[0.94]"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              {full ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}
+            </svg>
+          </button>
+        )}
+      </div>,
+      )}
 
       {tankCount > 1 && !bare && (
         <div className="flex justify-center gap-1.5" aria-hidden>

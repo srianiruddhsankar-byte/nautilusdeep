@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { deriveAquarium, type SessionFacts } from "./fish.ts";
-import { isNewSpecies, resultMoments } from "./result-moments.ts";
+import { isNewSpecies, resultMoments, shortSession, shortSessionText } from "./result-moments.ts";
 
 const IST = "Asia/Kolkata";
 const MIN = 60_000;
@@ -93,5 +93,52 @@ describe("new species", () => {
     assert.equal(isNewSpecies(aquarium, c.id, "royal_gramma"), true);
     // The fish isn't in the tanks yet: still new if no one else is that species.
     assert.equal(isNewSpecies(deriveAquarium([a]), "not-yet", "royal_gramma"), true);
+  });
+});
+
+describe("short sessions: what still counted", () => {
+  test("Open Focus earns half the coins, rounded down: 12 min = +6", () => {
+    const row = session("2026-10-14 10:00", 12, { focus_mode: "open", session_type: "notes" });
+    const s = shortSession([row], row, NOW, IST);
+    assert.equal(s.coins, 6);
+    assert.equal(shortSessionText(s, "notes"), "12 min counted · +6 coins · today's streak day. Plants start at 15 min.");
+  });
+
+  test("Deep Focus earns a coin a minute; 13 min Open Focus = +6", () => {
+    const deep = session("2026-10-14 10:00", 12, { session_type: "notes" });
+    assert.equal(shortSession([deep], deep, NOW, IST).coins, 12);
+    const open = session("2026-10-14 10:00", 13, { focus_mode: "open", session_type: "notes" });
+    assert.equal(shortSession([open], open, NOW, IST).coins, 6);
+  });
+
+  test("under 5 min: no coins, and no streak day on its own", () => {
+    const row = session("2026-10-14 10:00", 3);
+    const s = shortSession([row], row, NOW, IST);
+    assert.deepEqual(s, { minutes: 3, coins: 0, studyDay: false, today: true });
+    assert.equal(shortSessionText(s, "study"), "3 min counted. Fish and coins start at 5 min.");
+    assert.equal(shortSessionText(s, "notes"), "3 min counted. Coins start at 5 min, plants at 15.");
+  });
+
+  test("a short session can still finish today's study day", () => {
+    const earlier = session("2026-10-14 08:00", 3);
+    const row = session("2026-10-14 10:00", 3);
+    const s = shortSession([earlier, row], row, NOW, IST);
+    assert.equal(s.studyDay, true);
+    assert.equal(shortSessionText(s, "study"), "3 min counted · today's streak day. Fish and coins start at 5 min.");
+  });
+
+  test("failed sessions don't add to the day; a session started yesterday counts for yesterday", () => {
+    const failed = session("2026-10-14 08:00", 10, { outcome: "failed", focus_seconds: 0 });
+    const row = session("2026-10-14 10:00", 3);
+    assert.equal(shortSession([failed, row], row, NOW, IST).studyDay, false);
+    const late = session("2026-10-13 23:50", 8, { session_type: "notes" });
+    const s = shortSession([late], late, NOW, IST);
+    assert.equal(s.today, false);
+    assert.equal(shortSessionText(s, "notes"), "8 min counted · +8 coins · a streak day. Plants start at 15 min.");
+  });
+
+  test("under a minute", () => {
+    const row = session("2026-10-14 10:00", 0);
+    assert.equal(shortSessionText(shortSession([row], row, NOW, IST), "study"), "Under a minute counted. Fish and coins start at 5 min.");
   });
 });

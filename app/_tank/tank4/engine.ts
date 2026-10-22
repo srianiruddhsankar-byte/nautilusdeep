@@ -118,7 +118,11 @@ const PLANT_VIEW = { x: -16, y: -4, w: 72, h: 64 }; // the 40 × 60 drawing, wit
 const PLANT_ROOT = { x: 20, y: 58 }; // its base, in drawing units
 const SAND_BOTTOM = 2;
 const SAND_DEPTH = 14;
-const DECOR_SCALE = 1.1; // a decoration's width in world units per px of its drawing
+// A decoration's width in world units per px of its drawing, and the smallest
+// drawing width, so a shell or starfish still reads clearly on the sand.
+const DECOR_SCALE = 1.4;
+const DECOR_MIN_WIDTH = 30;
+const decorWidth = (width: number) => Math.max(width, DECOR_MIN_WIDTH) * DECOR_SCALE;
 const SETTLE_SECONDS = 0.6; // a placed decoration settling onto the sand
 const SETTLE_DROP = 16; // world units it falls from
 
@@ -430,7 +434,7 @@ async function buildEngine(
   async function setScenery(next: { plants: TankPlant[]; decorations: TankDecor[] }) {
     const token = ++sceneryToken;
     const plantTex = await Promise.all(next.plants.map((p) => textureOf(p.art, p.width * (PLANT_VIEW.w / 40), PLANT_VIEW)));
-    const decorTex = await Promise.all(next.decorations.map((d) => textureOf(d.art, d.width * DECOR_SCALE)));
+    const decorTex = await Promise.all(next.decorations.map((d) => textureOf(d.art, decorWidth(d.width))));
     if (token !== sceneryToken || gone) return;
 
     // Plants: reuse a plant whose drawing didn't change, so its sway (and pop) carries on.
@@ -468,7 +472,7 @@ async function buildEngine(
       const tex = decorTex[i];
       if (!tex) return [];
       const scale = 1 - 0.2 * d.y; // further back = a little smaller
-      const w = d.width * DECOR_SCALE * scale;
+      const w = decorWidth(d.width) * scale;
       const h = (tex.height / tex.width) * w;
       const x = (d.x / 100) * 400;
       const y = 300 - 3 * (SAND_BOTTOM + d.y * SAND_DEPTH);
