@@ -2,6 +2,8 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { startCanvas } from "@/lib/canvas-life";
+import { useGraphics } from "@/lib/graphics";
+import { GRAPHICS_FPS } from "@/lib/graphics-logic";
 import type { Mini, MiniScene } from "./mini";
 import { useReducedMotion, useTankLoop } from "./tank-loop";
 
@@ -17,6 +19,7 @@ export function MiniCanvas({ scene, className, fallback }: { scene: MiniScene; c
   const mini = useRef<Mini | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const still = useReducedMotion();
+  const { graphics } = useGraphics(); // 30 fps, or 15 with Low graphics
   const latest = useRef({ scene, still });
   useEffect(() => {
     latest.current = { scene, still };
@@ -77,7 +80,7 @@ export function MiniCanvas({ scene, className, fallback }: { scene: MiniScene; c
   useTankLoop(host, {
     id: "result",
     still,
-    maxFps: 30,
+    maxFps: GRAPHICS_FPS[graphics],
     onFrame: (dt) => mini.current?.frame(dt),
     onStill: () => mini.current?.still(),
     onStats: () => {},

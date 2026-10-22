@@ -25,7 +25,7 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
 - **I-088 · Quiet alarm for libraries** · `Reusable`: "Alarm when time's up" in Session settings: Gentle (the
   default, a soft low two-note chime at about a third of the volume), Chime (the old three chimes), Silent
   (vibration + pulsing screen). Tapping a choice plays a sample.
-  - Done in: hotfix 2026-10-20 (commit 4dfee37). Could move to the Settings page with I-089.
+  - Done in: hotfix 2026-10-20 (commit 4dfee37). Moved to More → Settings in Batch 2 (2026-10-22).
 
 ## Backfilled from CLAUDE.md (built before this folder had IDs)
 
@@ -143,3 +143,65 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
     version can reuse those, then add more.
   - Done in: Quick wins, Batch 1 (2026-10-22)
   - Related: I-060, P-001
+
+### Batch 2 · More tab, Settings, Account, Help (2026-10-22)
+- **I-089 · Separate Settings and Account pages** · `Reusable`: today Appearance, notifications, installing,
+  your email and sign-out all live under Help → Account. Split them: **Settings** (Appearance, notifications,
+  sounds, install the app), **Account** (email, privacy, sign out, delete account, I-072), and **Help** only
+  explains things.
+  - Done in: Quick wins, Batch 2 (2026-10-22). The Help tab became "More": Settings ›, Account ›, then Help.
+  - Related: I-067, I-072, I-071
+- **I-067 · Reorganise Help: short answers first, details after** · `Reusable`: split Help into "Questions"
+  (short FAQ answers, grouped: Getting started · During a session · Your progress · Privacy) and "How it works"
+  (today's cards), so it answers questions without getting crowded. Each answer is one or two lines and links
+  to the full card.
+  - Done in: Quick wins, Batch 2 (2026-10-22)
+  - Related: I-066, I-068, I-069, I-071
+- **I-066 · "What it is" in one sentence + before-you-download answers** · `Reusable`: one line that says what
+  the app does, shown on the login page, plus a few short answers for someone deciding whether to try it.
+  - Questions: What does it do? How is it different from other study apps? Do other people use it? Android,
+    iPhone, laptop? How much space? Who made it? Are there ads? Can I add friends? Is it the same on phone and
+    laptop? Does it eat my battery? What does "Deep Nautilus" mean?
+  - Answers today: a web app, so it works in any browser on Android, iPhone and laptop, and installs like an app
+    without an app store; tiny, since sounds are generated and there's nothing to download (P-015); made by
+    one student for himself and friends; no ads, ever (I-037); no friends features yet (I-032). Same account and
+    progress on phone and laptop, with a layout made for each. Battery: the tank pauses whenever it's off screen
+    and sounds are off by default (P-014). "Do others use it?" can only be answered honestly after Phase 11.
+  - Done in: Quick wins, Batches 1 (login words) and 2 (answers in More → Help), 2026-10-22
+  - Related: P-020
+- **I-069 · "What if…" answers for interruptions** · `Reusable`: short, honest answers about real life
+  interrupting a session.
+  - Questions and answers today:
+    - An important call: in Deep Focus, your first time away over 15 s pauses the session by itself (the "free
+      interruption", built 2026-10-20) for up to 5 min, if you haven't used your pause yet. Come back in time
+      and nothing is lost; the away time just doesn't count. A second long leave, or staying away past 5 min,
+      fails as before: a study fish dies (+1 bone, no coins), a notes session grows nothing. Plants never die.
+      Banked cycle blocks and continued parts are kept. Open Focus never fails for leaving.
+    - The restroom: in Deep Focus, tap Pause, or just go: if you haven't paused yet, leaving pauses it for you
+      (once per session, up to 5 min, paused time doesn't count). In Open Focus, just go: the timer keeps
+      running and counts.
+    - The screen turning off: Deep Focus keeps the screen awake for the whole session; locking it yourself
+      counts as leaving. In Open Focus the screen can sleep and the time stays right.
+    - The battery dying: everything already finished is saved to your account and can't be lost. The session
+      that was running is likely to end as failed in Deep Focus (it counts as leaving); check what happens in
+      Open Focus.
+  - Done in: Quick wins, Batch 2 (2026-10-22)
+  - Related: P-019, I-039, I-073
+- **I-071 · Trust & privacy answers** · `Reusable`: plain answers to "What data do you collect? Is it safe? If I
+  delete my account, is it gone? If I change phone, is my progress saved? Do you sell my data?"
+  - Answers today: your Google name, email and picture, plus your sessions, tasks, cycles, decorations and
+    push settings; stored with Supabase, each person can only read their own rows; never sold, no ads, not
+    shared. A new phone keeps everything (it's tied to your Google account), except settings saved on the
+    device (setup, Appearance) and any session that hadn't uploaded yet. Deleting today = emailing the owner.
+  - Done in: Quick wins, Batches 1 (privacy page) and 2 (answers in More → Help), 2026-10-22
+  - Related: I-072, P-018
+- **I-101 · Link Privacy from Help** · `Reusable`: today Help never links to the privacy page. One link in Help
+  (or Account, I-089).
+  - Done in: Quick wins, Batch 2 (2026-10-22) (the link is on the Account page)
+  - Related: I-071, I-089
+- **I-105 · High and low graphics modes** · `Reusable`: a setting for phones that struggle with the tank. High =
+  today's tank. Low = fewer animated parts, 15 fps instead of 30, pixel ratio 1, no ambience scene effects
+  (or the still picture the tank already falls back to without WebGL). Auto-pick Low on weak phones, changeable
+  in Settings.
+  - Done in: Quick wins, Batch 2 (2026-10-22). Auto-picks Low on devices reporting ≤ 2 GB memory or ≤ 2 cores (iPhones start on High).
+  - Related: P-039, P-014, I-089, I-038

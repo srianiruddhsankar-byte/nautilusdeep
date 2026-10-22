@@ -8,7 +8,7 @@ import { Sheet } from "../_ui/sheet";
 import { toast } from "../_ui/toast";
 
 // The short note before the browser's permission prompt (from the running
-// screen's offer and Help → Notifications). What the notifications are, then
+// screen's offer and Settings → Notifications). What the notifications are, then
 // Turn on → the browser asks. On an iPhone outside the installed app it
 // explains installing instead (no prompt there); when blocked, how to unblock.
 export function PushSheet({ open, onClose, support }: { open: boolean; onClose: () => void; support: PushSupport }) {
@@ -48,10 +48,10 @@ export function PushSheet({ open, onClose, support }: { open: boolean; onClose: 
               </li>
               <li>Open Nautilus from your home screen and sign in.</li>
               <li>
-                Turn on <b>Time&apos;s up</b> in Help → Account → Notifications.
+                Turn on <b>Time&apos;s up</b> in More → Settings → Notifications.
               </li>
             </ol>
-            <p className="text-sm text-muted">Help → Install the app has the full steps.</p>
+            <p className="text-sm text-muted">More → Settings → Install the app has the full steps.</p>
             <Button variant="primary" size="lg" onClick={later}>
               Got it
             </Button>

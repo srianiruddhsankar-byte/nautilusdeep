@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { iosBrowser, type IosBrowser } from "./install-logic";
 import { createLocalStore } from "./local-store";
 
-// Installing the app (Home's "Get Nautilus as an app" card, Help → Install the app).
+// Installing the app (Home's "Get Nautilus as an app" card, Settings → Install the app).
 //
 // Android / Chrome / Edge: the browser fires `beforeinstallprompt` when the app
 // can be installed. We keep that event (and stop Chrome's own little install bar,

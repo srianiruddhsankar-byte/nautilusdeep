@@ -25,7 +25,7 @@ The `Ideas/` folder has three files:
 8. **`Reusable`** marks ideas that would work in other apps, not just Deep Nautilus.
 9. This folder is edited outside Claude Code (see CLAUDE.md). Claude Code never edits it.
 
-**Next free IDs: I-113 · P-041**
+**Next free IDs: I-114 · P-041**
 
 ## Quick wins: small fixes only
 
@@ -33,11 +33,9 @@ The rule for the next version: no big features, just fix small problems. This li
 small (no new table, no new service, no new art style) and the problem it fixes. Built ones move to DONE.md as
 usual; remove them from this list when they do. Sizes: **Tiny** = a few lines or words · **Small** = one screen
 or one setting · **Small+** = small, but touches the database or stored data. Last full review: 2026-10-22
-(every idea and problem checked again). Batch 1 shipped 2026-10-22 (see DONE.md).
+(every idea and problem checked again). Batches 1 and 2 shipped 2026-10-22 (see DONE.md).
 
-**Words and pages (Tiny)**
-- I-101 Link Privacy from Help (I-071)
-- I-069 "What if…" answers: call, restroom, screen off, battery (words only)
+**Words and pages (Tiny)**: all done in Batches 1 and 2.
 
 **Screens and settings (Small)**
 - I-095 Full-screen tank (P-034)
@@ -51,12 +49,10 @@ or one setting · **Small+** = small, but touches the database or stored data. L
 - I-005 Personal records from stats that already exist
 - I-074 "Just start": a 10-minute session (P-002, P-024)
 - I-087 Show the odds in plain words (only this part; the guarantee is bigger) (P-033)
-- I-105 Low graphics mode for older phones (P-039, P-014)
 - I-112 "Were you still studying?" after a long gap (P-040)
+- I-113 Stopwatch "Still going?" check after a long time, longer for Notes (P-040)
 - I-026 One cached "You're offline" page (P-016)
 - I-102 "What's new" after a big update
-- I-089 Separate Settings and Account pages (bigger than the rest, but I-105 lives there)
-- I-067 Reorganise Help: short answers first (one page; holds the rest of I-066 and I-071, plus I-069)
 
 **Small+ (touches the database or stored data)**
 - I-091 Add a finished session to a task afterwards (a narrow update policy on `task_name`) (P-038)
@@ -269,16 +265,6 @@ feelings and moments behind these.
   - Why parked: words only (the catalogue and balance already exist); must never feel like being sold to.
   - Revisit: Phase 9 Stage D (result screen).
   - Related: P-036, I-057, I-070
-- **I-105 · High and low graphics modes** · `Reusable`: a setting for phones that struggle with the tank. High =
-  today's tank. Low = fewer animated parts, 15 fps instead of 30, pixel ratio 1, no ambience scene effects
-  (or the still picture the tank already falls back to without WebGL). Auto-pick Low on weak phones, changeable
-  in Settings.
-  - Status: Parked
-  - Why parked: the pieces exist (fps, pixel ratio cap, the still fallback, reduced motion), so it's mostly a
-    setting; it belongs in the new Settings page (I-089).
-  - Revisit: Phase 9 Stage D with I-089, or sooner if a tester's phone stutters.
-  - Related: P-039, P-014, I-089, I-038
-
 - **I-011 · Freshwater species come back with water types**: guppy, neon tetra, zebrafish, goldfish,
   (freshwater) angelfish and discus were in the first species list but were swapped for saltwater ones, because
   tanks don't have water types yet and every species is saltwater for now.
@@ -513,6 +499,16 @@ feelings and moments behind these.
     stay one tap, never an accusation. Night mode already limits it when it's on.
   - Revisit: soon after Batch 2; fits the quick wins (small, no new table).
   - Related: P-040, I-054, P-021
+- **I-113 · A stopwatch that can't run forever** · `Reusable`: if you forget to stop the stopwatch, it shouldn't
+  count hours you didn't study. Not a hard cap that throws the session away, but an automatic "Still going?"
+  check after a long time: about 3 h for Study and longer for Notes (writing notes takes longer), the exact numbers
+  to tune. No answer within 2 min = the session ends at the check, crediting time only up to there, with no bone
+  and no dying fish (the same rule Night mode already uses).
+  - Status: Parked
+  - Why parked: raised 2026-10-22. Small, because it reuses Night mode's check-in logic, but the limits need
+    picking and it must never end a real long session by surprise (the check gives you 2 minutes to answer).
+  - Revisit: with I-112 (they fix the same problem: time you didn't study counting).
+  - Related: P-040, I-112, I-054
 
 ## Help, first use & trust
 
@@ -521,49 +517,6 @@ time. "Answers today" are what the app does now (from CLAUDE.md and the code, Oc
 Code before writing them into the app. Today's Help page only explains how things work (sessions, tank,
 rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
 
-- **I-066 · "What it is" in one sentence + before-you-download answers** · `Reusable`: one line that says what
-  the app does, shown on the login page, plus a few short answers for someone deciding whether to try it.
-  - Questions: What does it do? How is it different from other study apps? Do other people use it? Android,
-    iPhone, laptop? How much space? Who made it? Are there ads? Can I add friends? Is it the same on phone and
-    laptop? Does it eat my battery? What does "Deep Nautilus" mean?
-  - Answers today: a web app, so it works in any browser on Android, iPhone and laptop, and installs like an app
-    without an app store; tiny, since sounds are generated and there's nothing to download (P-015); made by
-    one student for himself and friends; no ads, ever (I-037); no friends features yet (I-032). Same account and
-    progress on phone and laptop, with a layout made for each. Battery: the tank pauses whenever it's off screen
-    and sounds are off by default (P-014). "Do others use it?" can only be answered honestly after Phase 11.
-  - Status: Partly done (2026-10-22, Batch 1): the one-sentence description and the three login lines (Google,
-    works like an app, the name). The before-you-download answers go into Help with I-067 (Batch 2).
-  - Why parked: the login page and Help get rebuilt in Phase 9 Stage D anyway.
-  - Revisit: Phase 9 Stage D. The one-liner needs writing first.
-  - Related: P-020
-- **I-067 · Reorganise Help: short answers first, details after** · `Reusable`: split Help into "Questions"
-  (short FAQ answers, grouped: Getting started · During a session · Your progress · Privacy) and "How it works"
-  (today's cards), so it answers questions without getting crowded. Each answer is one or two lines and links
-  to the full card.
-  - Status: Parked
-  - Why parked: it needs the answers from I-066, I-068, I-069 and I-071 written first.
-  - Revisit: Phase 9 Stage D (every page rebuilt), so the redesign happens once.
-  - Related: I-066, I-068, I-069, I-071
-- **I-069 · "What if…" answers for interruptions** · `Reusable`: short, honest answers about real life
-  interrupting a session.
-  - Questions and answers today:
-    - An important call: in Deep Focus, your first time away over 15 s pauses the session by itself (the "free
-      interruption", built 2026-10-20) for up to 5 min, if you haven't used your pause yet. Come back in time
-      and nothing is lost; the away time just doesn't count. A second long leave, or staying away past 5 min,
-      fails as before: a study fish dies (+1 bone, no coins), a notes session grows nothing. Plants never die.
-      Banked cycle blocks and continued parts are kept. Open Focus never fails for leaving.
-    - The restroom: in Deep Focus, tap Pause, or just go: if you haven't paused yet, leaving pauses it for you
-      (once per session, up to 5 min, paused time doesn't count). In Open Focus, just go: the timer keeps
-      running and counts.
-    - The screen turning off: Deep Focus keeps the screen awake for the whole session; locking it yourself
-      counts as leaving. In Open Focus the screen can sleep and the time stays right.
-    - The battery dying: everything already finished is saved to your account and can't be lost. The session
-      that was running is likely to end as failed in Deep Focus (it counts as leaving); check what happens in
-      Open Focus.
-  - Status: Parked
-  - Why parked: words only; belongs with the Help reorganisation (I-067).
-  - Revisit: Phase 9 Stage D, with I-067.
-  - Related: P-019, I-039, I-073
 - **I-070 · Show the end goal** · `Reusable`: make it clear what you're working towards: skins unlock up to
   150 h, the nautilus arrives at 100 h, fill the Sea life index. A quiet "next: River skin at 30 h" line, not
   a progress bar to grind.
@@ -571,19 +524,6 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
   - Why parked: must stay a quiet measure of real work, not a game; overlaps with depth levels (I-009).
   - Revisit: with I-009, after Phase 11.
   - Related: I-009, I-058, I-061, P-001
-- **I-071 · Trust & privacy answers** · `Reusable`: plain answers to "What data do you collect? Is it safe? If I
-  delete my account, is it gone? If I change phone, is my progress saved? Do you sell my data?"
-  - Answers today: your Google name, email and picture, plus your sessions, tasks, cycles, decorations and
-    push settings; stored with Supabase, each person can only read their own rows; never sold, no ads, not
-    shared. A new phone keeps everything (it's tied to your Google account), except settings saved on the
-    device (setup, Appearance) and any session that hadn't uploaded yet. Deleting today = emailing the owner.
-  - Fix with it: the privacy page only mentions sessions and push; it should also list tasks, cycles,
-    decorations and skins.
-  - Status: Partly done (2026-10-22, Batch 1): the privacy page now lists everything stored. The plain
-    answers in Help go in with I-067 (Batch 2).
-  - Why parked: belongs with the Help reorganisation (I-067).
-  - Revisit: with I-067. Fix the privacy page wording before Phase 11, since friends will be signing in.
-  - Related: I-072, P-018
 - **I-072 · Delete my account in the app** · `Reusable`: a button in Help → Account that deletes your account
   and all your data, after one confirm.
   - Status: Parked
@@ -591,14 +531,6 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     function (users can't delete their own rows by design).
   - Revisit: before the app goes beyond friends.
   - Related: I-071, P-018
-- **I-089 · Separate Settings and Account pages** · `Reusable`: today Appearance, notifications, installing,
-  your email and sign-out all live under Help → Account. Split them: **Settings** (Appearance, notifications,
-  sounds, install the app), **Account** (email, privacy, sign out, delete account, I-072), and **Help** only
-  explains things.
-  - Status: Parked
-  - Why parked: belongs with the Help reorganisation (I-067), so the pages and the nav are redesigned once.
-  - Revisit: Phase 9 Stage D.
-  - Related: I-067, I-072, I-071
 - **I-099 · Download your data** · `Reusable`: one button that downloads your sessions and tasks as CSV / JSON.
   Sending exams to Google Calendar is a separate, later step.
   - Status: Parked
@@ -606,12 +538,6 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     months of data.
   - Revisit: before the app goes beyond friends, or if a tester asks.
   - Related: P-018, I-071, I-072
-- **I-101 · Link Privacy from Help** · `Reusable`: today Help never links to the privacy page. One link in Help
-  (or Account, I-089).
-  - Status: Parked
-  - Why parked: a one-line change; do it with I-089 / I-067.
-  - Revisit: Phase 9 Stage D.
-  - Related: I-071, I-089
 
 ## Deliberately rejected (and why)
 

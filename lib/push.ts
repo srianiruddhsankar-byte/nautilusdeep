@@ -6,7 +6,7 @@ import { pushSupport, type PushSupport } from "./push-schedule";
 import { createClient } from "./supabase/client";
 
 // This device's push notifications: asking permission, subscribing, and the
-// per-device "Time's up" switch (Help → Account → Notifications).
+// per-device "Time's up" switch (Settings → Notifications).
 //
 // The switch lives in this browser (so it shows instantly) and is mirrored to
 // public.push_subscriptions, which the server reads when sending. Saving goes
@@ -126,7 +126,7 @@ export async function turnOnTimesUp(): Promise<string | null> {
   try {
     const answer = permission() === "granted" ? "granted" : await Notification.requestPermission();
     emit();
-    if (answer === "denied") return "Notifications are blocked for Deep Nautilus. Help → Notifications says how to allow them.";
+    if (answer === "denied") return "Notifications are blocked for Deep Nautilus. More → Settings → Notifications says how to allow them.";
     if (answer !== "granted") return "Notifications weren't allowed this time.";
     const error = await save(await subscription(), true);
     if (error) return error;

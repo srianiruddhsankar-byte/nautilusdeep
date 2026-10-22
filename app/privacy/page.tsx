@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-
-const CONTACT_EMAIL = "srianiruddhsankar@gmail.com";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Privacy Policy – Deep Nautilus",

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// The app's main navigation: a bar at the bottom, where a thumb reaches.
+// The app's main navigation (Home · Tasks · Shop · Stats · More): a bar at the bottom, where a thumb reaches.
 // Each page renders it (Home leaves it out while a session is running, so the
 // timer screen stays distraction-free). It also adds a spacer at the end of the
 // page so the fixed bar never covers the last thing on it.
 // Its links are "tab" navigations: the page content fades, the bar stays put.
 
-export type NavPage = "home" | "tasks" | "shop" | "stats" | "help";
+export type NavPage = "home" | "tasks" | "shop" | "stats" | "more";
 
 const ITEMS: { page: NavPage; href: string; label: string; icon: ReactNode }[] = [
   {
@@ -45,13 +45,15 @@ const ITEMS: { page: NavPage; href: string; label: string; icon: ReactNode }[] =
     icon: <path d="M5 20V12M10 20V5M15 20v-9M20 20v-5" />,
   },
   {
-    page: "help",
+    // Settings, Account and Help (the page keeps its /help address).
+    page: "more",
     href: "/help",
-    label: "Help",
+    label: "More",
     icon: (
       <>
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 17h.01" />
+        <circle cx="5.5" cy="12" r="1.4" />
+        <circle cx="12" cy="12" r="1.4" />
+        <circle cx="18.5" cy="12" r="1.4" />
       </>
     ),
   },
@@ -109,11 +111,23 @@ export function BottomNav({ active }: { active: NavPage }) {
   );
 }
 
-// The same title bar on every page except Home.
-export function PageHeader({ title }: { title: string }) {
+// The same title bar on every page except Home. `back`: a page reached from
+// another one (Settings and Account, from More) links back above its title.
+export function PageHeader({ title, back }: { title: string; back?: { href: string; label: string } }) {
   return (
-    <header className="flex min-h-11 items-center">
-      <h1 className="title-page">{title}</h1>
+    <header className="flex flex-col">
+      {back && (
+        <Link
+          href={back.href}
+          transitionTypes={["tab"]}
+          className="-ml-1 inline-flex min-h-11 items-center self-start px-1 text-sm font-semibold text-primary"
+        >
+          ← {back.label}
+        </Link>
+      )}
+      <div className="flex min-h-11 items-center">
+        <h1 className="title-page">{title}</h1>
+      </div>
     </header>
   );
 }

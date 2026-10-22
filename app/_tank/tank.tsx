@@ -23,6 +23,7 @@ import { LOOKS } from "./tank4/scenery";
 import type { TankFish } from "./tank4/engine";
 import { type CanvasDecor, type CanvasPlant, TankCanvas, type TankHandle, type TankStatus } from "./tank4/tank-canvas";
 import { decorationById } from "@/lib/decorations";
+import { useGraphics } from "@/lib/graphics";
 import type { PlantStage } from "@/lib/plants";
 
 const MODE_LABEL = { timer: "Timer", stopwatch: "Stopwatch", cycle: "Cycle" };
@@ -123,6 +124,8 @@ export function Tank({
   ];
   const fallback = status === "fallback";
   const tappable = !edit && !bare;
+  // Low graphics (Settings): no ambience effects drawn over the water.
+  const effects = useGraphics().graphics === "low" ? null : scene;
   const canvasPlants: CanvasPlant[] = [
     ...plants.map((p) => ({
       key: `plant:${p.id}`,
@@ -253,7 +256,7 @@ export function Tank({
             onStatus={setStatus}
           />
         )}
-        <AmbienceScene scene={scene} layer="back" />
+        <AmbienceScene scene={effects} layer="back" />
 
         {/* The still picture (no WebGL) draws these itself. */}
         {fallback && decor.map((d) => (
@@ -314,7 +317,7 @@ export function Tank({
           </Swimmer>
         ))}
 
-        <AmbienceScene scene={scene} layer="front" />
+        <AmbienceScene scene={effects} layer="front" />
         {!fallback && <div className="tank-vignette pointer-events-none absolute inset-0" style={{ "--vignette": LOOKS[skin.id].vignette } as CSSProperties} />}
 
         {/* The canvas can't be focused, so keyboard and screen-reader users get

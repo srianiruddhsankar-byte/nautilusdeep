@@ -189,7 +189,8 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
 - **P-029 · Too much to understand**: modes, fish, bones, plants, coins, skins, cycles, Night mode…
   - Direction: learn one thing at a time; everything beyond Start should be discoverable later, not explained
     up front.
-  - Status: open.
+  - Status: partly handled since 2026-10-22: short answers in More → Help (I-067), first-open words on the
+    login page and Home (I-068). Phase 11 will show what still confuses people.
   - Related: I-066, I-067, I-068
 - **P-030 · Too many decisions before starting**: Deep or Open Focus, Study or Notes, how many minutes, timer or
   cycle.
@@ -243,7 +244,8 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
 - **P-039 · The tank graphics still aren't good enough**: owner, Oct 2026. They don't look as good as they
   should, and older phones may struggle to run them.
   - Direction: keep improving the art in a tank polish pass; give weaker phones a low graphics mode (I-105).
-  - Status: open. Tank 4 (Phase 9 Stage C) is the current art.
+  - Status: partly handled: a low graphics mode for weaker phones since 2026-10-22 (I-105). The art itself
+    (Tank 4, Phase 9 Stage C) still needs a polish pass.
   - Related: I-105, I-038, P-014
 - **P-040 · Time you didn't study can still count**: found 2026-10-22 by Claude Code while writing the
   battery answer.
@@ -253,4 +255,4 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: ask once on return after a long gap (I-112). Night mode check-ins already limit it, but they're
     off by default.
   - Status: open.
-  - Related: I-112, I-054, P-021, P-003
+  - Related: I-112, I-113, I-054, P-021, P-003

@@ -4,6 +4,8 @@
 
 import type * as PX from "pixi.js";
 import { hashString } from "@/lib/fish-look";
+import { readGraphics } from "@/lib/graphics";
+import { GRAPHICS_MAX_DPR } from "@/lib/graphics-logic";
 import { NAUTILUS, speciesById, type SpeciesId } from "@/lib/species";
 import { hasPainting, PAINTED_BODY, paintingUrl } from "./art-files";
 import { EGG_BOX, eggSvg, FRY, FRY_BODY } from "./brood-art";
@@ -193,12 +195,15 @@ export type Bank = ReturnType<typeof createBank>;
 
 // ---------------- canvas helpers ----------------
 
-// Sharpness vs battery: up to 2 device pixels per CSS pixel, but never more
-// than ~1.4 million canvas pixels (a big landscape tank drops a little).
-const MAX_DPR = 2;
+// Sharpness vs battery: up to 2 device pixels per CSS pixel (1 with Low
+// graphics, lib/graphics.ts), but never more than ~1.4 million canvas pixels
+// (a big landscape tank drops a little).
 const MAX_PIXELS = 1_400_000;
 export const dprFor = (w: number, h: number) =>
-  Math.max(1, Math.min(window.devicePixelRatio || 1, MAX_DPR, Math.sqrt(MAX_PIXELS / Math.max(1, w * h))));
+  Math.max(
+    1,
+    Math.min(window.devicePixelRatio || 1, GRAPHICS_MAX_DPR[readGraphics()], Math.sqrt(MAX_PIXELS / Math.max(1, w * h))),
+  );
 
 export class NoWebGL extends Error {}
 

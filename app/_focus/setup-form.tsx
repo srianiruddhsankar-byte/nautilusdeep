@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { totalMinutes } from "@/lib/cycle-blocks";
 import { useCycles } from "@/lib/cycles";
 import { setPreviewVolume, startPreview, stopPreview, usePreview } from "@/lib/ambience";
@@ -13,7 +13,7 @@ import {
   previewTap,
   type AmbienceChoice,
 } from "@/lib/ambience-logic";
-import { loadPrefs, savePrefs } from "@/lib/prefs-store";
+import { loadPrefs, savePrefs, subscribePrefs } from "@/lib/prefs-store";
 import {
   NIGHT_CUSTOM_MAX,
   NIGHT_CUSTOM_MIN,
@@ -23,8 +23,8 @@ import {
   type NightPrefs,
   type SetupPrefs,
 } from "@/lib/setup-prefs";
-import { checkInAlert, ringOnce } from "@/lib/alarm";
-import type { AlarmStyle } from "@/lib/alarm-text";
+import { checkInAlert } from "@/lib/alarm";
+import { ALARM_LABEL } from "@/lib/alarm-text";
 import { formatDuration } from "@/lib/stats";
 import { cleanTaskName, taskKey, TASK_NAME_MAX } from "@/lib/task-name";
 import { groupTasks, openTasksInOrder } from "@/lib/task-views";
@@ -68,11 +68,6 @@ const NIGHT_STYLES: { id: CheckInStyle; label: string }[] = [
   { id: "alarm", label: "Alarm" },
   { id: "pulse", label: "Silent pulse" },
 ];
-const ALARM_OPTIONS: { id: AlarmStyle; label: string }[] = [
-  { id: "gentle", label: "Gentle" },
-  { id: "chime", label: "Chime" },
-  { id: "silent", label: "Silent" },
-];
 // The 1-minute check-in is only for testing on your computer (npm run dev).
 const NIGHT_CHOICES =
   process.env.NODE_ENV === "development" ? [NIGHT_TEST_INTERVAL, ...NIGHT_INTERVALS] : [...NIGHT_INTERVALS];
@@ -94,6 +89,9 @@ export function SetupForm({
   const [prefs, setPrefs] = useState<SetupPrefs>(() => loadPrefs());
   const [open, setOpen] = useState(false);
   const set = (patch: Partial<SetupPrefs>) => setPrefs((p) => ({ ...p, ...patch }));
+  // Chosen in Settings, so always read fresh (Home can stay alive in the
+  // background while you change it there).
+  const alarmStyle = useSyncExternalStore(subscribePrefs, () => loadPrefs().alarm, () => "gentle" as const);
 
   const { cycles, loaded } = useCycles();
   const choice = effectiveChoice(prefs.cycleChoice, cycles, loaded);
@@ -124,7 +122,8 @@ export function SetupForm({
           ? startStopwatch(now, prefs.focusMode)
           : startCycleBlocks(cycle.blocks!, now, prefs.focusMode, cycle.name);
     stopPreview(); // a preview never carries on into a session
-    savePrefs({ ...prefs, cycleChoice: choice ?? prefs.cycleChoice }); // next time starts like this
+    // Next time starts like this. The alarm is Settings' choice, never this sheet's old copy.
+    savePrefs({ ...prefs, alarm: alarmStyle, cycleChoice: choice ?? prefs.cycleChoice });
     setOpen(false);
     onStart(
       withDetails(session, {
@@ -282,21 +281,15 @@ export function SetupForm({
 
           <Group title="Sound and night">
             <Ambience value={prefs.ambience} onChange={(ambience) => set({ ambience })} />
-            <div className="flex flex-col gap-2">
-              <span className="text-sm text-muted">Alarm when time&apos;s up (tap to hear)</span>
-              <Segmented
-                label="Alarm sound"
-                options={ALARM_OPTIONS}
-                value={prefs.alarm}
-                onChange={(alarm) => {
-                  set({ alarm });
-                  ringOnce(alarm); // a sample, so you know what you picked
-                }}
-              />
-              {prefs.alarm === "silent" && (
-                <p className="text-sm text-muted">Vibration and a pulsing screen. iPhones can&apos;t vibrate from a web app.</p>
-              )}
-            </div>
+            {/* The alarm is chosen in Settings, for every session. */}
+            <Link
+              href="/settings#alarm"
+              onClick={close}
+              className="-mx-2 flex min-h-11 items-center justify-between gap-3 rounded-control px-2 text-left"
+            >
+              <span className="font-semibold">Alarm</span>
+              <span className="text-sm font-semibold text-primary">{ALARM_LABEL[alarmStyle]} · change in Settings ›</span>
+            </Link>
             <NightMode night={prefs.night} onChange={(night) => set({ night })} />
           </Group>
         </div>

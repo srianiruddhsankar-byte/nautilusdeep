@@ -11,7 +11,7 @@ import { IosInstallSheet } from "./install-steps";
 // Home's "Get Nautilus as an app" card (at the bottom, so it never stands
 // between you and Start). Only after a first finished session, never once
 // dismissed or installed, and only where installing works (lib/install-logic.ts).
-// Help → Install the app keeps the full steps for every device.
+// Settings → Install the app keeps the full steps for every device.
 export function InstallAppCard({ finishedSession }: { finishedSession: boolean }) {
   const state = useInstall();
   const [stepsOpen, setStepsOpen] = useState(false);
@@ -29,7 +29,7 @@ export function InstallAppCard({ finishedSession }: { finishedSession: boolean }
 
   function dismiss() {
     dismissInstallCard();
-    toast("Hidden. Help has the install steps any time.");
+    toast("Hidden. More → Settings has the install steps any time.");
   }
 
   return (

@@ -73,7 +73,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   - `tank-canvas.tsx` (`TankCanvas`: builds the engine on a NEW canvas each start via `startCanvas`
     (`lib/canvas-life.ts`, tested), follows the props, rebuilds after a lost GPU context, reports "fallback"
     without WebGL or if it can't start; renders the plant / decoration drawings hidden and passes their SVG in),
-    `tank-loop.ts` (30 fps; stops when hidden, unfocused or off screen; reduced motion = one still frame)
+    `tank-loop.ts` (30 fps, 15 with Low graphics; stops when hidden, unfocused or off screen; reduced motion = one still frame)
   - `engine.ts` (the scene: one merged background texture + small cropped strips, plants that sway from the base
     (MeshPlane), decorations, the egg / fry, fish; `hitTest` for fish, plants and decorations with a 44 px minimum)
   - `rigs.ts` (ROPE fish bent along the swim spine at full length, sideways U-curl turns with a mirror dissolve;
@@ -115,12 +115,19 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - `lib/cycle-blocks.ts` — pure cycle blocks: premade cycles, `expandBlocks` (blocks → phases), `parseBlocks`, tested.
   `lib/cycles.ts` — `useCycles()` (premade + saved) + save / delete (`public.cycles`).
   `app/_focus/cycle-picker.tsx` — cycle chips, Custom fields, "Save as…"
-- `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Shop · Stats · Help; each page renders it, Home hides it
-  while a session runs) and `PageHeader`. `app/help/page.tsx` — the `/help` "How it works" route
+- `app/_nav/bottom-nav.tsx` — `BottomNav` (Home · Tasks · Shop · Stats · More; each page renders it, Home hides it
+  while a session runs) and `PageHeader` (`back`: a "← More" link above the title). `app/help/page.tsx` — the More
+  tab (URL stays `/help`): Settings › and Account › rows, then Help: Questions (short answers in `details.disclosure`
+  rows, each linking to its card) and How it works (the rule cards)
+- `app/settings/page.tsx` — `/settings`: Appearance, Alarm, Graphics, Install the app, Notifications (all saved on
+  the device; pieces in `app/_settings/`). `app/account/page.tsx` — `/account`: email, sign out, your data
+  (privacy link, delete by email; `app/_account/`). Both keep the More tab highlighted. `lib/contact.ts` — the
+  contact email (privacy page + Account)
 - `app/_focus/today-tasks.tsx` — Home's "Today" card. `app/_focus/task-status.tsx` — "In progress" badge, "Mark done"
 - `lib/alarm.ts` — end-of-block alarm store (`startAlarm` / `stopAlarm` / `useAlarm`): one ring every 4 s in the
   style from the setup prefs (`alarm`: Gentle (default, one soft chime) / Chime (3 bright chimes) / Silent
-  (vibration only), sampled by `ringOnce`), stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay.
+  (vibration only), sampled by `ringOnce`; chosen in Settings, `app/_settings/alarm-setting.tsx`, and Start re-reads
+  it so the session sheet never saves an old copy), stops on "Got it" or after 60 s. `app/_focus/alarm-overlay.tsx` + `alarm.css` — the full-screen, gently pulsing overlay.
   The words (`phaseAlarm`, "Time's up", "Pause over", "Session complete") live in pure `lib/alarm-text.ts`,
   shared with the push notifications
 - `lib/notes.ts` — pure `compareToTarget` ("Took 52 min — 7 min over target")
@@ -143,8 +150,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `app/_focus/result-moments.tsx` — `StreakMoment`, `NautilusMoment` (also on `/design-preview`)
 - `lib/theme.ts` — Appearance (System / Light / Dark): `useTheme`, `setTheme`, saved on the device.
   `lib/theme-script.ts` — no React: the key, the browser bar colours and `THEME_SCRIPT`, the inline `<head>`
-  script in `app/layout.tsx` that sets `<html data-theme>` before the first paint. `app/help/appearance.tsx` —
-  the setting, in Help → Account
+  script in `app/layout.tsx` that sets `<html data-theme>` before the first paint. `app/_settings/appearance.tsx` —
+  the setting, in Settings
+- `lib/graphics-logic.ts` — pure: High / Low graphics (`GRAPHICS_FPS` 30 / 15, `GRAPHICS_MAX_DPR` 2 / 1),
+  `autoGraphics` (Low on ≤ 2 GB memory or ≤ 2 cores; iPhones report neither), tested. `lib/graphics.ts` — the
+  saved choice (`useGraphics`, `readGraphics`, `setGraphics`; nothing saved = the guess). Low = 15 fps, pixel ratio 1
+  (`dprFor`), no ambience scene layers over the tank. `app/_settings/graphics-setting.tsx`
+- `lib/sea-facts.ts` — pure `seaFact(seed)`: a named sea fact (the species facts + the nautilus; `EXTRA_FACTS` for
+  new, checked ones), shown in breaks and on result screens without a fish fact, never during focus; tested
 - `app/not-found.tsx` — the 404 page (signed-in only: signed out, proxy.ts sends unknown paths to /login)
 - `app/_pwa/` — the installed app (Phase 10a): `art.ts` (the icon SVG, the icon list, iPhone splash sizes),
   `pwa-setup.tsx` (registers `public/sw.js?v=<build>` in production; checks `/version` and offers "New version
@@ -153,7 +166,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `public/sw.js` caches ONLY `/_next/static` (cache first) and `/icons`, `/fish` (refreshed in the background);
   pages, `/auth`, Supabase and Google always go to the network. `proxy.ts` skips the manifest, worker, icons and
   `/version` (the manifest is fetched without cookies). Safe areas: `viewport-fit=cover`, the body pads
-  `env(safe-area-inset-*)`, fixed full screens use `.safe-pad`. Help → Account has "Install the app"
+  `env(safe-area-inset-*)`, fixed full screens use `.safe-pad`. Settings has "Install the app"
 - Install card: `lib/install-logic.ts` (pure: `iosBrowser` from the user agent, `hasFinishedSession`,
   `showInstallCard`; tested), `lib/install.ts` (catches `beforeinstallprompt` as soon as the root layout loads,
   `useInstall`, `promptInstall`, dismissed / installed flags in localStorage, forever),
@@ -165,8 +178,8 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `turnOnTimesUp` / `turnOffTimesUp`, `refreshThisDevice`, `forgetThisDevice` on sign-out, the switch + "Not now"
   in localStorage), `lib/timer-pushes.ts` (`startTimerPushSync`, run by Home: rewrites the session's list with
   fetch keepalive), `app/_pwa/push-sheet.tsx` (the note before the browser prompt; unblock steps),
-  `app/_focus/push-offer.tsx` (the running screen's offer), `app/help/notifications.tsx` (Help → Account switch),
-  `app/help/sign-out.tsx`. `public/sw.js` shows the push (not while Home is on screen) and opens Home on tap.
+  `app/_focus/push-offer.tsx` (the running screen's offer), `app/_settings/notifications.tsx` (the Settings switch),
+  `app/_account/sign-out.tsx`. `public/sw.js` shows the push (not while Home is on screen) and opens Home on tap.
   Server: `supabase/functions/send-push/index.ts` (Deno, pasted into the dashboard; excluded from tsc / eslint)
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
@@ -218,7 +231,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   cards use `eyebrow`. Charts use the validated tide-blue palette in `app/_stats/viz.css` (re-run the dataviz
   checker against `card` in both modes if it changes).
 - **Navigation**: the bottom bar is paper with a hairline top; the current tab is primary colour + bold label +
-  a short bar on top (never colour alone). Long reading pages (Help) get a contents row of anchor chips and
+  a short bar on top (never colour alone). Long reading pages (More's Help) get a contents row of anchor chips and
   `eyebrow` group headings. Public pages (login, privacy) have no nav bar.
 - **Shadows**: paper edges, never blurry drop shadows: `shadow-card` (hairline + 2 px edge), `shadow-press`
   (primary button's 3 px edge that presses down).
@@ -303,7 +316,8 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - The running screen covers the whole window (`fixed`, no header or nav). Portrait: time, a compact tank (about a
   third of the height), then hint + buttons. Landscape (laptops, phones sideways): the tank takes most of the
   screen, sized to the height, with the time and controls in a column beside it (Tailwind `landscape:`).
-- Bottom nav: Home · Tasks · Shop · Stats · Help, on every signed-in page, hidden while a session is running.
+- Bottom nav: Home · Tasks · Shop · Stats · More, on every signed-in page, hidden while a session is running.
+  More holds Settings, Account and Help (Settings and Account are their own pages, Help only explains).
 
 ### Ambience (Phase 8)
 - 5 water sounds generated with the Web Audio API (no audio files), built from many small EVENTS rather than
@@ -333,7 +347,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - Result screen: big focus minutes, the hatching reveal (or notes result), then one main button (New session);
   Mark done is quieter.
 - Stats: Streak, Tasks done, then per type: time, last 7 days, plants (notes) / fish caught by rarity + rarest
-  catch + the Sea life index link (study), target (notes), time per task; the rest under "More stats". Sign out is on the Help page (Account section with your email and Appearance), not on Home.
+  catch + the Sea life index link (study), target (notes), time per task; the rest under "More stats". Sign out is on the Account page (More → Account), Appearance in Settings, not on Home.
 
 ### Night mode ("Still studying?" check-ins)
 - Optional, off by default, in Session settings: interval 20 / 30 / 45 / 60 min or Custom (any whole 10–120,
@@ -520,7 +534,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   cancel subscriptions whose pushes show nothing). The service worker also skips showing while Home is visible.
 - Permission: never before a first Start. The running screen offers it (after the cancel window; Not now is
   remembered); Turn on → the note → the browser prompt. iPhone outside the installed app: install steps, no
-  prompt. Blocked: Help explains unblocking. Push only works in production (the worker isn't registered in dev).
+  prompt. Blocked: Settings → Notifications explains unblocking. Push only works in production (the worker isn't registered in dev).
 
 ## Roadmap
 - Phase 1 (done): project setup + Google login, protected home page saying "Hi, [name]", sign-out, public `/privacy`.

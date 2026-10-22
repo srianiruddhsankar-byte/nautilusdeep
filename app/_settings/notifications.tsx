@@ -7,7 +7,7 @@ import { Card } from "../_ui/card";
 import { Switch } from "../_ui/switch";
 import { toast } from "../_ui/toast";
 
-// Help → Account → Notifications: this device's switches. Turning one on for
+// Settings → Notifications: this device's switches. Turning one on for
 // the first time shows the short note, then the browser asks; once allowed, the
 // switch just flips. Per device: a phone and a laptop each decide.
 export function NotificationsCard() {
@@ -31,9 +31,9 @@ export function NotificationsCard() {
 
   return (
     <Card as="section" aria-labelledby="notifications-title" className="gap-3 leading-relaxed">
-      <h3 id="notifications-title" className="title-card">
+      <h2 id="notifications-title" className="title-card">
         Notifications
-      </h3>
+      </h2>
       {push.support === "ready" ? (
         <>
           <Switch

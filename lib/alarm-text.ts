@@ -7,11 +7,13 @@ import { CONTINUE_WINDOW_MS, type Status } from "./timer.ts";
 
 export type Alarm = { title: string; detail: string };
 
-// How the alarm sounds (chosen in Session settings): gentle = one soft chime,
-// quiet enough for a library (the default); chime = three bright ones;
-// silent = vibration and the pulsing screen only. The overlay shows either way.
+// How the alarm sounds (chosen in Settings, saved with the setup prefs): gentle
+// = one soft chime, quiet enough for a library (the default); chime = three
+// bright ones; silent = vibration and the pulsing screen only. The overlay
+// shows either way.
 export type AlarmStyle = "gentle" | "chime" | "silent";
 export const ALARM_STYLES: readonly AlarmStyle[] = ["gentle", "chime", "silent"];
+export const ALARM_LABEL: Record<AlarmStyle, string> = { gentle: "Gentle", chime: "Chime", silent: "Silent" };
 
 // What the alarm says when a cycle moves on to its next phase (`status` is the
 // NEW phase). Calm and short: what just ended, what's next.

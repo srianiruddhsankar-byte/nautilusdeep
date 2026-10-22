@@ -17,3 +17,6 @@ export function savePrefs(prefs: SetupPrefs) {
 export function updatePrefs(patch: Partial<SetupPrefs>) {
   store.set({ ...loadPrefs(), ...patch });
 }
+
+// For useSyncExternalStore: Settings (the alarm) and Home's sheet follow changes.
+export const subscribePrefs = store.subscribe;

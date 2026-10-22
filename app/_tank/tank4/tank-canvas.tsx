@@ -4,6 +4,8 @@ import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "reac
 import type { BroodStage } from "@/lib/brood";
 import type { SkinId } from "@/lib/economy";
 import { startCanvas } from "@/lib/canvas-life";
+import { useGraphics } from "@/lib/graphics";
+import { GRAPHICS_FPS } from "@/lib/graphics-logic";
 import { plantLook } from "@/lib/plant-look";
 import type { PlantStage } from "@/lib/plants";
 import { DecorationSprite } from "../decoration-sprite";
@@ -17,7 +19,7 @@ import { useReducedMotion, useTankLoop } from "./tank-loop";
 // hidden here and read in as SVG, so the still picture and the index use the
 // very same art.
 // - Pixi is loaded only when a tank is on screen (its own chunk).
-// - 30 fps, paused when the tab is hidden, the window loses focus or the tank
+// - 30 fps (15 with Low graphics), paused when the tab is hidden, the window loses focus or the tank
 //   is off screen (tank-loop.ts). Reduced motion: the fish rest, nothing moves.
 // - The GPU can drop the canvas (a "lost context", e.g. after sleep): if it
 //   isn't back within 3 s the whole tank is rebuilt on a fresh canvas. Without
@@ -36,7 +38,6 @@ export type CanvasDecor = Omit<TankDecor, "art" | "bubbles"> & { item: string };
 
 const plantArt = (p: { lookId: string; stage: PlantStage; wilted: boolean }) => `plant:${p.lookId}:${p.stage}:${p.wilted ? 1 : 0}`;
 
-const FPS = 30;
 const REBUILD_AFTER_MS = 3000;
 const MAX_REBUILDS = 3;
 
@@ -68,6 +69,7 @@ export function TankCanvas({
   const [generation, setGeneration] = useState(0);
   const [lost, setLost] = useState(false); // the GPU dropped the canvas; the skin's picture shows meanwhile
   const still = useReducedMotion();
+  const { graphics } = useGraphics(); // 30 fps, or 15 with Low graphics
 
   // The newest props, for the async build and the effects below.
   // The engine's scenery, with each drawing named.
@@ -195,7 +197,7 @@ export function TankCanvas({
   useTankLoop(host, {
     id: probe,
     still,
-    maxFps: FPS,
+    maxFps: GRAPHICS_FPS[graphics],
     onFrame: (dt) => engine.current?.frame(dt),
     onStill: () => engine.current?.still(),
     onStats: () => {},
