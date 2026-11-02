@@ -3,7 +3,11 @@
 What changed in Deep Nautilus, newest first. One entry per big update; small fixes go under "Small fixes" in
 the next big entry. Idea IDs point at `Ideas/DONE.md`.
 
-## 2026-10-23 · Quick wins 4: stats, records and honest time
+Versions: v0.x until friends testing (v1.0 = Phase 11 starts). Each phase or quick-wins batch bumps the middle
+number (v0.14 → v0.15); a small fix after a release bumps the last one (v0.14.1). Updates between phases also
+used the last number (v0.9.1 …). `package.json` matches the newest entry, and each version has a git tag.
+
+## v0.14 · 2026-10-23 · Quick wins 4: stats, records and honest time
 
 ### What's new
 - Stats open with a sentence or two about your week, and Records now has your best week, longest session and
@@ -20,7 +24,7 @@ Ideas built: I-005, I-026, I-098, I-102, I-112, I-113
 - The offline page and the service worker only run in production (`npm run build && npm start` to try them).
 - This "What's new" text is what users see: it's read from this entry when the app is built.
 
-## 2026-10-22 · Quick wins 3: tank, results and starting
+## v0.13 · 2026-10-22 · Quick wins 3: tank, results and starting
 
 ### What's new
 - See your tank full screen with one tap; decorations are bigger, and the Shop shows how many items are put away.
@@ -32,7 +36,7 @@ Ideas built: I-005, I-026, I-098, I-102, I-112, I-113
 
 Ideas built: I-070, I-074, I-087 (odds in words only), I-090, I-093 (bigger only), I-095, I-100, I-103, I-111
 
-## 2026-10-22 · Quick wins 2: More, Settings and Account
+## v0.12 · 2026-10-22 · Quick wins 2: More, Settings and Account
 
 ### What's new
 - The Help tab is now **More**: Settings and Account at the top, then Help.
@@ -47,7 +51,7 @@ Ideas built: I-067, I-069, I-089, I-101, I-105
 ### Notes for me
 - I-088 (quiet alarm) already existed from 2026-10-20; this update only moved it to Settings.
 
-## 2026-10-22 · Quick wins 1: clearer words
+## v0.11 · 2026-10-22 · Quick wins 1: clearer words
 
 ### What's new
 - The login page says what the app is in one sentence, why Google, that it installs with no app store, and what
@@ -67,7 +71,7 @@ Ideas built: I-066, I-068, I-071 (privacy wording only), I-096, I-097, I-108, I-
 - Plants: each notes session also helps the oldest unfinished plant grow (2026-10-19).
 - Dependency patch updates: Next 16.4.2, React 19.3.1, supabase-js 2.118.0 (2026-10-19).
 
-## 2026-10-19 · Phase 10b-1: "Time's up" notifications
+## v0.10.1 · 2026-10-19 · Phase 10b-1: "Time's up" notifications
 
 ### What's new
 - Turn on "Time's up" and your phone tells you when a block ends, even with the app closed.
@@ -82,7 +86,7 @@ Ideas built: I-065
 ### Notes for me
 - Push only works in production (the service worker isn't registered in dev).
 
-## 2026-10-18 · Phase 10a: install the app
+## v0.10 · 2026-10-18 · Phase 10a: install the app
 
 ### What's new
 - Deep Nautilus can be installed on your home screen and opens like an app.
@@ -90,7 +94,7 @@ Ideas built: I-065
 
 Ideas built: I-064
 
-## 2026-10-18 · Phase 9 Stage E: motion and Appearance
+## v0.9.5 · 2026-10-18 · Phase 9 Stage E: motion and Appearance
 
 ### What's new
 - Calm motion everywhere: screens cross-fade, the result counts up, streak / new species / nautilus moments.
@@ -99,15 +103,7 @@ Ideas built: I-064
 
 Ideas built: I-084, I-085
 
-## 2026-10-18 · Continue session
-
-### What's new
-- When time's up you get a break, then Continue or Finish: the whole chain is saved as one session.
-- Breaks never count; failing a later part only loses that part.
-
-Ideas built: I-063
-
-## 2026-10-18 · Phase 9 Stage C: Tank 4
+## v0.9.4 · 2026-10-18 · Phase 9 Stage C: Tank 4
 
 ### What's new
 - A new tank: every species redrawn and swimming realistically, plus the nautilus, eggs and fry.
@@ -119,7 +115,15 @@ Ideas built: I-038
 ### Notes for me
 - Started 2026-10-17 (batch 1), finished 2026-10-18 (batches 2 and 3).
 
-## 2026-10-17 · Phase 9 Stage B: Paper Tide
+## v0.9.3 · 2026-10-18 · Continue session
+
+### What's new
+- When time's up you get a break, then Continue or Finish: the whole chain is saved as one session.
+- Breaks never count; failing a later part only loses that part.
+
+Ideas built: I-063
+
+## v0.9.2 · 2026-10-17 · Phase 9 Stage B: Paper Tide
 
 ### What's new
 - A new look on every page: the "Paper Tide" design system (colours, type, cards, buttons).
@@ -127,7 +131,7 @@ Ideas built: I-038
 
 Ideas built: I-062
 
-## 2026-10-17 · Fish species and the Sea life index
+## v0.9.1 · 2026-10-17 · Fish species and the Sea life index
 
 ### What's new
 - Each fish hatches into one of 18 real saltwater species; longer sessions make rarer ones likelier.
@@ -136,14 +140,14 @@ Ideas built: I-062
 
 Ideas built: I-060, I-061
 
-## 2026-10-17 · Phase 9 Stage A: design direction
+## v0.9 · 2026-10-17 · Phase 9 Stage A: design direction
 
 ### What's new
 - Three design options compared on a preview page; Paper Tide and Tank 4 were chosen.
 
 Ideas built: none
 
-## 2026-10-15 · Phase 8: ocean sounds and the Shop tab
+## v0.8 · 2026-10-15 · Phase 8: ocean sounds and the Shop tab
 
 ### What's new
 - Five generated water sounds (Rain, Waves, Whales, Stream, Night), and the tank reacts to each.
@@ -156,7 +160,7 @@ Ideas built: I-059, I-039
 ### Notes for me
 - The earlier 9-sound version is commit 841c98b.
 
-## 2026-10-15 · Phase 7 Part 2: coins, decorations and skins
+## v0.7.2 · 2026-10-15 · Phase 7 Part 2: coins, decorations and skins
 
 ### What's new
 - Focus minutes earn coins (Open Focus half); spend them on decorations in the Shop.
@@ -164,14 +168,14 @@ Ideas built: I-059, I-039
 
 Ideas built: I-056, I-057, I-058
 
-## 2026-10-15 · Night mode
+## v0.7.1 · 2026-10-15 · Night mode
 
 ### What's new
 - Optional "Still studying?" check-ins: fall asleep and the session ends at your last check-in, with no penalty.
 
 Ideas built: I-054
 
-## 2026-10-15 · Phase 7 Part 1: plants
+## v0.7 · 2026-10-15 · Phase 7 Part 1: plants
 
 ### What's new
 - Notes sessions grow plants in your tank.
@@ -182,7 +186,7 @@ Ideas built: I-055
 - Louder end-of-block alarm.
 - Setup remembered as one line, breaks keep the screen awake, calmer result and stats, sign out moved to Help.
 
-## 2026-10-15 · Phase 6: tasks and session types
+## v0.6 · 2026-10-15 · Phase 6: tasks and session types
 
 ### What's new
 - A task list with due dates, and pick a task for a session ("Mark done" on the result).
@@ -192,7 +196,7 @@ Ideas built: I-055
 
 Ideas built: I-047, I-048, I-049, I-050, I-051, I-052, I-053
 
-## 2026-10-15 · Phase 5: stats
+## v0.5 · 2026-10-15 · Phase 5: stats
 
 ### What's new
 - A stats page and a "Today · streak" line on Home.
@@ -200,21 +204,21 @@ Ideas built: I-047, I-048, I-049, I-050, I-051, I-052, I-053
 
 Ideas built: I-046, I-043
 
-## 2026-10-14 · Phase 4: the tank
+## v0.4 · 2026-10-14 · Phase 4: the tank
 
 ### What's new
 - Every finished session puts a fish in your tank; quitting Deep Focus leaves a bone.
 
 Ideas built: I-045
 
-## 2026-10-14 · Phase 3: saving sessions
+## v0.3 · 2026-10-14 · Phase 3: saving sessions
 
 ### What's new
 - Every finished session is saved, even offline (it uploads later).
 
 Ideas built: I-044
 
-## 2026-10-14 · Phase 2: timers
+## v0.2 · 2026-10-14 · Phase 2: timers
 
 ### What's new
 - Timer, stopwatch and cycle modes.
@@ -222,7 +226,7 @@ Ideas built: I-044
 
 Ideas built: I-041, I-042
 
-## 2026-10-13 · Phase 1: sign in
+## v0.1 · 2026-10-13 · Phase 1: sign in
 
 ### What's new
 - Sign in with Google and see "Hi, [name]"; a public privacy page.

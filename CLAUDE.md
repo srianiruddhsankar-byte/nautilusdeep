@@ -16,7 +16,7 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Punish quitting, never absence: fish die only when you quit Deep Focus; nothing dies from time passing,
   so holidays are safe.
 - The app should never make you feel trapped: Open Focus, the 10-second cancel and one short pause in Deep Focus
-  are the escape hatches.
+  (which also covers one unplanned leave, like a phone call) are the escape hatches.
 - Falling asleep isn't quitting: Night mode ends a session at the last check-in you confirmed, with no bone and no
   dying fish, so the record stays honest without punishing you.
 - Low effort to start: a new user signs in and can start a session in one tap, no setup required.
@@ -190,9 +190,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `app/_account/sign-out.tsx`. `public/sw.js` shows the push (not while Home is on screen) and opens Home on tap.
   Server: `supabase/functions/send-push/index.ts` (Deno, pasted into the dashboard; excluded from tsc / eslint)
 - "What's new" (I-102): `lib/whats-new.ts` (pure: `newestEntry` reads the newest CHANGELOG.md entry's "What's new"
-  bullets, `showWhatsNew`; tested), read by `next.config.ts` at build / dev start into `NEXT_PUBLIC_WHATS_NEW`;
+  bullets, `newestVersion`, `showWhatsNew`; entries are "## v0.14 · 2026-10-23 · Name"; tested), read by `next.config.ts` at build / dev start into `NEXT_PUBLIC_WHATS_NEW`;
   `lib/whats-new-seen.ts` (the seen entry, per device); `app/_focus/whats-new-card.tsx` (Home, once per entry,
   never for a brand-new user). So each CHANGELOG entry's "What's new" bullets are written for users
+- Versions: `package.json` "version" (0.14.0) → `next.config.ts` → `NEXT_PUBLIC_APP_VERSION`; `lib/version.ts`
+  (`displayVersion`: "v0.14", "v0.14.1"), shown at the bottom of Settings. `lib/version.test.ts` fails if
+  package.json doesn't match the newest CHANGELOG.md entry. Each version has a local git tag (`v0.14`)
+- `Roadmap/` — `NOW.md` (the present: current version, stage, next step, open decisions, uncommitted work) and
+  `NEXT.md` (upcoming versions with idea IDs). Not inside `Ideas/`, so it can be edited here
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
@@ -218,9 +223,14 @@ The owner is a student learning to code: explain what you do and why, briefly.
 - Create a module's dependencies before the files that import it.
 - State the file path before showing code; show full files when changing them (except one-liners).
 - Before the owner tests something, say exactly what they should see if it works.
+- Never commit without the owner's OK.
 - Never git push or deploy without the owner's confirmation.
-- Changelog: whenever a big update is committed, add its CHANGELOG.md entry in the same commit, then tell the
-  owner which idea IDs were built so they can be moved to Ideas/DONE.md.
+- Never open, print or modify .env, .env.local or any file holding secrets. Refer to secrets by variable name only.
+- Versions: every CHANGELOG.md entry has a version number; package.json matches the newest one.
+- Roadmap/NOW.md is updated at every stage change (plan agreed, built, tested, committed), so the owner can
+  always see where things stand.
+- When a version ships: write its CHANGELOG.md entry in the same commit, remove it from Roadmap/NEXT.md, move
+  NOW.md to the next version, and tell the owner which idea IDs were built (for Ideas/DONE.md).
 
 ## Design system ("Paper Tide", Phase 9)
 Every screen uses these. New UI is built from `app/_ui/` components and the tokens in `app/globals.css`; never
@@ -592,7 +602,7 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
   - Coins: 1 focus minute = 1 coin; Open Focus = half.
   - Decorations: mostly bought with coins, some unlocked by milestones.
   - Skins unlocked by total hours.
-- Phase 8 (in progress): ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files),
+- Phase 8 (done): ocean sounds — looping ocean ambience generated with the Web Audio API (no audio files),
   plus Shop as a bottom-bar tab.
   - Pulled forward from "later": fish species with a rarity roulette, the Sea life index and the nautilus
     (simple drawings at first, redrawn in Phase 9 Stage C; water types are still parked, I-012).
@@ -607,11 +617,13 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
     sweep (committed). Stage B is done.
   - Stage C (done): Tank 4 in the app. C1 engine (all species, merged layers, taps, fallback, paintings), C2 odd
     shapes as puppets + egg / fry / reveal, C3 plants, decorations and every skin's own scenery; Tanks 1 and 3
-    and the `three` package removed. Stage D (every page rebuilt phone-first) is next.
+    and the `three` package removed.
   - Stage E (done, 2026-10-18): motion. E1 core moments (screen changes, Continue, result count-up / streak /
     new species / nautilus, quiet ending, buy → place, settling decorations, ticks). E2 navigation
     and polish (tab transitions, presses, open/close, skeleton fades, stats animating in once) + the
     Appearance setting (requested with it).
+  - Stage D (in progress): started as the quick-wins batches (v0.11–v0.14, see CHANGELOG.md). Upcoming work
+    lives in `Roadmap/NEXT.md`.
 - Phase 10 (done): PWA (installable) + push notifications.
   - 10a (done): installable app; install card on Home (done).
   - 10b-1 (done; test after deploy): push infrastructure + "Time's up".

@@ -6,6 +6,7 @@ import { GraphicsSetting } from "../_settings/graphics-setting";
 import { InstallCard } from "../_settings/install";
 import { NotificationsCard } from "../_settings/notifications";
 import { Page, TabContent } from "../_ui/page";
+import { displayVersion } from "@/lib/version";
 
 export const metadata: Metadata = {
   title: "Settings – Deep Nautilus",
@@ -14,8 +15,10 @@ export const metadata: Metadata = {
 // Protected by proxy.ts like every route except /login, /auth/callback and /privacy.
 // Reached from More (and the session sheet's Alarm line); the More tab stays
 // highlighted. Everything here is saved on this device. Install comes before
-// Notifications: on iPhone, notifications need the installed app.
+// Notifications: on iPhone, notifications need the installed app. The version
+// at the bottom is read from package.json at build time (next.config.ts).
 export default function SettingsPage() {
+  const version = displayVersion(process.env.NEXT_PUBLIC_APP_VERSION);
   return (
     <Page>
       <PageHeader title="Settings" back={{ href: "/help", label: "More" }} />
@@ -26,6 +29,7 @@ export default function SettingsPage() {
         <GraphicsSetting />
         <InstallCard />
         <NotificationsCard />
+        {version && <p className="text-center text-sm text-muted">Deep Nautilus {version}</p>}
       </TabContent>
       <BottomNav active="more" />
     </Page>

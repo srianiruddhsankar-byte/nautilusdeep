@@ -2,18 +2,29 @@
 // update. Pure: next.config.ts reads the file at build (and dev start) and
 // passes the result in as NEXT_PUBLIC_WHATS_NEW, the same way as the build id.
 //
-// An entry is "## <date> · <name>", then a "### What's new" list of "- " bullets
-// (a bullet can wrap onto indented lines). The id is the whole heading, so a
-// deploy with only small fixes (no new entry) never shows it again.
+// An entry is "## v<version> · <date> · <name>", then a "### What's new" list
+// of "- " bullets (a bullet can wrap onto indented lines). The id is the whole
+// heading, so a deploy with only small fixes (no new entry) never shows it again.
 
 export type WhatsNew = { id: string; name: string; bullets: string[] };
 
+const HEADING = /^## (v\d+\.\d+(?:\.\d+)?) · \d{4}-\d{2}-\d{2} · (.+)$/;
+
+// The newest entry's version ("v0.14"), or null: package.json must match it.
+export function newestVersion(markdown: string): string | null {
+  for (const line of markdown.split(/\r?\n/)) {
+    const match = HEADING.exec(line.trim());
+    if (match) return match[1];
+  }
+  return null;
+}
+
 export function newestEntry(markdown: string): WhatsNew | null {
   const lines = markdown.split(/\r?\n/);
-  const start = lines.findIndex((l) => /^## \d{4}-\d{2}-\d{2} · /.test(l));
+  const start = lines.findIndex((l) => HEADING.test(l.trim()));
   if (start === -1) return null;
   const id = lines[start].slice(3).trim();
-  const name = id.split(" · ").slice(1).join(" · ");
+  const name = HEADING.exec(lines[start].trim())![2];
 
   const bullets: string[] = [];
   let inList = false;

@@ -29,6 +29,16 @@ function whatsNew() {
   }
 }
 
+// The app's version (lib/version.ts), shown at the bottom of Settings. It
+// matches the newest CHANGELOG.md entry (lib/version.test.ts checks).
+function appVersion() {
+  try {
+    return (JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version?: string }).version ?? "";
+  } catch {
+    return "";
+  }
+}
+
 // Which deploy this is (lib/build-id.ts): Vercel's deployment id, else the
 // commit. BUILD_ID=… overrides it, to test the "New version" toast locally.
 const buildId =
@@ -41,6 +51,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_FISH_ART: fishArtFiles(),
     NEXT_PUBLIC_BUILD_ID: buildId,
     NEXT_PUBLIC_WHATS_NEW: whatsNew(),
+    NEXT_PUBLIC_APP_VERSION: appVersion(),
   },
   // The service worker must never come from a cache, or updates would stall.
   async headers() {
