@@ -16,6 +16,7 @@ import { AMBIENCE_LABEL, ambienceTarget, sceneFor, type AmbienceSound } from "@/
 import { unlockAudio } from "@/lib/feedback";
 import { deriveAquarium, earnsFish, focusMinutes, type Aquarium } from "@/lib/fish";
 import { seaFact } from "@/lib/sea-facts";
+import { formatDuration } from "@/lib/stats";
 import { getServerSnapshot, getSnapshot, save, subscribe } from "@/lib/focus-storage";
 import { compareToTarget } from "@/lib/notes";
 import { deriveGarden, PLANT_MIN_MINUTES, type Garden } from "@/lib/plants";
@@ -39,10 +40,12 @@ import {
   cancelWindowRemainingMs,
   continueSession,
   continueWindowRemainingMs,
+  SEEN_EVERY_MS,
   checkInState,
   checkSession,
   comeBack,
   confirmCheckIn,
+  endAtSeen,
   endPause,
   formatClock,
   getStatus,
@@ -50,6 +53,8 @@ import {
   isNotes,
   isOpenFocus,
   isPaused,
+  longGapSince,
+  markSeen,
   partStartedAt,
   pauseRemainingMs,
   pressStop,
@@ -81,6 +86,7 @@ import { Button, buttonClass } from "../_ui/button";
 import { CountUp } from "../_ui/count-up";
 import { Field, NumberField } from "../_ui/field";
 import { ProgressBar, Skeleton } from "../_ui/feedback";
+import { Sheet } from "../_ui/sheet";
 import { changeScreen, step, useLoadFade } from "../_ui/motion";
 import { AlarmOverlay } from "./alarm-overlay";
 import { PushOffer } from "./push-offer";
@@ -89,6 +95,7 @@ import { SetupForm } from "./setup-form";
 import { VolumeSlider } from "./setup-form";
 import { InProgressBadge, MarkDone } from "./task-status";
 import { TodayTasks } from "./today-tasks";
+import { WhatsNewCard } from "./whats-new-card";
 
 // Every way a session ends goes through here.
 // - Cancelled (first 10 s): the session just disappears. Nothing is queued or
@@ -233,6 +240,7 @@ export function FocusScreen() {
     <>
       <AlarmOverlay />
       <div className={`flex flex-col gap-5 ${fade}`}>
+        <WhatsNewCard finishedSession={hasFinishedSession(rows)} loaded={rows !== null} />
         <StatsLine />
         <TodayTasks
           picked={task}
@@ -291,6 +299,10 @@ function scrollToStart() {
   document.getElementById("start-session")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
 }
 
+// A running session met for the first time by THIS page (the app was opened, or
+// the tab came back from being thrown away) is checked once for a long gap.
+let gapChecked = false;
+
 // Re-reads the clock while a session runs, and handles leaving/returning.
 // The interval only refreshes the display: all timing comes from timestamps,
 // so a throttled or frozen tab still shows the right time once it wakes.
@@ -311,6 +323,8 @@ function useSessionClock(active: boolean): number | null {
       if (!session) return;
       const t = Date.now();
       setNow(t);
+      // "Count that time?" is waiting (Open Focus): nothing moves on until it's answered.
+      if (session.gapSince != null) return;
 
       const check = checkSession(session, t);
       if (check.status === "updated") return finish(check);
@@ -358,6 +372,29 @@ function useSessionClock(active: boolean): number | null {
           checkInAlert(style);
         }
       }
+
+      // Seen on screen: about once a minute, so a long gap can be told apart later.
+      if (isVisible() && (session.seenAt === undefined || t - session.seenAt >= SEEN_EVERY_MS)) {
+        save({ session: markSeen(session, t), result: null });
+      }
+    }
+
+    // A fresh page after a long gap (the app closed, the phone died): Open
+    // Focus asks once; Deep Focus ends at the moment the app was last seen,
+    // with no bone (you weren't in the app, but a dead battery isn't quitting).
+    function checkLongGap(): boolean {
+      if (gapChecked) return false;
+      gapChecked = true;
+      const session = getSnapshot().session;
+      if (!session || session.gapSince != null) return false;
+      const since = longGapSince(session, Date.now());
+      if (since === null) return false;
+      if (isOpenFocus(session)) {
+        save({ session: { ...session, gapSince: since }, result: null });
+        return false;
+      }
+      finish({ status: "ended", result: endAtSeen(session, since, "gap-closed") });
+      return true;
     }
 
     function onVisibilityChange() {
@@ -365,13 +402,14 @@ function useSessionClock(active: boolean): number | null {
       if (!session) return;
       const t = Date.now();
 
+      if (session.gapSince != null) return setNow(t); // the question waits for an answer
+
       if (!isVisible()) {
         // Leaving (switching tabs, locking, closing, refreshing). Saved so it
         // still counts if the page is closed and reopened. Open Focus has no
-        // leave rule, so there's nothing to record.
-        if (!isOpenFocus(session) && session.awaySince === null) {
-          save({ session: { ...session, awaySince: t }, result: null });
-        }
+        // leave rule, so only the last-seen time is recorded.
+        const away = !isOpenFocus(session) && session.awaySince === null ? t : session.awaySince;
+        save({ session: { ...markSeen(session, t), awaySince: away }, result: null });
         return;
       }
 
@@ -396,6 +434,7 @@ function useSessionClock(active: boolean): number | null {
 
     // First frame: also covers coming back via a refresh or reopened tab.
     const frame = requestAnimationFrame(() => {
+      if (checkLongGap()) return;
       onVisibilityChange();
       tick();
     });
@@ -578,10 +617,12 @@ function RunningView({
           className="rise-in flex flex-col items-center gap-3 landscape:col-start-2 landscape:row-start-1 landscape:self-end"
           style={step(0)}
         >
+          {session.gapSince != null && <GapQuestion session={session} now={now} />}
           {checkIn.status === "due" && (
             <CheckInBanner
               secondsLeft={Math.max(0, Math.ceil((checkIn.deadline - now) / 1000))}
               pulse={session.checkIn?.style === "pulse"}
+              long={session.checkIn?.kind === "long"}
             />
           )}
           <div className="flex w-full flex-col items-center gap-1">
@@ -639,7 +680,7 @@ function RunningView({
               className="swap-in py-1"
             />
           )}
-          {session.checkIn && !paused && (
+          {session.checkIn && session.checkIn.kind !== "long" && !paused && (
             <p className="text-center text-sm text-muted">
               Night mode · a check-in every {Math.round(session.checkIn.intervalMs / 60_000)} min
             </p>
@@ -926,7 +967,8 @@ function SpeakerIcon({ off }: { off: boolean }) {
 
 // Night mode: a small, calm banner at the top. The timer keeps running under it.
 // It swaps in when it appears (the "silent pulse" style has its own animation instead).
-function CheckInBanner({ secondsLeft, pulse }: { secondsLeft: number; pulse: boolean }) {
+// Night mode's "Still studying?", or a long stopwatch's "Still going?" (`long`).
+function CheckInBanner({ secondsLeft, pulse, long }: { secondsLeft: number; pulse: boolean; long: boolean }) {
   return (
     <button
       type="button"
@@ -935,11 +977,46 @@ function CheckInBanner({ secondsLeft, pulse }: { secondsLeft: number; pulse: boo
         pulse ? "alarm-flash" : "swap-in bg-card"
       }`}
     >
-      <span className="title-card">Still studying? Tap to continue</span>
+      <span className="title-card">{long ? "Still going? Tap to keep counting" : "Still studying? Tap to continue"}</span>
       <span className="text-sm text-muted">
-        No tap in {formatClock(secondsLeft * 1000)} and it ends at your last check-in.
+        {long
+          ? `No tap in ${formatClock(secondsLeft * 1000)} and it ends here, with the time so far counted.`
+          : `No tap in ${formatClock(secondsLeft * 1000)} and it ends at your last check-in.`}
       </span>
     </button>
+  );
+}
+
+// Open Focus, back after a long gap (the app closed or the phone died): one
+// kind question, two answers. Nothing moves on until it's answered.
+function GapQuestion({ session, now }: { session: Session; now: number }) {
+  const since = session.gapSince!;
+  return (
+    <Sheet open onClose={() => {}} title="Welcome back">
+      <div className="flex flex-col gap-4">
+        <p>
+          You were away from the app for {formatDuration(Math.max(0, now - since) / 1000)}. Count that time?
+        </p>
+        <Button
+          variant="primary"
+          onClick={() => {
+            const current = getSnapshot().session;
+            if (current) save({ session: { ...markSeen(current, Date.now()), gapSince: null }, result: null });
+          }}
+        >
+          Yes, count it
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            const current = getSnapshot().session;
+            if (current?.gapSince != null) finish({ status: "ended", result: endAtSeen(current, current.gapSince, "gap-no") });
+          }}
+        >
+          No, count until I left
+        </Button>
+      </div>
+    </Sheet>
   );
 }
 
@@ -1001,6 +1078,17 @@ function Stat({ label, value }: { label: string; value: string }) {
 // The words on the result screen. A session that ended early is described
 // plainly and kindly: what happened, and that the next one starts fresh.
 function describe(r: Result): { title: string; detail: string } {
+  const credited = `Credited: ${Math.floor(r.focusMs / 60_000)} min.`;
+  // A long gap, or the stopwatch's "Still going?" check: honest, never a failure.
+  if (r.endNote === "gap-closed") {
+    return { title: "Session ended", detail: "The app closed while you were away. The time before that counts." };
+  }
+  if (r.endNote === "gap-no") {
+    return { title: "Session ended", detail: `Counted until you left the app. ${credited}` };
+  }
+  if (r.endNote === "long-check") {
+    return { title: "Session ended", detail: `No answer to \u201cStill going?\u201d, so it ended at the check. ${credited}` };
+  }
   // Night mode: not a failure, just an honest record of the time that counted.
   if (r.endedBy === "checkin") {
     return {

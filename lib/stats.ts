@@ -195,6 +195,10 @@ export type Stats = {
   // Your rarest species (the first one caught, if there's a tie). null = no fish yet.
   rarest: { species: SpeciesId; caughtAt: string } | null;
   bestDay: DayTotal | null;
+  // Personal records: the best Monday–Sunday week (its Monday), and the most
+  // fish caught in one day (study; sessions count on the day they started).
+  bestWeek: DayTotal | null;
+  mostFishDay: { day: DayKey; count: number } | null;
   hours: number[]; // 24 buckets of focus seconds, by local hour of day
   last7: DayTotal[]; // oldest → today
   tasks: TaskTotal[]; // most time first
@@ -226,6 +230,7 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
   };
   const fish: Record<Rarity, number> = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 };
   let rarest: Stats["rarest"] = null;
+  const fishByDay = new Map<DayKey, number>();
   // Keyed case-insensitively; shows the spelling of the most recent session.
   const tasks = new Map<string, TaskTotal & { lastStart: number }>();
   const target = { sessions: 0, actual: 0, target: 0, onOrUnder: 0 };
@@ -242,6 +247,8 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
       cycles.set(name, (cycles.get(name) ?? 0) + 1);
     }
     if (earnsFish(row)) {
+      const fishDay = dayKey(Date.parse(row.started_at), timeZone);
+      fishByDay.set(fishDay, (fishByDay.get(fishDay) ?? 0) + 1);
       const species = speciesOf(row);
       const rank = rarityRank(speciesById(species).rarity);
       fish[speciesById(species).rarity]++;
@@ -286,10 +293,21 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
   let week = 0;
   let monthTotal = 0;
   let bestDay: DayTotal | null = null;
+  const byWeek = new Map<DayKey, number>();
   for (const [day, seconds] of byDay) {
     if (day >= weekStart && day <= today) week += seconds;
     if (day.slice(0, 7) === month) monthTotal += seconds;
     if (!bestDay || seconds > bestDay.seconds) bestDay = { day, seconds };
+    byWeek.set(startOfWeek(day), (byWeek.get(startOfWeek(day)) ?? 0) + seconds);
+  }
+  // Ties go to the earlier one: the record was set first.
+  let bestWeek: DayTotal | null = null;
+  for (const [day, seconds] of [...byWeek].sort(([a], [b]) => a.localeCompare(b))) {
+    if (seconds > 0 && (!bestWeek || seconds > bestWeek.seconds)) bestWeek = { day, seconds };
+  }
+  let mostFishDay: Stats["mostFishDay"] = null;
+  for (const [day, count] of [...fishByDay].sort(([a], [b]) => a.localeCompare(b))) {
+    if (!mostFishDay || count > mostFishDay.count) mostFishDay = { day, count };
   }
 
   const total = rows.length;
@@ -313,6 +331,8 @@ export function computeStats(rows: SessionFacts[], now: number, timeZone: string
     fish,
     rarest,
     bestDay,
+    bestWeek,
+    mostFishDay,
     hours,
     last7: Array.from({ length: 7 }, (_, i) => {
       const day = addDays(last7Start, i);

@@ -7,6 +7,9 @@
 //   of their contents, so a cached copy is never out of date.
 // - /icons/... and /fish/... (pictures): served from the cache, refreshed in
 //   the background.
+// - /offline.html: ONE self-contained "You're offline" page, stored when the
+//   worker installs. A page load that fails because there's no network shows
+//   it instead of the browser's error. Real pages are never stored.
 // - Everything else goes straight to the network, untouched: the pages (they
 //   are made per signed-in user, and always fresh pages mean the app can never
 //   get stuck on an old version), /auth, /version, and every other site,
@@ -18,12 +21,21 @@
 
 const STATIC = "dn-static-v1";
 const PICTURES = "dn-pictures-v1";
-const KEEP = [STATIC, PICTURES];
+const OFFLINE = "dn-offline-v1";
+const OFFLINE_PAGE = "/offline.html";
+const KEEP = [STATIC, PICTURES, OFFLINE];
 const MAX_STATIC = 400; // old builds' files pile up; keep the newest this many
 
-self.addEventListener("install", () => {
-  // Nothing to prepare, so the new version takes over straight away.
-  self.skipWaiting();
+self.addEventListener("install", (event) => {
+  // Only the offline page to store (fresh each deploy), then the new version
+  // takes over straight away. If it can't be fetched, install anyway.
+  event.waitUntil(
+    caches
+      .open(OFFLINE)
+      .then((cache) => cache.add(new Request(OFFLINE_PAGE, { cache: "reload" })))
+      .catch(() => {})
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -43,6 +55,15 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || request.headers.has("range")) return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // Supabase, Google, …: the network
+
+  // Opening a page: always the network. Only when there IS no network (fetch
+  // throws; an error page from the server still shows as it is) the offline page.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => (await caches.match(OFFLINE_PAGE)) ?? Response.error()),
+    );
+    return;
+  }
 
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(cacheFirst(request));

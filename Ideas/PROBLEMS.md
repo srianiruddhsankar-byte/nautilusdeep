@@ -98,13 +98,13 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
 - **P-012 · Stats that say nothing useful.**
   - Direction: plain-language insights ("You focus best in the mornings", "You've studied more this week than
     last").
-  - Status: open. The data is already there (time of day, last 7 days in `lib/stats.ts`); only the sentences
-    are missing.
+  - Status: partly handled since 2026-10-23: Stats opens with plain sentences about your week (I-098) and
+    has personal records (I-005).
   - Related: I-046, I-098
 - **P-013 · Rewards get boring after a year** (full tanks, every rare fish caught).
   - Direction: new things that come slowly. Careful: not a game.
   - Status: partly handled: skins unlock up to 150 h, the nautilus at 100 h, Legendary fish are rare.
-  - Related: I-004, I-009, I-014, I-058, I-061
+  - Related: I-004, I-009, I-014, I-058, I-061, I-126
 - **P-014 · Battery drain from sounds and animations.**
   - Direction: a possible low-power mode (still tank, no ambience).
   - Status: partly handled: the tank runs at 30 fps, caps the pixel ratio at 2, pauses when hidden, unfocused
@@ -115,8 +115,8 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
     caches only build files and pictures. Keep it that way when adding paintings or recordings.
 - **P-016 · No Wi-Fi.**
   - Direction: sessions should never be lost offline.
-  - Status: partly handled: finished sessions save to an offline queue and upload later. Opening the app with
-    no connection doesn't work yet.
+  - Status: mostly handled since 2026-10-23: finished sessions save offline and upload later, and opening
+    the app with no connection shows a calm "You're offline" page (I-026).
   - Related: I-026, I-044
 - **P-017 · Weak sound / music library.**
   - Direction: better ambience sounds.
@@ -126,7 +126,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: export your data (CSV / JSON), and send tasks and exams to Google Calendar without retyping
     (a calendar file or a subscribe link).
   - Status: open. Sessions are stored as raw records, so an export is straightforward.
-  - Related: P-007, I-099
+  - Related: P-007, I-099, I-129
 - **P-019 · Real life gets punished as quitting**: an important call, or a phone that dies mid-session, fails
   Deep Focus the same way giving up does.
   - Direction: "punish quitting, never absence". A call isn't quitting. Options: a late pause (I-073), a longer
@@ -197,7 +197,7 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Direction: good defaults, remembered choices, and one tap to start; choosing should be optional.
   - Status: partly handled: Start is one tap with the remembered setup, and every choice sits behind "Change".
     A first-time user still meets them.
-  - Related: P-002, I-074, I-068
+  - Related: P-002, I-074, I-068, I-132
 - **P-031 · Writing notes isn't the same as studying**: people zone out while writing and don't understand what
   they write down.
   - Direction: needs a decision. CLAUDE.md says "Study and Notes sessions are both studying"; this questions
@@ -207,17 +207,18 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Related: P-025, I-081, I-050
 - **P-032 · Short sessions feel wasted**: 12 minutes of notes and no plant (plants start at 15 min).
   - Direction: show what you still earned (minutes, coins, the streak day), or carry the minutes forward (I-086).
-  - Status: partly handled: the minutes and coins still count; only the plant is missing.
+  - Status: mostly handled since 2026-10-22: the result screen says what still counted (minutes, coins,
+    the streak day) and when fish / plants start (I-100). Carrying minutes forward (I-086) stays parked.
   - Related: I-086, I-055, I-100
 - **P-033 · The roulette can feel like gambling, or unfair.**
   - Direction: no money and no buying rolls ever; show the odds openly; maybe a gentle guarantee (I-087).
-  - Status: partly handled: rolls can't be bought, longer study only improves the odds, and the running screen
-    says when the odds improve next.
+  - Status: mostly handled since 2026-10-22: rolls can't be bought, and the setup sheet shows the odds in
+    plain words (I-087). A gentle guarantee stays parked.
   - Related: I-087, I-060
 - **P-034 · Watching an egg is like watching paint dry.**
   - Direction: the egg is a small part of the screen; your other fish swim around it, which is calming.
-  - Status: partly handled: the running screen shows your real tank. A brand-new user with no fish yet only has
-    the egg to watch.
+  - Status: mostly handled: the running screen shows your real tank, a full-screen tank (I-095) and a
+    welcoming empty tank for new users (I-109), since 2026-10-22.
   - Related: I-038, I-060, I-095, I-109
 - **P-035 · The alarm rings in a library and everyone hears it.**
   - Direction: a vibrate-only or silent alarm choice (I-088).
@@ -228,7 +229,8 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
 - **P-036 · Coins might not buy anything cool enough.**
   - Direction: ask in Phase 11 whether decorations make people want to earn coins; if not, rethink what coins
     are for instead of adding more items.
-  - Status: open.
+  - Status: partly handled since 2026-10-22: decorations are bigger (I-093) and the result screen says what
+    your coins are close to buying (I-111). Phase 11 will show whether that's enough.
   - Related: I-056, I-057, P-013, I-093, I-111
 - **P-037 · People don't know what "Deep Nautilus" means.**
   - Direction: one line on the login page or in the about answers: a nautilus is a deep-sea creature, and the
@@ -239,7 +241,8 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   as study time but not toward the task (time per task, done history).
   - Direction: let you add a finished session to a task afterwards (I-091); make picking a task quicker at
     Start (I-090).
-  - Status: open.
+  - Status: partly handled since 2026-10-22: tasks can be added from the timer (I-090). Adding a finished
+    session to a task afterwards (I-091) is in Batch 5.
   - Related: I-091, I-090, I-049
 - **P-039 · The tank graphics still aren't good enough**: owner, Oct 2026. They don't look as good as they
   should, and older phones may struggle to run them.
@@ -254,5 +257,44 @@ notebook, the phone clock and timer, Spotify, Instagram. The app should connect 
   - Deep Focus: if the phone dies so suddenly that the browser never noted you left, it's treated the same way.
   - Direction: ask once on return after a long gap (I-112). Night mode check-ins already limit it, but they're
     off by default.
-  - Status: open.
+  - Status: mostly handled since 2026-10-23: a forgotten stopwatch asks "Still going?" after 3 h / 4 h
+    (I-113), and coming back after the app closed asks in Open Focus or ends at the moment you left in Deep
+    Focus (I-112).
   - Related: I-112, I-113, I-054, P-021, P-003
+- **P-041 · Time added by hand can't be checked**: if you can add study time you did without your phone (I-117),
+  nothing proves it happened, and nothing shows whether it was real studying or just sitting there.
+  - Direction: keep hand-added time honest by design: it counts for stats, streak and tasks, never for fish,
+    plants or coins, and is labelled "added by hand". The wider "is this person actually studying?" question
+    applies to timed sessions too (P-003); with no leaderboards, faking only fools yourself (P-021).
+  - Status: open (raised 2026-11-01). Nothing to handle until I-117 exists.
+  - Related: I-117, P-003, P-021
+- **P-042 · You can't tell which plants are yours**: owner, 2026-11-01. The skins draw their own seagrass, your
+  plants don't stand out from it, and the plant spots look scattered in a random order.
+  - Direction: remove the background seagrass (I-118), make your plants clearly visible (I-119), and line them
+    up in the order you grew them (I-120).
+  - Status: open.
+  - Related: I-118, I-119, I-120, P-039
+- **P-043 · No real breaks in a timer or stopwatch**: owner, 2026-11-01. Mid-session your only choices are
+  Give up / Stop, or the one 5-minute Pause in Deep Focus. Real studying has breaks, and you can't see how much
+  you studied vs rested.
+  - Direction: a "Take a break" button that banks your focus and starts a break (I-121), and a neutral study vs
+    break ratio (I-122).
+  - Status: partly handled: cycles have breaks, Continue session adds a break after the time is up, and the
+    Deep Focus pause / free interruption cover one short stop.
+  - Related: I-121, I-122, I-063, I-039
+- **P-044 · The fish don't look like the real species**: owner, 2026-11-01. They look like generic fish; the
+  owner wants Fishdom-level art and movement.
+  - Direction: one polished cartoon painting per species, closely matching the real fish, using the painting
+    support Tank 4 already has (I-123).
+  - Status: open.
+  - Related: I-123, P-039, I-038
+- **P-045 · The lionfish spins like a flat cutout when it turns**: a bug, owner, 2026-11-01. The other fish do
+  the newer sideways turn.
+  - Direction: give the puppet fish the same turn (I-124); check the puffer and sunfish too.
+  - Status: open.
+  - Related: I-124, I-038
+- **P-046 · Far too many tanks over time**: owner, 2026-11-01. One day of studying already made 4 fish. At that
+  pace a year is about 1,400 fish, which is 140+ tanks of 10. Nobody can enjoy or find anything in 140 tanks.
+  - Direction: bigger tanks you grow into (I-127), and a way to organise them (I-128, with the list in I-125).
+  - Status: open.
+  - Related: I-127, I-128, I-125

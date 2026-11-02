@@ -25,7 +25,7 @@ The `Ideas/` folder has three files:
 8. **`Reusable`** marks ideas that would work in other apps, not just Deep Nautilus.
 9. This folder is edited outside Claude Code (see CLAUDE.md). Claude Code never edits it.
 
-**Next free IDs: I-114 · P-041**
+**Next free IDs: I-133 · P-047**
 
 ## Quick wins: small fixes only
 
@@ -33,32 +33,25 @@ The rule for the next version: no big features, just fix small problems. This li
 small (no new table, no new service, no new art style) and the problem it fixes. Built ones move to DONE.md as
 usual; remove them from this list when they do. Sizes: **Tiny** = a few lines or words · **Small** = one screen
 or one setting · **Small+** = small, but touches the database or stored data. Last full review: 2026-10-22
-(every idea and problem checked again). Batches 1 and 2 shipped 2026-10-22 (see DONE.md).
+(every idea and problem checked again). Batches 1–3 shipped 2026-10-22, Batch 4 on 2026-10-23 (see DONE.md).
 
 **Words and pages (Tiny)**: all done in Batches 1 and 2.
 
 **Screens and settings (Small)**
-- I-095 Full-screen tank (P-034)
-- I-093 Make decorations more visible (P-036)
-- I-103 Make "Your items" (the storage box) easy to find (I-094)
-- I-111 "Next buy" line: coins to the next decoration (P-036)
-- I-070 A quiet "next unlock" line: River skin at 30 h (P-001, P-013)
-- I-090 Add a task from the timer (P-038)
-- I-100 An honest result for short sessions: what still counted (P-032)
-- I-098 Plain-language stat sentences (P-012)
-- I-005 Personal records from stats that already exist
-- I-074 "Just start": a 10-minute session (P-002, P-024)
-- I-087 Show the odds in plain words (only this part; the guarantee is bigger) (P-033)
-- I-112 "Were you still studying?" after a long gap (P-040)
-- I-113 Stopwatch "Still going?" check after a long time, longer for Notes (P-040)
-- I-026 One cached "You're offline" page (P-016)
-- I-102 "What's new" after a big update
+- I-118 Remove the background seagrass (P-042)
+- I-119 Make your plants stand out (P-042)
+- I-120 Plants in a clear order, left to right (P-042)
+- I-122 Study vs break ratio in Stats (from the breaks sessions already save) (P-043)
+- I-124 Fix the lionfish turn (and check the other puppet fish) (P-045)
+- I-132 Each task remembers its last setup (P-030)
+- I-130 "Study until 5:00": pick an end time instead of minutes
 
 **Small+ (touches the database or stored data)**
 - I-091 Add a finished session to a task afterwards (a narrow update policy on `task_name`) (P-038)
 - I-099 Download your data as CSV / JSON (P-018)
 - I-008 Holiday mode: the streak pauses on a long break (needs the break dates stored)
 - I-081 One-tap recall check after a session (P-025, P-031)
+- I-125 Tank list, rename tanks, favourite tank (a column on `tank_skins`)
 - I-082 Phone-check counter (needs quick leaves stored) (P-026)
 
 **Not quick wins, even though they sound small:** I-086
@@ -79,14 +72,6 @@ rest are below.
 Most people don't fail at studying, they fail at starting. See "Who we're building for" in PROBLEMS.md for the
 feelings and moments behind these.
 
-- **I-074 · "Just start" button** · `Reusable`: one tap for a tiny session ("Just 10 minutes"), for the moments
-  you're procrastinating and want to feel better. When the 10 minutes end, Continue (I-063) lets you keep going
-  if you've found your rhythm. Small enough that saying no feels silly.
-  - Status: Parked
-  - Why parked: one-tap Start already exists; this is a framing on top of it, and it needs Phase 11 to show
-    whether starting is the real blocker.
-  - Revisit: Phase 9 Stage D (Home rebuild) or after Phase 11.
-  - Related: P-002, P-024, I-063, I-078
 - **I-077 · Make studying feel like play**: the owner wants studying to feel like a game you'd actually want to
   open.
   - Status: Parked, needs a decision. This clashes with the principle "the tank is not a game" (no quests,
@@ -120,6 +105,36 @@ feelings and moments behind these.
   - Status: Parked
   - Why parked: covered by the block builder (I-001).
   - Revisit: with I-001.
+- **I-130 · Study until a time** · `Reusable`: instead of choosing minutes, pick an end time: it's 4:12 pm, you want
+  to study until 5:00, so you set "Until 5:00" and the app runs a 48-minute timer. Handy when you have a class or
+  a meal at a fixed time.
+  - Status: Parked
+  - Why parked: raised 2026-11-02. Small: one more option in "How long" that turns a clock time into minutes at
+    Start (the timer itself doesn't change; odds and coins follow the minutes as usual). The only rule needed:
+    an end time that has already passed today means tomorrow, or is refused with a kind line.
+  - Revisit: a quick win; fits the next batch that touches the setup sheet.
+  - Related: I-041, I-087, P-030
+- **I-131 · Plan sessions ahead** · `Reusable`: set up study sessions in advance ("Today 6:00 pm · 45 min · Bio
+  worksheet"), get a reminder when it's time, and start it with one tap with everything already set.
+  - Status: Parked
+  - Why parked: raised 2026-11-02. It's a small planner: planned sessions need saving (a new table), and the
+    reminder needs a new kind of push (like task reminders, I-028). Overlaps the planner (I-021) and the
+    calendar link (I-129), so it should be designed with them.
+  - Revisit: after Phase 11, if testers plan their study days; with I-021 / I-028.
+  - Related: I-021, I-028, I-129, I-130, P-024
+- **I-121 · Take a break any time (timer and stopwatch)** · `Reusable`: a "Take a break" button on the running
+  screen, next to Give up / Stop. The focus so far is banked, a break timer runs (not counted as study), and
+  "Back to it" starts the next part. Today the only options mid-session are Give up / Stop, or the one 5-minute
+  Pause in Deep Focus.
+  - How it could work: build on Continue session (I-063), which already does "focus · break · focus" as linked
+    parts of one session, but only after the time is up. "Take a break" would start that same break early.
+    Breaks are already free to leave, even in Deep Focus, and earn nothing.
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Changes the running session's logic, so not a quick win. Open questions: how
+    long a break can last before the session ends by itself (Continue's 15-minute window?), and how it fits with
+    the one Pause and the free interruption, which would mostly become unnecessary.
+  - Revisit: after Batch 5, as the first bigger change; or after Phase 11 if testers miss it.
+  - Related: P-043, I-063, I-039, I-073, I-122
 
 ## Progress & reflection
 
@@ -135,10 +150,6 @@ feelings and moments behind these.
   - Why parked: depends on the tank redesign and recaps (I-003).
   - Revisit: with I-003.
   - Related: P-001, P-013
-- **I-005 · Personal records** · `Reusable`: most time in a day/week, most fish in a day, longest session, etc.
-  - Status: Parked
-  - Why parked: Phase 5 stats cover the basics (best day, longest session).
-  - Revisit: after Phase 11, if testers look at their stats.
 - **I-006 · Badges / milestones**, some unlocking tank content.
   - Status: Parked
   - Why parked: they must reward real work, never app activity. Phase 7 milestone decorations come first.
@@ -189,20 +200,6 @@ feelings and moments behind these.
     and stay optional.
   - Revisit: after Phase 11, if testers ask what their time is getting them.
   - Related: I-034, I-076, P-020
-- **I-098 · Plain-language stat sentences** · `Reusable`: one or two lines at the top of Stats, worked out from
-  data the app already has: "You focus best in the mornings", "More than last week: 4 h vs 3 h".
-  - Status: Parked
-  - Why parked: words only, but each sentence needs a rule for when it's true and kind (never "less than last
-    week" as a scolding).
-  - Revisit: Phase 9 Stage D (Stats page).
-  - Related: P-012, I-046
-- **I-100 · An honest result for short sessions** · `Reusable`: when a session is too short for a fish or plant,
-  the result screen says what still counted: "12 min counted · +12 coins · today's streak day. Plants start at
-  15 min."
-  - Status: Parked
-  - Why parked: words only; belongs with the result screen.
-  - Revisit: Phase 9 Stage D.
-  - Related: P-032, I-086
 - **I-104 · A mascot**: a character that shows up around the app (Home, the result screen, empty states) to make
   it more fun and exciting.
   - Status: Parked
@@ -211,6 +208,41 @@ feelings and moments behind these.
     into a game ("the tank is not a game"). Needs art, so it waits for a settled style.
   - Revisit: with I-010 and I-077, after Phase 11.
   - Related: I-010, I-077, I-061
+- **I-115 · A stats page for each task** · `Reusable`: tap a task (in Tasks or in Stats' "time per task") to see
+  its own numbers: total time, number of sessions, when you worked on it, and time per day as a small chart.
+  - Today: Stats already has "time per task" (Phase 6) and Done history shows each finished task's focus time,
+    so the data exists. What's missing is one place per task with more than a total.
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Small (the data is there), but it's a new screen.
+  - Revisit: after Phase 11, if testers use tasks; or with I-107 (several tasks per session).
+  - Related: I-048, I-107, I-091, P-012
+- **I-122 · Study vs break ratio** · `Reusable`: show how much you studied compared with how much you rested:
+  per session on the result screen ("45 min study · 10 min break") and over a week in Stats ("82% focus, 18%
+  breaks"). Breaks are a healthy part of studying, so it's shown neutrally, never as "too many breaks".
+  - Today: continued sessions and cycles already save their parts with each break's length (`sessions.parts`),
+    and the result screen already describes them ("12 min study · 10 min break · 12 min study").
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Small for Stats, but most plain sessions have no breaks to count until I-121
+    exists.
+  - Revisit: with I-121, or as a Stats quick win now.
+  - Related: I-121, I-063, P-012, I-098
+- **I-116 · Daily goal** · `Reusable`: set a goal for the day ("3 hours") and see how close you are: a quiet
+  progress line on Home ("1 h 40 m of 3 h"), and a kind moment on the result screen when you reach it.
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Must stay encouraging: missing a goal never breaks anything, never scolds,
+    and doesn't touch the streak (the streak keeps its 5-minute rule). Saving the goal on the device is small;
+    saving it to your account (same goal on phone and laptop) needs a small database change.
+  - Revisit: after Batch 5, as a small next step; or after Phase 11.
+  - Related: I-070, I-021, P-001, P-024
+- **I-117 · Add study time by hand** · `Reusable`: you studied 2 hours without your phone, so you add it
+  afterwards: date, start time, length, Study or Notes, optional task. It counts in your stats, streak and time
+  per task.
+  - Status: Parked
+  - Why parked: raised 2026-11-01. The app can't check a manual entry (see P-041), and "the tank rewards real
+    work". Suggested rule: hand-added time counts for stats, streak and tasks, but grows no fish or plant and
+    earns no coins, and is marked "added by hand" in stats. Needs a new session kind in the database.
+  - Revisit: after Phase 11, if testers often study away from their phone.
+  - Related: P-041, P-021, P-003, I-091
 
 ## Tank & creatures
 
@@ -224,7 +256,8 @@ feelings and moments behind these.
   - Related: P-032, I-055
 - **I-087 · Fair, open roulette** · `Reusable`: show the odds for your session length in plain words, never let
   coins buy a roll, and maybe a gentle guarantee (e.g. a new species after a long run of repeats).
-  - Status: Parked
+  - Status: Partly done (2026-10-22, Batch 3): the odds are shown in plain words. Still parked: the gentle
+    guarantee.
   - Why parked: the roulette is new; the guarantee needs care so it doesn't change fish already caught (species
     are saved on the session, so it only affects future hatches).
   - Revisit: after Phase 11, if testers call it unfair or gambling-like.
@@ -232,7 +265,8 @@ feelings and moments behind these.
 - **I-093 · Make decorations more visible**: today they sit on the sand behind plants and fish, so they're easy
   to miss. Make them read clearly: bigger, nearer the front, or with fish swimming around them rather than over
   them.
-  - Status: Parked
+  - Status: Partly done (2026-10-22, Batch 3): decorations draw about 25% bigger. Still parked: bringing
+    them in front of plants and fish (with I-094).
   - Why parked: it's tank art and layering, so it should be tuned together with I-094.
   - Revisit: with I-094, after Phase 11 or in a tank polish pass.
   - Related: I-057, I-094, P-036
@@ -246,25 +280,107 @@ feelings and moments behind these.
     decorating must also never take longer than studying.
   - Revisit: after Phase 11, if testers decorate at all.
   - Related: I-057, I-093
-- **I-095 · Full-screen tank** · `Reusable`: one tap to see the tank on its own, filling the screen, with
-  nothing else in the way. A calm thing to look at during a break.
+- **I-118 · Remove the background seagrass** · `Reusable`: each skin's scenery draws its own seagrass, which looks
+  like your plants, so you can't tell what you grew from what's just decoration. Take it out of the scenery (in
+  `tank4/scenery.ts`), so every plant in the tank is one you earned.
   - Status: Parked
-  - Why parked: small, but the running screen and Home are being rebuilt in Phase 9 Stage D.
-  - Revisit: Phase 9 Stage D.
-  - Related: P-034
-- **I-103 · Make "Your items" easy to find**: the storage box already exists ("Put away" → "Your items" on the
-  Shop page). Show it where people decorate, with a count ("3 put away"), so nobody thinks put-away items are
-  gone.
+  - Why parked: raised 2026-11-01 by the owner. Tiny (one scenery change), but check each skin still looks
+    finished without it (it may need rocks or sand detail instead).
+  - Revisit: next tank batch; a quick win.
+  - Related: P-042, I-119, I-120, P-039
+- **I-119 · Make your plants stand out** · `Reusable`: your plants should be the clearest thing on the sand:
+  a little bigger, fully opaque, richer colour, drawn in front of the scenery, and never hidden behind
+  decorations or the fish lanes.
   - Status: Parked
-  - Why parked: small; belongs with the Shop page rebuild.
-  - Revisit: Phase 9 Stage D.
-  - Related: I-094, I-057
-- **I-111 · "Next buy" line** · `Reusable`: on the result screen, next to the coins earned, one quiet line: "+25
-  coins · 15 more for the Coral arch". Gives coins a purpose without a store pop-up.
+  - Why parked: raised 2026-11-01. Small art tuning in Tank 4 (sizes and layer order), no new art.
+  - Revisit: next tank batch, with I-118 and I-120.
+  - Related: P-042, I-118, I-120, I-093
+- **I-120 · Plants in a clear order** · `Reusable`: today the 6 plant spots on the sand look scattered, so the order
+  feels random. Place them left to right in the order you grew them, evenly spaced, each fully visible.
   - Status: Parked
-  - Why parked: words only (the catalogue and balance already exist); must never feel like being sold to.
-  - Revisit: Phase 9 Stage D (result screen).
-  - Related: P-036, I-057, I-070
+  - Why parked: raised 2026-11-01. Small: only the 6 slot positions change. Plants are derived from sessions,
+    so existing plants simply re-arrange; no migration. Decorations keep their own positions.
+  - Revisit: next tank batch, with I-118 and I-119.
+  - Related: P-042, I-118, I-119, I-055
+- **I-123 · Fishdom-level fish art** · `Reusable`: every species should look like the real fish, in a polished
+  cartoon style (the owner's reference: Fishdom), and swim with lively, natural movement.
+  - Today: Tank 4 already supports paintings. A file at `public/fish/<species id>.png` replaces that species'
+    drawing (`tank4/art-files.ts`, the recipe is in the file), and the rope rig bends the painting along the swim,
+    so new art doesn't need a new engine.
+  - Plan: make one cartoon painting per species that closely matches the real fish (18 species + the nautilus),
+    side view, transparent background, then tune each species' swim in `fish-art.ts`. The images could be
+    AI-generated or drawn, but must be ours to use: check the generator's licence, and never copy Fishdom's
+    actual art (only the level of polish). Movement like Fishdom (fins, tail, body) is the rig's job, not the image's.
+  - Status: Parked
+  - Why parked: raised 2026-11-01. The biggest art job left; worth doing before friends judge the app on looks,
+    but it's art time, not code time.
+  - Revisit: as its own "tank art" batch after the quick wins; start with 2–3 species to test the look.
+  - Related: P-044, P-039, I-038, I-124
+- **I-124 · Fix the lionfish turn** · `Reusable`: the lionfish still turns like a flat 2D cutout (it just spins),
+  instead of the sideways turn the other fish use.
+  - Today: the lionfish is a "puppet" (cut from its art and turned around joints, `tank4/puppets.ts`), not a rope
+    fish, so it may have missed the newer turn. Check the puffer and sunfish too: they're puppets cut the same way.
+  - Status: Parked
+  - Why parked: a bug, found 2026-11-01. Small.
+  - Revisit: the next batch; a quick win.
+  - Related: P-045, I-038, I-123
+- **I-125 · Your tanks: a list, names and a favourite** · `Reusable`: see all your tanks in one list (with how
+  many fish and plants each has), rename them ("Exam season"), and pick a favourite that Home opens on instead
+  of the newest.
+  - Today: tanks are worked out from your sessions (10 fish each), and each one's skin is already saved in
+    `tank_skins`, so a name and a favourite flag could go in the same table (a small migration).
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Small+, since it needs a database change. Note: tank numbers point at the
+    worked-out tanks, so changing how many fish fit in a tank would move names to different tanks.
+  - Revisit: after Batch 5, with other Small+ items; or after Phase 11 when people have several tanks.
+  - Related: I-058, I-095, I-114
+- **I-126 · About 50 fish species** · `Reusable`: 18 species is too few for variety; grow the roulette to around 50,
+  so the Sea life index takes much longer to fill and new catches keep coming.
+  - How (rules in CLAUDE.md): species ids are stored on sessions, so add new species only at the END of their
+    rarity tier, never rename or reorder, and add each id to the `sessions_species_check` constraint in a new
+    migration. Fish already caught keep their species. Each new species needs a painting (I-123), a checked
+    fact, and its swim tuned in `fish-art.ts`.
+  - Freshwater species (guppy, neon tetra, goldfish…) wait for water types (I-011, I-012); until then the new
+    ones are saltwater.
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Each species is art + fact + tuning, so it's art time more than code time.
+    Best done together with I-123, in steps (e.g. 18 → 30 → 50), keeping the rarity tiers balanced.
+  - Revisit: with I-123 (the tank art batch).
+  - Related: I-123, I-060, I-011, I-012, I-014, P-013
+- **I-127 · Bigger tanks you grow into** · `Reusable`: instead of a new 10-fish tank every few days, tanks get
+  bigger as you study more (e.g. 10 → 15 → 20 → 25 fish, more decoration and plant spots), so a year of studying
+  is a handful of big tanks, not 100+ small ones.
+  - The safe rule: a tank's size is fixed when it starts, by your total hours at that moment (like skins). Hours
+    only go up, so old tanks never change size and their fish, skins, decorations and names never move. Changing
+    the size of tanks that already exist would shift every tank number (CLAUDE.md warns about this).
+  - Owner's rule (2026-11-01): when a tank is resized, its decorations stay in that tank. That works if only
+    your CURRENT (newest) tank can grow: no tank comes after it, so no fish shift between tanks, and older tanks
+    stay as they are. Decorations are stored as positions in % of the tank (`x` 0–100 %, `y` 0–1), so they keep
+    their place when the tank gets bigger.
+  - Limit: more fish means more drawing work per frame (rope fish at 30 fps), so the biggest size must still run
+    smoothly on a phone (and in Low graphics, I-105).
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Changes how tanks are worked out from sessions, so it needs care and tests;
+    not a quick win.
+  - Revisit: before Phase 11 if possible (testers will hit this within weeks); with I-128.
+  - Related: P-046, I-128, I-125, I-058, I-105
+- **I-128 · Organising your tanks** · `Reusable`: with many tanks, group them so they stay manageable: by month or
+  season ("October 2026"), the current tank first, older ones folded into an "Aquarium" archive you can browse.
+  Builds on the tank list (I-125).
+  - Status: Parked
+  - Why parked: raised 2026-11-01. Grouping by month is easy (tanks are worked out from dated sessions), but the
+    list itself (I-125) comes first.
+  - Revisit: with I-125 and I-127.
+  - Related: P-046, I-125, I-127
+- **I-114 · Name your fish** · `Reusable`: tap a fish in the tank and give it a name ("Bubbles"). The name shows
+  on its tank card and in the Sea life index next to the species. Optional, never asked for, so it never adds a
+  step after a session.
+  - Status: Parked
+  - Why parked: raised 2026-10-23. Fish aren't stored as their own rows (they're derived from sessions, which
+    can't be edited), so names need a tiny new table (session id → name) with RLS and a migration. Small, but
+    not a quick win under the "no new table" rule.
+  - Revisit: after Phase 11, if testers get attached to their fish; or as the first "Small+" after Batch 5.
+  - Related: I-045, I-060, I-091
 - **I-011 · Freshwater species come back with water types**: guppy, neon tetra, zebrafish, goldfish,
   (freshwater) angelfish and discus were in the first species list but were swapped for saltwater ones, because
   tanks don't have water types yet and every species is saltwater for now.
@@ -377,13 +493,6 @@ feelings and moments behind these.
   - Why parked: the phone keyboard's built-in mic may already be enough.
   - Revisit: only if it isn't.
   - Related: I-092
-- **I-090 · Add a task from the timer** · `Reusable`: when you type a task name on the setup or running screen
-  that isn't on your list, one tap ("+ Add to tasks") saves it as a task, so you never have to go to the Tasks
-  tab first.
-  - Status: Parked
-  - Why parked: small, but it changes the setup screen, which is being rebuilt in Phase 9 Stage D.
-  - Revisit: Phase 9 Stage D (setup screen rebuild).
-  - Related: I-048, I-049, P-002
 - **I-091 · Add a finished session to a task afterwards** · `Reusable`: you studied an hour and forgot to pick a
   task; on the result screen or in recent sessions, pick or type the task and the hour counts toward it (time
   per task, done history).
@@ -412,17 +521,20 @@ feelings and moments behind these.
     testers show they need it.
   - Revisit: Phase 9 Stage D (setup screen), or after Phase 11 if testers ask.
   - Related: I-049, I-063, I-090, I-091
+- **I-132 · Each task remembers its setup** · `Reusable`: pick a task and the setup switches to what you used last
+  time for it (e.g. "Bio worksheet" → 50/10 cycle, Deep Focus, Study, Rain), so a regular task needs no setting up.
+  A small line says so ("Your last setup for Bio worksheet"), and you can still change anything.
+  - How: the simplest version reads the last session with that task's name (sessions already save the mode,
+    Deep / Open Focus, Study / Notes and the cycle name), so no new storage. Things sessions don't save (the
+    timer length you picked, the ambience) could be remembered on the device next to the setup prefs.
+  - Status: Parked
+  - Why parked: raised 2026-11-02. Small, but it changes how the setup sheet fills itself in, so it must never
+    surprise you: a task with no history keeps your current setup.
+  - Revisit: a quick win; with I-130 in the next batch that touches the setup sheet.
+  - Related: I-049, I-090, P-030, I-130
 
 ## Installed app
 
-- **I-026 · Open the app offline** · `Reusable`: the service worker (Phase 10a) caches only build files and
-  pictures, never pages, so opening the installed app with no connection shows the phone's "offline" page.
-  - Status: Parked
-  - Why parked: pages are made per signed-in user; caching them risks showing a stale or wrong account and is
-    the usual way installed apps get stuck on an old version. Sessions already save offline once the app is open.
-  - Revisit: if testers often open the app with no signal (e.g. on the underground); start with one cached
-    "You're offline" page, not cached real pages.
-  - Related: P-016
 - **I-027 · Home / lock screen widgets** showing today's progress.
   - Status: Parked
   - Why parked: not possible for a web app; widgets need a native iPhone / Android app (see I-035).
@@ -453,14 +565,6 @@ feelings and moments behind these.
     nothing to act on.
   - Revisit: if testers are confused about where a session went after a long break.
 
-- **I-102 · "What's new" after a big update** · `Reusable`: after a big update ships, a short note shows once
-  ("What's new: a quiet alarm for libraries, full-screen tank"). The app already notices new versions ("New
-  version available · Refresh"); this adds the note after the refresh. The developer's changelog is DONE.md
-  (every built idea with its phase and date), so the note is written from it.
-  - Status: Parked
-  - Why parked: requested 2026-10-21; small, but worth it only once friends use the app and updates reach them.
-  - Revisit: before Phase 11, so testers see what changed between rounds.
-  - Related: I-064
 - **I-106 · Timer and tank stay on screen when you leave the app** · `Reusable`: a small floating window
   (picture-in-picture) with the time left and your tank swimming, over other apps. Satisfying to glance at.
   - How the web can do it: on laptops, Chrome's Document Picture-in-Picture (a real mini window). On phones,
@@ -491,24 +595,6 @@ feelings and moments behind these.
   - Status: Parked
   - Why parked: it's a personal app for a few friends, with nothing to compete over, so cheating only fools yourself.
   - Revisit: if the app goes public, or if any shared or comparing features are ever added.
-- **I-112 · "Were you still studying?" after a long gap** · `Reusable`: when you come back to a running session
-  after a long time away (the phone died, the app was closed), ask once: "Were you studying the whole time?"
-  with "Yes, count it" and "No, count until I left". Stops a stopwatch from crediting hours you didn't study.
-  - Status: Parked
-  - Why parked: found 2026-10-22 while writing the battery answer; needs a clear rule for "long gap" and must
-    stay one tap, never an accusation. Night mode already limits it when it's on.
-  - Revisit: soon after Batch 2; fits the quick wins (small, no new table).
-  - Related: P-040, I-054, P-021
-- **I-113 · A stopwatch that can't run forever** · `Reusable`: if you forget to stop the stopwatch, it shouldn't
-  count hours you didn't study. Not a hard cap that throws the session away, but an automatic "Still going?"
-  check after a long time: about 3 h for Study and longer for Notes (writing notes takes longer), the exact numbers
-  to tune. No answer within 2 min = the session ends at the check, crediting time only up to there, with no bone
-  and no dying fish (the same rule Night mode already uses).
-  - Status: Parked
-  - Why parked: raised 2026-10-22. Small, because it reuses Night mode's check-in logic, but the limits need
-    picking and it must never end a real long session by surprise (the check gives you 2 minutes to answer).
-  - Revisit: with I-112 (they fix the same problem: time you didn't study counting).
-  - Related: P-040, I-112, I-054
 
 ## Help, first use & trust
 
@@ -517,13 +603,6 @@ time. "Answers today" are what the app does now (from CLAUDE.md and the code, Oc
 Code before writing them into the app. Today's Help page only explains how things work (sessions, tank,
 rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
 
-- **I-070 · Show the end goal** · `Reusable`: make it clear what you're working towards: skins unlock up to
-  150 h, the nautilus arrives at 100 h, fill the Sea life index. A quiet "next: River skin at 30 h" line, not
-  a progress bar to grind.
-  - Status: Parked
-  - Why parked: must stay a quiet measure of real work, not a game; overlaps with depth levels (I-009).
-  - Revisit: with I-009, after Phase 11.
-  - Related: I-009, I-058, I-061, P-001
 - **I-072 · Delete my account in the app** · `Reusable`: a button in Help → Account that deletes your account
   and all your data, after one confirm.
   - Status: Parked
@@ -538,6 +617,19 @@ rewards, planning, account); it has no FAQ, no what-ifs and no link to Privacy.
     months of data.
   - Revisit: before the app goes beyond friends, or if a tester asks.
   - Related: P-018, I-071, I-072
+- **I-129 · Calendar subscribe link** · `Reusable`: a private link you add to Google Calendar (or Apple Calendar)
+  once; your tasks with due dates (and later exams, I-076) appear there and stay up to date.
+  - How hard: the subscribe link is the easy way: the app serves a calendar feed (an .ics file) at a secret URL,
+    and Google Calendar reads it. No Google permission screen. Downsides: one-way only (app → calendar), and
+    Google refreshes subscribed calendars slowly (every few hours, sometimes longer).
+  - The hard way, real Google Calendar access (adding and editing events directly), needs the Calendar
+    permission on your Google sign-in. That's a "sensitive" permission: Google reviews the app before strangers
+    can use it, and until then users see an "unverified app" warning. Days of work plus the review.
+  - Status: Parked
+  - Why parked: raised again 2026-11-01 (Google Calendar was parked from the start). Only worth it if testers
+    keep their dates in Google Calendar (a Phase 11 question).
+  - Revisit: after Phase 11; start with the subscribe link.
+  - Related: P-018, P-007, I-028, I-076
 
 ## Deliberately rejected (and why)
 

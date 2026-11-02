@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  Deep Nautilus "You're offline" page (I-026). public/sw.js keeps this ONE page
+  on the phone and shows it when a page can't load because there's no network.
+  It must work with nothing else loaded, so it's self-contained: the Paper Tide
+  colours are copied from app/globals.css (keep them in step if those change),
+  and Appearance is read the same way as THEME_SCRIPT (lib/theme-script.ts).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121a22" media="(prefers-color-scheme: dark)" />
+    <title>Offline – Deep Nautilus</title>
+    <script>
+      try {
+        var t = JSON.parse(localStorage.getItem("deep-nautilus:theme"));
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
+    <style>
+      :root {
+        --paper: #f4efe6;
+        --card: #fffcf6;
+        --ink: #1e2b38;
+        --muted: #5f6977;
+        --line: #e3dacb;
+        --primary: #23466b;
+        --primary-edge: #142c45;
+        --on-primary: #fffcf6;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --paper: #121a22;
+          --card: #19232e;
+          --ink: #ece4d6;
+          --muted: #a2abb6;
+          --line: #2b3744;
+          --primary: #9cc0e6;
+          --primary-edge: #5d84ab;
+          --on-primary: #0f1d2b;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --paper: #121a22;
+        --card: #19232e;
+        --ink: #ece4d6;
+        --muted: #a2abb6;
+        --line: #2b3744;
+        --primary: #9cc0e6;
+        --primary-edge: #5d84ab;
+        --on-primary: #0f1d2b;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+          max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 28rem;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        background: var(--card);
+        border-radius: 12px;
+        box-shadow: 0 0 0 1px var(--line), 0 2px 0 var(--line);
+      }
+      h1 {
+        margin: 0;
+        font: 500 28px/1.15 Georgia, "Times New Roman", serif;
+      }
+      p {
+        margin: 0;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      button {
+        min-height: 48px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: var(--on-primary);
+        font: 600 16px system-ui, -apple-system, "Segoe UI", sans-serif;
+        box-shadow: 0 3px 0 var(--primary-edge);
+        cursor: pointer;
+      }
+      button:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 var(--primary-edge);
+      }
+      button:focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 3px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        button:active {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You&rsquo;re offline</h1>
+      <p>Deep Nautilus needs a connection to open.</p>
+      <p class="muted">Sessions you&rsquo;ve finished are safe on this device and upload when you&rsquo;re back.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

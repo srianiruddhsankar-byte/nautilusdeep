@@ -105,7 +105,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `lib/ambience-logic.test.ts`. `lib/ambience.ts` — the Web Audio engine (`syncAmbience`): generated noise →
   filters → slow LFO swells → one master gain. `lib/prefs-store.ts` — the remembered setup in localStorage
   (`loadPrefs` / `savePrefs` / `updatePrefs`); `lib/feedback.ts` shares one `AudioContext` for chimes + ambience
-- `lib/stats.ts` — pure stats from sessions (`computeStats(rows, now, timeZone)`), tested in `lib/stats.test.ts`.
+- `lib/stats.ts` — pure stats from sessions (`computeStats(rows, now, timeZone)`, records incl. `bestWeek`,
+  `mostFishDay`), tested in `lib/stats.test.ts`. `lib/stat-sentences.ts` — pure `statSentences`: one or two true,
+  kind lines for the top of Stats (more than last week, or this week's time; when you focus most, only with
+  5+ sessions, 2+ h and a 40 % share), tested.
   `lib/use-clock.ts` — `useClock()`: now + browser time zone, read in an effect (never `Date.now()` in render)
 - `app/_stats/` — `stats-line.tsx` (home "Today · streak" link), `stats-view.tsx`, `charts.tsx` (plain HTML/CSS
   column chart, heatmap, bar list), `viz.css` (chart colours, validated with the dataviz palette checker).
@@ -167,8 +170,9 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `pwa-setup.tsx` (registers `public/sw.js?v=<build>` in production; checks `/version` and offers "New version
   available · Refresh", never while a session runs). `app/icons/[file]/route.tsx` draws every icon / splash PNG
   at build time. `app/manifest.ts`, `app/version/route.ts`, `lib/build-id.ts` (set in `next.config.ts`).
-  `public/sw.js` caches ONLY `/_next/static` (cache first) and `/icons`, `/fish` (refreshed in the background);
-  pages, `/auth`, Supabase and Google always go to the network. `proxy.ts` skips the manifest, worker, icons and
+  `public/sw.js` caches ONLY `/_next/static` (cache first), `/icons`, `/fish` (refreshed in the background) and
+  `public/offline.html` (one self-contained "You're offline" page, colours copied from globals.css, shown only
+  when a page load fails with no network); real pages, `/auth`, Supabase and Google always go to the network. `proxy.ts` skips the manifest, worker, icons, `offline.html` and
   `/version` (the manifest is fetched without cookies). Safe areas: `viewport-fit=cover`, the body pads
   `env(safe-area-inset-*)`, fixed full screens use `.safe-pad`. Settings has "Install the app"
 - Install card: `lib/install-logic.ts` (pure: `iosBrowser` from the user agent, `hasFinishedSession`,
@@ -185,6 +189,10 @@ The owner is a student learning to code: explain what you do and why, briefly.
   `app/_focus/push-offer.tsx` (the running screen's offer), `app/_settings/notifications.tsx` (the Settings switch),
   `app/_account/sign-out.tsx`. `public/sw.js` shows the push (not while Home is on screen) and opens Home on tap.
   Server: `supabase/functions/send-push/index.ts` (Deno, pasted into the dashboard; excluded from tsc / eslint)
+- "What's new" (I-102): `lib/whats-new.ts` (pure: `newestEntry` reads the newest CHANGELOG.md entry's "What's new"
+  bullets, `showWhatsNew`; tested), read by `next.config.ts` at build / dev start into `NEXT_PUBLIC_WHATS_NEW`;
+  `lib/whats-new-seen.ts` (the seen entry, per device); `app/_focus/whats-new-card.tsx` (Home, once per entry,
+  never for a brand-new user). So each CHANGELOG entry's "What's new" bullets are written for users
 - `lib/first-name.ts` — `firstName(user_metadata)` for "Hi, Sri" (never the email), tested
 - `supabase/migrations/` — SQL migrations. The owner pastes each one into the Supabase SQL Editor (no CLI)
 - Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
@@ -368,6 +376,17 @@ raw Tailwind palette colours (`zinc-*`, `sky-*`, `red-*`…) or new one-off styl
 - All in `lib/timer.ts` from timestamps (`checkInDueAt`, `missedCheckInAt`, `checkSession`), so a hidden page or a
   refresh gives the same answer on return. The earliest event wins: a Deep Focus leave (15 s), a missed check-in,
   or the natural end.
+- **A stopwatch's "Still going?" check** (I-113): without Night mode, a stopwatch gets one check-in after
+  `LONG_STOPWATCH_MS` of focus (study 3 h, notes 4 h; tune there), added by `withDetails` (`checkIn.kind = "long"`),
+  again after each tap. Same rules as Night mode, except a missed one credits up to the CHECK itself
+  (`checkInEnd`), not the last tap. Banner "Still going? Tap to keep counting"; result note `endNote: "long-check"`.
+- **Long gaps** (I-112, `lib/timer.ts` "Long gaps", tested in `lib/long-gap.test.ts`): the running screen saves
+  `seenAt` about once a minute while visible and on hide. A session met by a FRESH page (module flag `gapChecked`
+  in focus-screen.tsx) more than `LONG_GAP_MS` (20 min) after `seenAt`, with a minute+ of focus in between
+  (`longGapSince`): Open Focus asks once in a sheet ("Yes, count it" / "No, count until I left"; `gapSince` holds
+  it and nothing moves on meanwhile); Deep Focus without a noticed leave ends at `seenAt` (`endAtSeen`,
+  "The app closed while you were away. The time before that counts."). Both endings are like a missed check-in:
+  `ended_by = 'checkin'`, completed, no bone.
 
 ### Tasks and session types (Phase 6)
 - Tasks: name, optional due date (a plain calendar date), done. Names are unique among NOT-done tasks only

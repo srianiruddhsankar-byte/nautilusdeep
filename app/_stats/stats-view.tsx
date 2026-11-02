@@ -14,6 +14,7 @@ import {
   weekdayIndex,
   type Stats,
 } from "@/lib/stats";
+import { statSentences } from "@/lib/stat-sentences";
 import { taskCompletions } from "@/lib/task-views";
 import { useTasks } from "@/lib/tasks";
 import { SESSION_TYPE_LABEL, type SessionType } from "@/lib/timer";
@@ -50,6 +51,11 @@ export function StatsView() {
     [rows, clock],
   );
   const garden = useMemo(() => (rows ? deriveGarden(rows) : null), [rows]);
+  // One or two plain sentences, true and kind (lib/stat-sentences.ts).
+  const sentences = useMemo(
+    () => (rows && clock ? statSentences(rows, clock.now, clock.timeZone) : []),
+    [rows, clock],
+  );
   const completed = useMemo(
     () => (tasks && clock ? taskCompletions(tasks, clock.now, clock.timeZone) : null),
     [tasks, clock],
@@ -81,6 +87,16 @@ export function StatsView() {
   return (
     <StatsIntro.Provider value={intro}>
       <div className={`flex flex-col gap-5 ${intro ? "stagger-in" : fade}`}>
+        {sentences.length > 0 && (
+          <Card as="section" aria-label="In short" className="gap-1">
+            {sentences.map((line) => (
+              <p key={line} className="font-semibold">
+                {line}
+              </p>
+            ))}
+          </Card>
+        )}
+
         {/* Study and notes together: both keep the streak alive. */}
         <Section
           title="Streak"
@@ -250,7 +266,6 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
           <Section title="Sessions">
             <Tiles>
               <Tile label="Total" value={String(stats.sessions.total)} />
-              <Tile label="Longest" value={formatDuration(stats.sessions.longestSeconds)} />
               <Tile
                 label="Average"
                 value={formatDuration(stats.sessions.averageSeconds)}
@@ -320,13 +335,26 @@ function TypeStats({ type, stats, garden }: { type: SessionType; stats: Stats; g
             )}
           </Section>
 
-          <Section title="Records">
+          <Section title="Records" note="Your personal bests. The longest streak is under Streak.">
             <Tiles>
               <Tile
                 label="Best day"
                 value={stats.bestDay ? formatDuration(stats.bestDay.seconds) : "–"}
                 sub={stats.bestDay ? formatDay(stats.bestDay.day, true) : undefined}
               />
+              <Tile
+                label="Best week"
+                value={stats.bestWeek ? formatDuration(stats.bestWeek.seconds) : "–"}
+                sub={stats.bestWeek ? `Week of ${formatDay(stats.bestWeek.day, true)}` : undefined}
+              />
+              <Tile label="Longest session" value={stats.sessions.longestSeconds ? formatDuration(stats.sessions.longestSeconds) : "–"} />
+              {study && (
+                <Tile
+                  label="Most fish in a day"
+                  value={stats.mostFishDay ? String(stats.mostFishDay.count) : "–"}
+                  sub={stats.mostFishDay ? formatDay(stats.mostFishDay.day, true) : undefined}
+                />
+              )}
               <Tile
                 label="Most productive"
                 value={hasHours ? `${formatHour(peakHour)}–${formatHour((peakHour + 1) % 24)}` : "–"}

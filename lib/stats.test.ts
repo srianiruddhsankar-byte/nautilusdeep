@@ -449,3 +449,37 @@ describe("target vs actual", () => {
     assert.equal(compareToTarget(45 * 60 + 59, 45).text, "Took 45 min — right on target");
   });
 });
+
+describe("personal records", () => {
+  // Mon 5 Oct – Sun 11 Oct: 30 + 40 = 70 min. Mon 12 Oct – today (Wed 14): 60 min.
+  const rows = [
+    session("2026-10-05 09:00", 30),
+    session("2026-10-11 09:00", 40),
+    session("2026-10-12 09:00", 20),
+    session("2026-10-12 11:00", 5),
+    session("2026-10-12 15:00", 6),
+    session("2026-10-13 09:00", 29),
+    session("2026-10-13 12:00", 4), // under 5 min: no fish
+    session("2026-10-13 14:00", 50, { outcome: "failed", focus_seconds: 0 }),
+  ];
+  const stats = computeStats(rows, NOW, IST);
+
+  test("best week: Monday to Sunday, named by its Monday", () => {
+    assert.deepEqual(stats.bestWeek, { day: "2026-10-05", seconds: 70 * 60 });
+  });
+
+  test("most fish in a day: only sessions that hatched one", () => {
+    assert.deepEqual(stats.mostFishDay, { day: "2026-10-12", count: 3 });
+  });
+
+  test("a tie keeps the record that was set first", () => {
+    const tie = computeStats([session("2026-10-05 09:00", 30), session("2026-10-12 09:00", 30)], NOW, IST);
+    assert.deepEqual(tie.bestWeek, { day: "2026-10-05", seconds: 30 * 60 });
+  });
+
+  test("no sessions: no records", () => {
+    const empty = computeStats([], NOW, IST);
+    assert.equal(empty.bestWeek, null);
+    assert.equal(empty.mostFishDay, null);
+  });
+});

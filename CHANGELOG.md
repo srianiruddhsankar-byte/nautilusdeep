@@ -3,6 +3,35 @@
 What changed in Deep Nautilus, newest first. One entry per big update; small fixes go under "Small fixes" in
 the next big entry. Idea IDs point at `Ideas/DONE.md`.
 
+## 2026-10-23 · Quick wins 4: stats, records and honest time
+
+### What's new
+- Stats open with a sentence or two about your week, and Records now has your best week, longest session and
+  most fish in a day.
+- A forgotten stopwatch can't run forever: after 3 hours (4 for notes) it asks "Still going?".
+- Back after the app closed for a while? Open Focus asks whether to count that time; Deep Focus keeps the time
+  before, with no bone.
+- Opening the app with no connection shows a calm "You're offline" page, and this note shows once after each
+  update.
+
+Ideas built: I-005, I-026, I-098, I-102, I-112, I-113
+
+### Notes for me
+- The offline page and the service worker only run in production (`npm run build && npm start` to try them).
+- This "What's new" text is what users see: it's read from this entry when the app is built.
+
+## 2026-10-22 · Quick wins 3: tank, results and starting
+
+### What's new
+- See your tank full screen with one tap; decorations are bigger, and the Shop shows how many items are put away.
+- The result screen says honestly what a short session still counted, how many coins until the next decoration,
+  and what unlocks next.
+- "Just start: 10 minutes" under Start, for the days starting feels hard.
+- Session settings show the fish odds for your session length, and a typed task can be added to your list in
+  one tap.
+
+Ideas built: I-070, I-074, I-087 (odds in words only), I-090, I-093 (bigger only), I-095, I-100, I-103, I-111
+
 ## 2026-10-22 · Quick wins 2: More, Settings and Account
 
 ### What's new

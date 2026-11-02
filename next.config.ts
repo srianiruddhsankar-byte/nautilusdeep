@@ -1,6 +1,7 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { NextConfig } from "next";
+import { newestEntry } from "./lib/whats-new";
 
 // Painted fish art: any public/fish/<species id>.png replaces that species'
 // drawing in the tank (app/_tank/tank4/art-files.ts). The list is read when
@@ -17,6 +18,17 @@ function fishArtFiles() {
   }
 }
 
+// "What's new" on Home (lib/whats-new.ts): the newest CHANGELOG.md entry's
+// bullets, read at build time (and when the dev server starts).
+function whatsNew() {
+  try {
+    const entry = newestEntry(readFileSync(join(process.cwd(), "CHANGELOG.md"), "utf8"));
+    return entry ? JSON.stringify(entry) : "";
+  } catch {
+    return "";
+  }
+}
+
 // Which deploy this is (lib/build-id.ts): Vercel's deployment id, else the
 // commit. BUILD_ID=… overrides it, to test the "New version" toast locally.
 const buildId =
@@ -28,6 +40,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_FISH_ART: fishArtFiles(),
     NEXT_PUBLIC_BUILD_ID: buildId,
+    NEXT_PUBLIC_WHATS_NEW: whatsNew(),
   },
   // The service worker must never come from a cache, or updates would stall.
   async headers() {

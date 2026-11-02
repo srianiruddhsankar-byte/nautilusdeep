@@ -205,3 +205,68 @@ The full rules for each feature live in CLAUDE.md; this file is the record of wh
   in Settings.
   - Done in: Quick wins, Batch 2 (2026-10-22). Auto-picks Low on devices reporting ≤ 2 GB memory or ≤ 2 cores (iPhones start on High).
   - Related: P-039, P-014, I-089, I-038
+
+### Batch 3 · Home, results, Shop (2026-10-22)
+- **I-095 · Full-screen tank** · `Reusable`: one tap to see the tank on its own, filling the screen, with
+  nothing else in the way. A calm thing to look at during a break.
+  - Done in: Quick wins, Batch 3 (2026-10-22). A ⤢ button on Home and the running screen; × or Esc closes; closes itself when a Night mode check-in comes due.
+  - Related: P-034
+- **I-103 · Make "Your items" easy to find**: the storage box already exists ("Put away" → "Your items" on the
+  Shop page). Show it where people decorate, with a count ("3 put away"), so nobody thinks put-away items are
+  gone.
+  - Done in: Quick wins, Batch 3 (2026-10-22). The tab reads "Your items · N"; a toast after "Put away".
+  - Related: I-094, I-057
+- **I-111 · "Next buy" line** · `Reusable`: on the result screen, next to the coins earned, one quiet line: "+25
+  coins · 15 more for the Coral arch". Gives coins a purpose without a store pop-up.
+  - Done in: Quick wins, Batch 3 (2026-10-22). Uses coins actually earned (Open Focus = half); cheapest bought item you don't own, never a milestone item.
+  - Related: P-036, I-057, I-070
+- **I-070 · Show the end goal** · `Reusable`: make it clear what you're working towards: skins unlock up to
+  150 h, the nautilus arrives at 100 h, fill the Sea life index. A quiet "next: River skin at 30 h" line, not
+  a progress bar to grind.
+  - Done in: Quick wins, Batch 3 (2026-10-22). On the result screen: the next skin or the nautilus, whichever comes first.
+  - Related: I-009, I-058, I-061, P-001
+- **I-090 · Add a task from the timer** · `Reusable`: when you type a task name on the setup or running screen
+  that isn't on your list, one tap ("+ Add to tasks") saves it as a task, so you never have to go to the Tasks
+  tab first.
+  - Done in: Quick wins, Batch 3 (2026-10-22). In the setup sheet's task field.
+  - Related: I-048, I-049, P-002
+- **I-100 · An honest result for short sessions** · `Reusable`: when a session is too short for a fish or plant,
+  the result screen says what still counted: "12 min counted · +12 coins · today's streak day. Plants start at
+  15 min."
+  - Done in: Quick wins, Batch 3 (2026-10-22). Coins shown are the coins actually earned.
+  - Related: P-032, I-086
+- **I-074 · "Just start" button** · `Reusable`: one tap for a tiny session ("Just 10 minutes"), for the moments
+  you're procrastinating and want to feel better. When the 10 minutes end, Continue (I-063) lets you keep going
+  if you've found your rhythm. Small enough that saying no feels silly.
+  - Done in: Quick wins, Batch 3 (2026-10-22). Always a plain 10-minute timer; never changes the saved setup.
+  - Related: P-002, P-024, I-063, I-078
+
+### Batch 4 · stats, records and honest time (2026-10-23)
+- **I-098 · Plain-language stat sentences** · `Reusable`: one or two lines at the top of Stats, worked out from
+  data the app already has: "You focus best in the mornings", "More than last week: 4 h vs 3 h".
+  - Done in: Quick wins, Batch 4 (2026-10-23). A sentence or two about your week at the top of Stats.
+  - Related: P-012, I-046
+- **I-005 · Personal records** · `Reusable`: most time in a day/week, most fish in a day, longest session, etc.
+  - Done in: Quick wins, Batch 4 (2026-10-23). Records: best week, longest session, longest streak, most fish in a day.
+- **I-026 · Open the app offline** · `Reusable`: the service worker (Phase 10a) caches only build files and
+  pictures, never pages, so opening the installed app with no connection shows the phone's "offline" page.
+  - Done in: Quick wins, Batch 4 (2026-10-23). A calm "You're offline" page (production only).
+  - Related: P-016
+- **I-102 · "What's new" after a big update** · `Reusable`: after a big update ships, a short note shows once
+  ("What's new: a quiet alarm for libraries, full-screen tank"). The app already notices new versions ("New
+  version available · Refresh"); this adds the note after the refresh. The developer's changelog is DONE.md
+  (every built idea with its phase and date), so the note is written from it.
+  - Done in: Quick wins, Batch 4 (2026-10-23). Shows once after each update, from the newest CHANGELOG.md entry.
+  - Related: I-064
+- **I-112 · "Were you still studying?" after a long gap** · `Reusable`: when you come back to a running session
+  after a long time away (the phone died, the app was closed), ask once: "Were you studying the whole time?"
+  with "Yes, count it" and "No, count until I left". Stops a stopwatch from crediting hours you didn't study.
+  - Done in: Quick wins, Batch 4 (2026-10-23). Open Focus asks after a long gap; Deep Focus ends at the moment you left, with no bone.
+  - Related: P-040, I-054, P-021
+- **I-113 · A stopwatch that can't run forever** · `Reusable`: if you forget to stop the stopwatch, it shouldn't
+  count hours you didn't study. Not a hard cap that throws the session away, but an automatic "Still going?"
+  check after a long time: about 3 h for Study and longer for Notes (writing notes takes longer), the exact numbers
+  to tune. No answer within 2 min = the session ends at the check, crediting time only up to there, with no bone
+  and no dying fish (the same rule Night mode already uses).
+  - Done in: Quick wins, Batch 4 (2026-10-23). After 3 h (study) or 4 h (notes) without Night mode.
+  - Related: P-040, I-112, I-054

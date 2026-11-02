@@ -13,6 +13,7 @@ export const CANCEL_WINDOW_MS = 10_000;
 // Night mode: how long a "Still studying?" check-in waits for a tap.
 export const CHECK_IN_GRACE_MS = 2 * 60_000;
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 // Continue session: how long the break after a session waits for "Continue".
 export const CONTINUE_WINDOW_MS = 15 * MINUTE;
 
@@ -81,6 +82,10 @@ export type Session = {
   // Continue session: present on sessions started since it exists (older ones
   // simply end, as before). See "Continuing" below.
   chain?: Chain;
+  // Coming back after a long gap (see "Long gaps" below): when the running
+  // screen was last seen, and the Open Focus question while it waits.
+  seenAt?: number;
+  gapSince?: number | null;
 };
 
 // Continuing turns a session into a chain, like a cycle: part, break, part…
@@ -94,7 +99,9 @@ export type SessionAmbience = { sound: AmbienceChoice; volume: number; paused: b
 
 // How a check-in asks: a gentle chime (+ a buzz), a repeating check-in alarm, or a silent pulse.
 export type CheckInStyle = "chime" | "vibrate" | "alarm" | "pulse";
-export type CheckInSettings = { intervalMs: number; style: CheckInStyle };
+// kind: "night" = Night mode (missing = night, as before); "long" = a stopwatch's
+// "Still going?" check after a long time (LONG_STOPWATCH_MS), added at Start.
+export type CheckInSettings = { intervalMs: number; style: CheckInStyle; kind?: "night" | "long" };
 
 // checkin = a Night mode check-in went unanswered (fell asleep): credit stops at the last confirmation.
 export type EndReason = "finished" | "stopped" | "left" | "checkin";
@@ -108,6 +115,10 @@ export type Result = {
   startedAt: number;
   endedAt: number;
   plannedMs: number | null; // total planned focus time; null for the stopwatch
+  // Why a "checkin" ending happened, for the result screen's words (never stored
+  // in the database): the stopwatch's "Still going?" check, or a long gap
+  // (answered "No" in Open Focus, or the app closed during Deep Focus).
+  endNote?: "long-check" | "gap-no" | "gap-closed";
   focusMs: number; // focus time that counts
   lostMs: number; // focus time spent in an unfinished block that doesn't count
   blocksCompleted: number;
@@ -192,7 +203,7 @@ export function withDetails(session: Session, details: SessionDetails): Session 
     sessionType: details.sessionType,
     task: cleanTaskName(details.task),
     targetMinutes: keepsTarget ? details.targetMinutes : null,
-    checkIn: details.checkIn ?? null,
+    checkIn: details.checkIn ?? longCheck(session.mode, details.sessionType),
     ambience:
       details.ambience && details.ambience.sound !== "off" ? { ...details.ambience, paused: false } : null,
   };
@@ -528,6 +539,54 @@ export function confirmCheckIn(session: Session, now: number): Session {
   return { ...session, confirmedAt: now };
 }
 
+// A stopwatch that can't run forever: without Night mode, a stopwatch gets one
+// "Still going?" check after this much focus (again after each tap). It works
+// exactly like a Night mode check-in: no tap in 2 minutes = the session ends at
+// the check, no bone, no dying fish. Tune here.
+export const LONG_STOPWATCH_MS: Record<SessionType, number> = { study: 3 * HOUR, notes: 4 * HOUR };
+
+function longCheck(mode: Mode, sessionType: SessionType): CheckInSettings | null {
+  return mode === "stopwatch" ? { intervalMs: LONG_STOPWATCH_MS[sessionType], style: "chime", kind: "long" } : null;
+}
+
+// ---------- Long gaps ----------
+//
+// The running screen saves `seenAt` about once a minute while it's on screen,
+// and when it's hidden. If the session is reopened by a FRESH page (the app was
+// closed, the phone died, the browser threw the tab away) more than
+// LONG_GAP_MS later, with focus time that would have counted in between, the
+// time away is in doubt:
+// - Open Focus: ask once, "Count that time?" (gapSince holds the question).
+// - Deep Focus: you weren't in the app, so it ends at seenAt (like a missed
+//   check-in: completed, no bone, no dying fish). A leave the app noticed
+//   (awaySince) keeps the normal leave rules instead.
+// A Night mode check-in that already ran out wins (checkSession ends it).
+
+export const LONG_GAP_MS = 20 * MINUTE;
+export const SEEN_EVERY_MS = MINUTE;
+
+export function markSeen(session: Session, now: number): Session {
+  return { ...session, seenAt: now };
+}
+
+// On a fresh page: the moment the app was last seen, if the gap since then
+// needs handling; null otherwise.
+export function longGapSince(session: Session, now: number): number | null {
+  const seen = session.seenAt;
+  if (seen === undefined || now - seen < LONG_GAP_MS) return null;
+  if (!isOpenFocus(session) && session.awaySince !== null) return null;
+  const missed = missedCheckInAt(session, now);
+  if (missed !== null && missed <= now) return null;
+  if (focusMsBetween(session, seen, now) < MINUTE) return null; // a break or a pause: nothing in doubt
+  return seen;
+}
+
+// Ends the session at `at`, crediting nothing after it, the same way a missed
+// check-in does. `note` tells the result screen why.
+export function endAtSeen(session: Session, at: number, note: "gap-no" | "gap-closed"): Result {
+  return { ...endAtLastCheckIn(session, at), endNote: note };
+}
+
 // ---------- Ending ----------
 
 export function endSession(session: Session, reason: EndReason, at: number): Result {
@@ -540,7 +599,7 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   }
   // Stopping during the final long break ("Finish") is a full finish, not an early end.
   if (reason === "stopped" && isFinalBreak(session, at)) reason = "finished";
-  if (reason === "checkin") return endAtLastCheckIn(session);
+  if (reason === "checkin") return endAtLastCheckIn(session, checkInEnd(session, at));
 
   const focusSoFar = focusBetweenS(session, session.startedAt, atS);
   let failed: boolean;
@@ -584,11 +643,18 @@ export function endSession(session: Session, reason: EndReason, at: number): Res
   };
 }
 
-// A missed check-in: the session counts only up to the last confirmation, and
-// that's when it ends. Completed (a cycle keeps only blocks fully finished by
-// then, so it's partial); never failed, so no bone and no dying fish.
-function endAtLastCheckIn(session: Session): Result {
-  const end = lastConfirmed(session);
+// Where a missed check-in's credit stops: Night mode at the last confirmation
+// (you fell asleep some time after it); a stopwatch's "Still going?" check at
+// the check itself (you were there until then: you started it and it counted).
+function checkInEnd(session: Session, now: number): number {
+  const due = dueS(session);
+  return session.checkIn?.kind === "long" && due !== null ? toReal(session, due, now) : lastConfirmed(session);
+}
+
+// A missed check-in (or a long gap, endAtSeen): the session counts only up to
+// `end`, and that's when it ends. Completed (a cycle keeps only blocks fully
+// finished by then, so it's partial); never failed, so no bone and no dying fish.
+function endAtLastCheckIn(session: Session, end: number): Result {
   const endAtS = toSession(session, end);
   const isCycle = session.mode === "cycle";
   const banked = bankedS(session, endAtS);
@@ -612,6 +678,7 @@ function endAtLastCheckIn(session: Session): Result {
     targetMinutes: session.targetMinutes ?? null,
     cycleName: isCycle ? (session.cycleName ?? null) : null,
     parts: partsOf(session, isCycle ? lastBankedEndS(session, endAtS) : endAtS),
+    ...(session.checkIn?.kind === "long" ? { endNote: "long-check" as const } : {}),
   };
 }
 

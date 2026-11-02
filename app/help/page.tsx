@@ -110,9 +110,9 @@ export default function MorePage() {
             and the time stays right.
           </QA>
           <QA q="What if my battery dies?">
-            Finished sessions are already saved to your account. In Deep Focus, the running session usually ends when
-            the phone dies, like leaving: a plain session ends early, a cycle keeps its finished blocks. In Open Focus
-            the clock keeps going: end the session when you&apos;re back (a timer that ran out meanwhile counts as done).
+            Finished sessions are already saved to your account. When you open the app again: in Deep Focus the session
+            ends where the app closed, keeping the time before, with no bone. In Open Focus it asks whether to count the
+            time you were away. A forgotten stopwatch asks &ldquo;Still going?&rdquo; after a few hours.
           </QA>
           <QA q="Started by accident?" more={{ href: "#card-cancel", label: `The ${CANCEL}-second cancel` }}>
             For the first {CANCEL} seconds the button says Cancel. Tap it and nothing is saved.
